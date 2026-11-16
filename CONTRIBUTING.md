@@ -19,12 +19,21 @@ brew install uv sdl2 ffmpeg
 ```
 
 You don't install ESPHome. The scripts run ESPHome 2026.10.2 through uv.
+`.python-version` pins the Python the tests and builds use (3.14).
+`uv run` reads it; `uvx` doesn't, so the harness and CI pass it on.
 
 Fork the repository, clone your fork, and make a branch for your change:
 
 ```sh
 git clone https://github.com/<you>/daruma && cd daruma
 git switch -c my-change
+```
+
+Install the commit message check once. It runs gitlint on every commit
+you make (see [Commits](#commits)):
+
+```sh
+uvx pre-commit install
 ```
 
 To try your change on a real device, point the device file at your fork
@@ -131,6 +140,8 @@ uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml p
 GitHub Actions runs [ci.yml](.github/workflows/ci.yml) on every pull
 request and on every push to main. A new push to a pull request cancels
 its old run.
+[conventional-commits.yml](.github/workflows/conventional-commits.yml)
+checks the pull request title and every commit message in it.
 
 | Job | What it runs |
 |---|---|
@@ -140,6 +151,8 @@ its old run.
 | Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
 | Screen tests (golden) | test 3 above, on Ubuntu with SDL2 |
 | Screen tests (pytest) | test 4 above, on Ubuntu with SDL2 |
+| Pull request title | the title is a Conventional Commit |
+| Commit messages | `gitlint` on each commit of the pull request |
 
 The examples fetch Daruma with git. In CI they fetch the checkout under
 test, not main. To do the same on your machine, commit first, then:
@@ -157,10 +170,20 @@ points a local branch `ci-head` at your commit. Never flash this build.
 When a screen test fails, the job uploads its frames, diffs and logs as
 an artifact. Download it from the run's summary page.
 
-[release.yml](.github/workflows/release.yml) runs only when a `v*` tag
-is pushed. It compiles `examples/box3.yaml` and makes a GitHub release
-with the factory and OTA `.bin` files and generated notes. Those files
-are a reference build with placeholder secrets.
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) makes
+the releases. You don't tag by hand.
+
+1. On every push to main, it reads the commits since the last release.
+2. It opens or updates a release pull request. That pull request
+   updates `CHANGELOG.md` and the version in `pyproject.toml`.
+3. When the owner merges it, release-please tags `v<version>` and
+   publishes a GitHub release with the same notes.
+
+A release has no firmware files. Each device builds its own firmware
+from the packages, with its own personas and secrets. Pin a device to a
+release with `daruma_ref: v0.1.0`.
 
 ## Golden pictures and frames
 
@@ -222,6 +245,25 @@ This is a public repository. Demo data is made up.
   `fix(prompts): long titles wrap inside the card`. Common scopes:
   `core`, `pixel`, `apps`, `prompts`, `menu`, `pomodoro`, `demos`,
   `docs`.
+- The pull request title follows the same format. A squash merge of
+  several commits makes it the commit on main.
+- gitlint checks the format ([.gitlint](.gitlint)): locally after
+  `uvx pre-commit install`, and in CI. To check your branch by hand:
+  `uvx --from gitlint-core==0.19.1 gitlint --commits origin/main..HEAD`.
+
+The type sets the next version. Before 1.0.0:
+
+| Type | Use it for | Next release |
+|---|---|---|
+| `feat` | a new persona, app, option or state | minor: 0.1.0 to 0.2.0 |
+| `fix` | a bug fix | patch: 0.1.0 to 0.1.1 |
+| `perf` | faster or smaller, same behavior | patch |
+| `revert` | undo an earlier commit | patch |
+| `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore` | everything else | no release on its own |
+
+A breaking change adds `!` after the type (`feat(core)!: ...`) or a
+`BREAKING CHANGE:` line in the body. Before 1.0.0 it bumps the minor
+version.
 - The body says why, and what a reader can't see in the diff.
 - Sign your commits if you can (`git commit -S`).
 - Code comments explain the code on their own. They don't cite tickets,

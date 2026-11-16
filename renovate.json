@@ -47,6 +47,19 @@
       ],
       "depNameTemplate": "aioesphomeapi",
       "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "gitlint pins in the workflows and .gitlint (uvx --from gitlint-core==...)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/",
+        "/^\\.gitlint$/"
+      ],
+      "matchStrings": [
+        "gitlint-core==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "gitlint-core",
+      "datasourceTemplate": "pypi"
     }
   ],
   "packageRules": [
@@ -63,6 +76,28 @@
         "aioesphomeapi"
       ],
       "groupName": "ESPHome"
+    },
+    {
+      "description": "gitlint in pre-commit and in CI moves as one",
+      "matchDepNames": [
+        "gitlint-core",
+        "jorisroovers/gitlint"
+      ],
+      "groupName": "gitlint"
+    },
+    {
+      "description": "The Python pin in .python-version: one pull request per minor release, on a monthly schedule",
+      "matchManagers": [
+        "pyenv"
+      ],
+      "groupName": "Python",
+      "schedule": [
+        "* 0-6 1 * *"
+      ]
     }
-  ]
+  ],
+  "semanticCommits": "enabled",
+  "pre-commit": {
+    "enabled": true
+  }
 }

@@ -1,0 +1,28 @@
+# The pixel-art library (pixel/daruma_pixel) as a Python package, for
+# scripts and previews outside an ESPHome build:
+#
+#   pip install "git+https://github.com/igrybkov/daruma"
+#
+# ESPHome builds do not install it: the components load it from the
+# checkout they come from.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daruma-pixel"
+version = "0.1.0"
+description = "Pixel-art rooms, personas and engines for Daruma device personas"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["pillow>=10"]
+
+[project.urls]
+Homepage = "https://github.com/igrybkov/daruma"
+
+[tool.setuptools.packages.find]
+where = ["pixel"]
+include = ["daruma_pixel*"]

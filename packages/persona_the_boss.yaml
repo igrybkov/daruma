@@ -1,0 +1,31 @@
+# The Boss: a confident executive at her walnut desk, in a teal blazer, with
+# a whiteboard chart and a snake plant behind her. Checks her watch and sips
+# from her mug when idle, and puts on reading glasses to focus. Adds 'The
+# Boss' to the Persona select. Her office has no window or growing plant: the
+# sky and progress signals do not show.
+#
+# Drawn by Python while the firmware compiles (pixel/daruma_pixel/the_boss.py
+# on desk_boss.py, through personas.py); edit the art there and compile.
+# Previews: see personas.py.
+
+daruma_sprites:
+  - id: the_boss
+    name: The Boss
+    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: the_boss }
+    behaviors:
+      focus: { animation: Focus }
+    # Menu and apps: her cream office paper on a warm wall, with teal ink and
+    # a teal header edge, like her blazer.
+    theme:
+      style: paper
+      frame: "DED2BE"
+      edge: "1E6064"
+      panel: "F4EEE2"
+      ink: "1C2C2E"
+      muted: "5E6E6C"
+      title: "1E4E52"
+      accent: "307E80"
+      dot: "A89A82"
+      dock: "F4EEE2"
+      dock_ink: "1C2C2E"
+      dock_muted: "5E6E6C"

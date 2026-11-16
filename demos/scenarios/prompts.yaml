@@ -1,0 +1,41 @@
+name: prompts
+description: >-
+  The doorbell as an urgent prompt, answered with Unlock, then a quiz
+  question with a countdown, answered and marked.
+personas: all
+test_personas: [Eyes]
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - prompt:
+      id: door
+      title: Doorbell
+      body: Someone is at the front door.
+      options: [Unlock, Talk, Ignore]
+      style: urgent
+  - expect: {visible: {role: button, name: Unlock}, state: attention}
+  - wait: 2
+  - snapshot: doorbell
+  - tap: {role: button, name: Unlock}
+  - expect: {event: {type: esphome.daruma_prompt, id: door, choice: Unlock, reason: chosen}}
+  - expect: {hidden: {role: dialog}}
+  - wait: 1.5
+  - prompt:
+      id: quiz
+      layout: choice
+      title: Quiz 1 of 3
+      body: Which planet is the largest?
+      options: [Mars, Jupiter, Venus, Earth]
+      style: game
+      timeout: 20
+  - wait: 2.5
+  - snapshot: quiz
+  - tap: {role: button, name: Jupiter}
+  - expect: {event: {type: esphome.daruma_prompt, id: quiz, choice: Jupiter, index: 1}}
+  - update_prompt: {id: quiz, marks: ["", correct, "", ""], countdown: 0}
+  - wait: 2
+  - snapshot: quiz-correct
+  - action: {name: prompt_close, id: quiz}
+  - wait: 1.5

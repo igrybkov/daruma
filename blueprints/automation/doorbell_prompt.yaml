@@ -1,0 +1,129 @@
+blueprint:
+  name: Daruma doorbell prompt
+  domain: automation
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/automation/doorbell_prompt.yaml
+  description: >-
+    When the doorbell rings, a Daruma device shows an urgent card:
+    "Someone's at the door" with Unlock, Talk and Ignore. Unlock opens the
+    lock; Talk runs your talk action. The card closes by itself after the
+    timeout.
+
+
+    Needs the device's prompts package (packages/prompts.yaml of Daruma).
+    The card is shown with prompt_show, and the automation waits for the
+    answer event esphome.daruma_prompt, which needs no extra permission
+    on the ESPHome device. A new ring while the card is up starts over.
+  input:
+    doorbell:
+      name: Doorbell
+      description: >-
+        A binary sensor that turns on at a ring, or an event entity that
+        fires on one.
+      selector:
+        entity:
+          domain: [binary_sensor, event]
+    lock:
+      name: Lock
+      description: The lock that Unlock opens.
+      selector:
+        entity:
+          domain: lock
+    talk_action:
+      name: Talk action
+      description: What Talk does, such as starting a two-way audio call.
+      default: []
+      selector:
+        action: {}
+    device:
+      name: Daruma
+      description: The Daruma device. Only its answers count.
+      selector:
+        device:
+          integration: esphome
+    node_name:
+      name: Device node name
+      description: >-
+        The ESPHome node name with "-" as "_". Its actions are named after it
+        (esphome.daruma_prompt_show), even if the device was renamed in HA.
+      default: daruma
+      selector:
+        text: {}
+    timeout:
+      name: Timeout
+      description: How long the card waits for an answer.
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 600
+          unit_of_measurement: s
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  node: !input node_name
+  timeout: !input timeout
+  prompt_id: doorbell
+
+triggers:
+  # A real change of state only: no attribute updates, and no coming back
+  # from unavailable. A binary sensor rings on "on"; an event entity's state
+  # is the time of its latest event.
+  - trigger: state
+    entity_id: !input doorbell
+    not_from: [unavailable, unknown]
+    not_to: [unavailable, unknown, "off"]
+
+actions:
+  # Closing sends no event. Replacing a card from an earlier ring would
+  # send "replaced", which the wait below could take for the answer.
+  - action: "esphome.{{ node }}_prompt_close"
+    data:
+      id: "{{ prompt_id }}"
+  - action: "esphome.{{ node }}_prompt_show"
+    data:
+      id: "{{ prompt_id }}"
+      layout: message
+      title: Someone's at the door
+      body: ""
+      options: [Unlock, Talk, Ignore]
+      marks: []
+      style: urgent
+      timeout: "{{ timeout | int }}"
+      state: ""
+      sound: ""
+      dismissable: true
+  # The device answers with reason timeout when its countdown runs out; the
+  # few extra seconds here only cover a lost event.
+  - wait_for_trigger:
+      - trigger: event
+        event_type: esphome.daruma_prompt
+        event_data:
+          id: doorbell
+          device_id: !input device
+    timeout:
+      seconds: "{{ timeout | int + 5 }}"
+    continue_on_timeout: true
+  - if:
+      - condition: template
+        value_template: "{{ not wait.trigger }}"
+    then:
+      - action: "esphome.{{ node }}_prompt_close"
+        data:
+          id: "{{ prompt_id }}"
+      - stop: No answer
+  - variables:
+      answer: "{{ wait.trigger.event.data }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ answer.reason == 'chosen' and answer.index | int == 0 }}"
+        sequence:
+          - action: lock.unlock
+            target:
+              entity_id: !input lock
+      - conditions:
+          - condition: template
+            value_template: "{{ answer.reason == 'chosen' and answer.index | int == 1 }}"
+        sequence: !input talk_action

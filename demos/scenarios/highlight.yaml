@@ -1,0 +1,17 @@
+name: highlight
+description: >-
+  A short loop for the README's grid: idle with a blink, a pet, and a
+  celebration. Small on purpose (as big as the screen, a few seconds); the
+  full demos are the showcase scenarios.
+personas: all
+gif_scale: 1
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - pet: true
+  - expect: {state: petted}
+  - wait: 2
+  - show: celebrate
+  - wait: 3.2

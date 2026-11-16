@@ -1,0 +1,29 @@
+name: apps
+description: >-
+  The menu's app board, Tasks with a task checked off, and Calendar with
+  today's events (made-up data), then tomorrow.
+personas: all
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - tap: [160, 100]
+  - tap: {text: More}
+  - expect: {visible: {role: tile, name: Tasks}}
+  - wait: 1.5
+  - tap: {role: tile, name: Tasks}
+  - expect: {visible: {role: row, name: Water the fern}}
+  - wait: 1.5
+  - tap: {role: row, name: Water the fern}
+  - wait: 2.5
+  - swipe: {from: [160, 190], to: [160, 90]}
+  - wait: 1.5
+  - tap: {role: button, name: Back}
+  - tap: {role: tile, name: Calendar}
+  - wait: 3
+  # The arrow to the next day.
+  - tap: [290, 59]
+  - wait: 2
+  - press: {input: home, seconds: 2}
+  - wait: 1.5

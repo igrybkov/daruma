@@ -1,0 +1,282 @@
+# Daruma board: a window on a computer (ESPHome's `host` platform and
+# SDL). For demos and tests; nothing here runs on a device. Pairs with
+# core.yaml. It leaves out core_voice.yaml: there is no mic, speaker, wake
+# word or Wi-Fi. Sounds are not played; while a recording runs, each one is
+# written as a WAV file (components/daruma_desktop).
+#
+# Inputs, named like the BOX-3's (bind them in the device yaml):
+#   home    the H key, or Escape: press, double, hold (1.5 s)
+#   top     the T key: press, double, hold (1 s)
+#   screen  the mouse: tap, double, hold (1 s), long_hold (3 s),
+#           swipe_left/right/up/down, stroke
+#
+# Scripts drive it through the API (demos/harness.py): the
+# desktop_* actions below tap, swipe, press and record. Run it without a
+# window with SDL_VIDEODRIVER=dummy.
+#
+# Screen size: desktop_width and desktop_height (320x240 by default).
+
+substitutions:
+  # Font sizes for a 320x240 screen, as on the BOX-3.
+  font_size_text: "17"
+  font_size_small: "13"
+  font_size_badge: "17"
+  font_size_icon: "30"
+  font_size_timer: "22"
+  font_size_title: "20"
+  desktop_width: "320"
+  desktop_height: "240"
+  desktop_api_port: "6053"
+  # The clock's time zone. Fixed, so a run gives the same screens anywhere.
+  desktop_timezone: UTC
+
+host:
+
+logger:
+  level: DEBUG
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_desktop]
+
+api:
+  port: ${desktop_api_port}
+  # Send each message at once. The runner's clock stands still while it
+  # lists the entities, so a batch waiting for its delay would never go.
+  batch_delay: 0ms
+  # Nothing else ends the boot screen here: there is no voice assistant.
+  on_client_connected:
+    - lambda: |-
+        id(init_in_progress) = false;
+        id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+    - script.execute: draw_display
+  actions:
+    - action: desktop_tap
+      variables: { x: int, y: int }
+      then:
+        - lambda: id(desktop).tap(x, y);
+    - action: desktop_hold
+      variables: { x: int, y: int, ms: int }
+      then:
+        - lambda: id(desktop).hold(x, y, ms);
+    - action: desktop_swipe
+      variables: { x1: int, y1: int, x2: int, y2: int, ms: int }
+      then:
+        - lambda: id(desktop).swipe(x1, y1, x2, y2, ms);
+    - action: desktop_stroke
+      variables: { x: int, y: int }
+      then:
+        - lambda: id(desktop).stroke(x, y);
+    - action: desktop_press
+      variables: { input: string, ms: int }
+      then:
+        - lambda: id(desktop).press(input, ms);
+    # Plays a reaction by its state name (petted, startled, ...), for tests
+    # that check every reaction, also those no gesture starts.
+    - action: desktop_react
+      variables: { state: string }
+      then:
+        - lambda: |-
+            for (int i = 0; i < Daruma::state_count(); i++) {
+              const auto s = static_cast<Daruma::StateId>(i);
+              if (state == Daruma::state_name(s)) {
+                id(daruma_hub).react(s);
+                return;
+              }
+            }
+            ESP_LOGW("desktop", "No state '%s'", state.c_str());
+    # Shows any registered state by its name, as the core or a module would:
+    # a mood is forced, an activity is held by the owner "demo", a reaction
+    # plays. An empty name ends both: the mood goes back to auto and the
+    # demo activity ends. For the showcase demos (demos/scenarios).
+    - action: desktop_show
+      variables: { state: string }
+      then:
+        - lambda: |-
+            auto *hub = id(daruma_hub);
+            if (state.empty()) {
+              hub->force_mood("Auto");
+              hub->clear_activity("demo");
+              return;
+            }
+            Daruma::StateId s;
+            if (!Daruma::state_by_name(state.c_str(), &s)) {
+              ESP_LOGW("desktop", "No state '%s'", state.c_str());
+              return;
+            }
+            switch (Daruma::state_info(s).kind) {
+              case Daruma::StateKind::MOOD:
+                hub->force_mood(state);
+                break;
+              case Daruma::StateKind::ACTIVITY:
+                hub->set_activity("demo", s);
+                break;
+              case Daruma::StateKind::REACTION:
+                hub->react(s);
+                break;
+            }
+    # The voice assistant's screens, as core_voice.yaml draws them on the
+    # BOX-3: phase listening, thinking, replying, error or timer (a timer
+    # that rang), or idle to end. `words` is what the bubble says.
+    - action: desktop_voice
+      variables: { phase: string, words: string }
+      then:
+        - lambda: |-
+            int p = ${voice_assist_idle_phase_id};
+            if (phase == "listening") p = ${voice_assist_listening_phase_id};
+            else if (phase == "thinking") p = ${voice_assist_thinking_phase_id};
+            else if (phase == "replying") p = ${voice_assist_replying_phase_id};
+            else if (phase == "error") p = ${voice_assist_error_phase_id};
+            else if (phase == "timer") p = ${voice_assist_timer_finished_phase_id};
+            else if (phase != "idle") ESP_LOGW("desktop", "No voice phase '%s'", phase.c_str());
+            if (phase == "thinking") id(text_request).publish_state(words);
+            if (phase == "replying") id(text_response).publish_state(words);
+            id(voice_assistant_phase) = p;
+            id(daruma_hub).request_redraw();
+        - script.execute: draw_display
+    # Every registered state: name, kind and duration (ms; reactions only),
+    # in StateId order. The showcase test checks the demos cover them all.
+    - action: desktop_states
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              JsonArray states = root["states"].to<JsonArray>();
+              for (int i = 0; i < Daruma::state_count(); i++) {
+                const auto &info = Daruma::state_info(static_cast<Daruma::StateId>(i));
+                JsonObject s = states.add<JsonObject>();
+                s["name"] = info.name;
+                s["kind"] = info.kind == Daruma::StateKind::MOOD       ? "mood"
+                            : info.kind == Daruma::StateKind::ACTIVITY ? "activity"
+                                                                       : "reaction";
+                s["duration_ms"] = info.duration_ms;
+              }
+    - action: desktop_record_start
+      variables: { dir: string }
+      then:
+        - lambda: id(desktop).record_start(dir);
+    - action: desktop_record_pause
+      variables: { paused: bool }
+      then:
+        - lambda: id(desktop).record_pause(paused);
+    - action: desktop_record_stop
+      then:
+        - lambda: id(desktop).record_stop();
+    # Saves the screen as it is now to <dir>/<name>.bmp.
+    - action: desktop_screenshot
+      variables: { dir: string, name: string }
+      then:
+        - lambda: id(desktop).screenshot(dir, name);
+    # The device's clock and what the device shows, for a runner to wait on.
+    # A reply also means every message sent before it was handled.
+    - action: desktop_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              root["millis"] = millis();
+              root["state"] = Daruma::state_name(id(daruma_hub).state());
+              root["ui_open"] = id(daruma_hub).ui_open();
+              root["message"] = id(daruma_hub).message();
+              root["persona"] = id(persona_select).current_option();
+              root["touch_busy"] = id(desktop).touch_busy();
+              id(desktop).describe(root);
+
+display:
+  - platform: sdl
+    id: desktop_lcd
+    dimensions:
+      width: ${desktop_width}
+      height: ${desktop_height}
+    update_interval: never
+    # Keep the picture between frames: personas repaint only what moved.
+    auto_clear_enabled: false
+    window_options:
+      resizable: true
+    lambda: |-
+      id(desktop).begin_frame();
+      id(daruma_hub).render(it);
+      id(desktop).frame();
+
+touchscreen:
+  - platform: sdl
+    id: desktop_touch
+
+binary_sensor:
+  - platform: sdl
+    id: home_button
+    key: SDLK_h
+    internal: true
+  - platform: sdl
+    id: home_button_esc
+    key: SDLK_ESCAPE
+    internal: true
+    on_state:
+      - lambda: id(home_button).publish_state(x);
+  - platform: sdl
+    id: left_top_button
+    key: SDLK_t
+    internal: true
+
+daruma_desktop:
+  id: desktop
+  display: desktop_lcd
+  buttons:
+    home: home_button
+    top: left_top_button
+
+# The screen light that urgent prompts turn on.
+output:
+  - platform: template
+    id: backlight_output
+    type: float
+    write_action: []
+
+light:
+  - platform: monochromatic
+    id: led
+    name: Screen
+    output: backlight_output
+    restore_mode: ALWAYS_ON
+    default_transition_length: 0s
+
+# Sounds: core's hub plays them through this script.
+script:
+  - id: play_sound
+    mode: queued
+    parameters:
+      sound: string
+    then:
+      - if:
+          condition:
+            switch.is_on: sounds_enabled
+          then:
+            - lambda: id(desktop).sound(id(daruma_hub), sound);
+
+time:
+  - id: !extend daruma_time
+    timezone: ${desktop_timezone}
+
+daruma:
+  display: desktop_lcd
+  display_profile:
+    colors: full
+    animate: true
+    min_frame: 100ms
+    partial_refresh: true
+  inputs:
+    - name: home
+      button: home_button
+      gestures: [press, double, hold]
+      hold_time: 1.5s
+    - name: top
+      button: left_top_button
+      gestures: [press, double, hold]
+    - name: screen
+      touch: desktop_touch
+      gestures: [tap, double, hold, long_hold, swipe, stroke]
+  navigation:
+    back: home.press
+    close: home.hold

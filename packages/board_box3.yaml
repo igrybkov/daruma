@@ -1,0 +1,30 @@
+# Daruma board: ESP32-S3-BOX-3 with touch. The hardware
+# (board_box3_hardware.yaml), and the inputs it names for bindings
+# (daruma: inputs). Pairs with core.yaml.
+#
+# Inputs (bind them in the device yaml: home.press, top.press, screen.tap, ...):
+#   home    the red circle under the screen: press, double, hold (1.5 s)
+#   top     the top-left button: press, double, hold (1 s)
+#   screen  the touch screen: tap, double, hold (1 s), long_hold (3 s),
+#           swipe_left/right/up/down, stroke
+# Timings can be changed per input: double_window, hold_time, long_hold_time.
+
+packages:
+  hardware: !include board_box3_hardware.yaml
+
+daruma:
+  inputs:
+    - name: home
+      button: home_button
+      gestures: [press, double, hold]
+      hold_time: 1.5s
+    - name: top
+      button: left_top_button
+      gestures: [press, double, hold]
+    - name: screen
+      touch: s3_box_touch
+      gestures: [tap, double, hold, long_hold, swipe, stroke]
+  # How the menu, apps and prompts are driven. Touch covers the rest.
+  navigation:
+    back: home.press
+    close: home.hold

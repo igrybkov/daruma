@@ -1,0 +1,418 @@
+# Daruma core, the parts that need the ESP32 and its audio: the voice
+# assistant, wake word, speaker and sound effects, the loudness meter, the
+# Mute switch, the voice timer, and Wi-Fi, OTA and the logger's UART. A
+# board with a mic and a speaker includes it next to core.yaml
+# (board_box3_hardware.yaml does). A board without them, such as the
+# desktop board (board_desktop.yaml), leaves it out and gives core a
+# `play_sound` script of its own.
+#
+# It expects from the board: the mic `box_mic` and the speaker
+# `box_speaker`.
+
+ota:
+  - platform: esphome
+    id: ota_esphome
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+
+wifi:
+  # Audio streaming and the always-on API need the radio awake. With the
+  # default light power save the BOX dropped off the network (no ping,
+  # "no route to host") and lost the API mid-announcement.
+  power_save_mode: none
+  on_connect:
+    - script.execute: draw_display
+  on_disconnect:
+    - script.execute: draw_display
+
+captive_portal:
+
+daruma:
+  modules:
+    - name: voice
+      actions:
+        voice.start:
+          - script.execute: daruma_talk
+      setup: |-
+        // A ringing timer takes any press, tap or hold, and stops.
+        hub.add_gesture_filter(100, [](const Daruma::GestureEvent &e) {
+          using G = Daruma::Gesture;
+          const bool press = e.gesture == G::PRESS || e.gesture == G::TAP || e.gesture == G::DOUBLE ||
+                             e.gesture == G::HOLD || e.gesture == G::LONG_HOLD;
+          if (!press || !id(timer_ringing).state) return false;
+          id(timer_ringing).turn_off();
+          return true;
+        });
+
+        // Voice timer ("set a timer for 5 minutes"): thin bar on top. Slow
+        // screens show whole minutes.
+        hub.add_layer(10, [](display::Display &it) {
+          const auto &L = id(daruma_hub).layout();
+          const auto &timers = id(va).get_timers();
+          const voice_assistant::Timer *shown = nullptr;
+          for (const auto &timer : timers) {
+            if (shown == nullptr || (timer.is_active && (!shown->is_active || timer.seconds_left < shown->seconds_left))) {
+              shown = &timer;
+            }
+          }
+          if (shown == nullptr) return;
+          const Color c = shown->is_active ? id(voice_timer_color) : id(paused_color);
+          const int w = L.width * shown->seconds_left / std::max(shown->total_seconds, static_cast<uint32_t>(1));
+          it.filled_rectangle(0, 0, w, L.px(5), c);
+          if (id(daruma_hub).profile().slow()) {
+            it.printf(L.px(6), L.px(8), id(font_small), c, TextAlign::TOP_LEFT, "%u min",
+                      (unsigned) ((shown->seconds_left + 59) / 60));
+          } else {
+            it.printf(L.px(6), L.px(8), id(font_small), c, TextAlign::TOP_LEFT, "%02u:%02u",
+                      (unsigned) (shown->seconds_left / 60), (unsigned) (shown->seconds_left % 60));
+          }
+        });
+
+# ---------------------------------------------------------------------------
+# Voice assistant
+# ---------------------------------------------------------------------------
+
+media_player:
+  - platform: speaker
+    name: None
+    id: speaker_media_player
+    volume_min: 0.5
+    volume_max: 0.8
+    announcement_pipeline:
+      speaker: box_speaker
+      format: FLAC
+      sample_rate: 48000
+      num_channels: 1  # S3 Box only has one output channel
+    # No stored files: the sound effects and the timer chime are made on the
+    # device (daruma_sounds below), in the current persona's style.
+    on_announcement:
+      # Free the mic for playback.
+      - if:
+          condition:
+            - microphone.is_capturing:
+          then:
+            - script.execute: stop_wake_word
+      # VA not running means HA sent an announcement (or a chime played).
+      # A sound effect keeps the current persona.
+      - if:
+          condition:
+            and:
+              - not:
+                  voice_assistant.is_running:
+              - lambda: return !id(sfx_playing);
+          then:
+            - lambda: id(voice_assistant_phase) = ${voice_assist_announcing_phase_id};
+            - script.execute: draw_display
+    on_idle:
+      - lambda: id(sfx_playing) = false;
+      - if:
+          condition:
+            not:
+              voice_assistant.is_running:
+          then:
+            - script.execute: start_wake_word
+            - script.execute: set_idle_or_mute_phase
+            - script.execute: draw_display
+
+# Sound effects and the timer chime, made on the device when first played.
+# A persona may have its own (`sounds:`); the rest are built in
+# (components/daruma/synth.cpp). Rendered sounds stay in PSRAM up to
+# cache_size, least recently played freed first; the logs (tag
+# daruma_sounds) show each one made and freed, with free PSRAM.
+daruma_sounds:
+  cache_size: 384kB
+
+micro_wake_word:
+  id: mww
+  # "Hey Jarvis" is left out on purpose, so the device does not answer for a
+  # voice satellite nearby that uses it.
+  models:
+    - okay_nabu
+  on_wake_word_detected:
+    - voice_assistant.start:
+        wake_word: !lambda return wake_word;
+
+voice_assistant:
+  id: va
+  microphone: box_mic
+  media_player: speaker_media_player
+  micro_wake_word: mww
+  noise_suppression_level: 2
+  auto_gain: 31dBFS
+  volume_multiplier: 2.0
+  on_listening:
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
+        id(daruma_hub).dispatch(Daruma::Input::DISMISS);
+    - text_sensor.template.publish:
+        id: text_request
+        state: ""
+    - text_sensor.template.publish:
+        id: text_response
+        state: ""
+    - script.execute: draw_display
+  on_stt_vad_end:
+    - lambda: id(voice_assistant_phase) = ${voice_assist_thinking_phase_id};
+    - script.execute: draw_display
+  on_stt_end:
+    - text_sensor.template.publish:
+        id: text_request
+        state: !lambda return x;
+    - script.execute: draw_display
+  on_tts_start:
+    - text_sensor.template.publish:
+        id: text_response
+        state: !lambda return x;
+    - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+    - script.execute: draw_display
+  on_end:
+    # Wait a short amount of time to see if an announcement starts
+    - wait_until:
+        condition:
+          - media_player.is_announcing:
+        timeout: 0.5s
+    # Announcement is finished and the I2S bus is free
+    - wait_until:
+        - and:
+            - not:
+                media_player.is_announcing:
+            - not:
+                speaker.is_playing:
+    - lambda: id(va).set_use_wake_word(false);
+    - micro_wake_word.start:
+    - lambda: id(sound_meter)->enable_loop();
+    - script.execute: set_idle_or_mute_phase
+    - script.execute: draw_display
+    - text_sensor.template.publish:
+        id: text_request
+        state: ""
+    - text_sensor.template.publish:
+        id: text_response
+        state: ""
+  on_error:
+    - if:
+        condition:
+          lambda: return !id(init_in_progress);
+        then:
+          - lambda: id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+          - script.execute: draw_display
+          - delay: 1s
+          - script.execute: set_idle_or_mute_phase
+          - script.execute: draw_display
+  on_client_connected:
+    - lambda: id(init_in_progress) = false;
+    - script.execute: start_wake_word
+    - script.execute: set_idle_or_mute_phase
+    - script.execute: draw_display
+  on_client_disconnected:
+    - script.execute: stop_wake_word
+    - lambda: id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
+    - script.execute: draw_display
+  on_timer_started:
+    - lambda: id(daruma_hub).request_redraw();
+  on_timer_cancelled:
+    - lambda: id(daruma_hub).request_redraw();
+  on_timer_updated:
+    - lambda: id(daruma_hub).request_redraw();
+  on_timer_tick:
+    # Slow screens show minutes: redraw when one turns over.
+    - lambda: |-
+        bool turn = !id(daruma_hub).profile().slow();
+        for (const auto &timer : timers)
+          turn = turn || (timer.is_active && timer.seconds_left % 60 == 0);
+        if (turn) id(daruma_hub).request_redraw();
+  on_timer_finished:
+    - switch.turn_on: timer_ringing
+    # Close the menu, so the alarm shows and the red circle stops it.
+    - lambda: id(daruma_hub).dispatch(Daruma::Input::DISMISS);
+    - event.trigger:
+        id: daruma_event
+        event_type: timer_finished
+    - wait_until:
+        media_player.is_announcing:
+    - lambda: id(voice_assistant_phase) = ${voice_assist_timer_finished_phase_id};
+    - script.execute: draw_display
+
+sensor:
+  - platform: wifi_signal
+    name: Wi-Fi signal
+    entity_category: diagnostic
+    update_interval: 60s
+
+  # Loudness from the shared mic. Passive: reads only while wake word
+  # detection already runs the mic, so it never holds the mic open itself.
+  - platform: sound_level
+    id: sound_meter
+    microphone: box_mic
+    passive: true
+    measurement_duration: 200ms
+    peak:
+      id: sound_peak
+      internal: true
+
+binary_sensor:
+  - platform: template
+    id: is_loud_noise
+    internal: true
+    lambda: return id(sound_peak).state > -16.0;
+    on_press:
+      # Only react to the room, never to our own voice or chimes.
+      - if:
+          condition:
+            and:
+              - lambda: return id(voice_assistant_phase) == ${voice_assist_idle_phase_id};
+              - not:
+                  media_player.is_announcing:
+              - not:
+                  speaker.is_playing:
+          then:
+            - script.execute: scared_reaction
+
+switch:
+  - platform: template
+    name: Mute
+    id: mute
+    icon: "mdi:microphone-off"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    on_turn_off:
+      - microphone.unmute:
+      - lambda: |-
+          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+          id(daruma_hub).set_mute(false);
+      - script.execute: draw_display
+    on_turn_on:
+      - microphone.mute:
+      - lambda: |-
+          id(voice_assistant_phase) = ${voice_assist_muted_phase_id};
+          id(daruma_hub).set_mute(true);
+      - script.execute: draw_display
+  - platform: template
+    id: timer_ringing
+    optimistic: true
+    internal: true
+    restore_mode: ALWAYS_OFF
+    on_turn_off:
+      # Turn off the repeat mode and disable the pause between playlist items
+      - lambda: |-
+          id(speaker_media_player)
+            ->make_call()
+            .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_REPEAT_OFF)
+            .set_announcement(true)
+            .perform();
+          id(speaker_media_player)->set_playlist_delay_ms(speaker::AudioPipelineType::ANNOUNCEMENT, 0);
+      # Stop playing the alarm
+      - media_player.stop:
+          announcement: true
+    on_turn_on:
+      # Turn on the repeat mode and pause for 1000 ms between playlist items/repeats
+      - lambda: |-
+          id(speaker_media_player)
+            ->make_call()
+            .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_REPEAT_ONE)
+            .set_announcement(true)
+            .perform();
+          id(speaker_media_player)->set_playlist_delay_ms(speaker::AudioPipelineType::ANNOUNCEMENT, 1000);
+      # The chime is the current persona's sound for the alarm state.
+      - lambda: |-
+          const std::string sound = id(daruma_hub).sound_for(Daruma::StateId::ALARM);
+          const auto *chime = Daruma::Sounds::get(id(daruma_hub), sound.empty() ? "timer" : sound);
+          if (chime != nullptr) id(speaker_media_player)->play_file(chime, true, false);
+      - delay: 15min
+      - switch.turn_off: timer_ringing
+
+globals:
+  - id: sfx_playing
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+script:
+  - id: start_wake_word
+    then:
+      - if:
+          condition:
+            not:
+              - voice_assistant.is_running:
+          then:
+            - lambda: id(va).set_use_wake_word(false);
+            - micro_wake_word.start:
+            - lambda: id(sound_meter)->enable_loop();
+
+  - id: stop_wake_word
+    then:
+      # The mic stops while the speaker plays (they share one I2S bus). The
+      # passive loudness meter would warn about that on every sound, so it
+      # pauses until the wake word starts the mic again.
+      - lambda: id(sound_meter)->disable_loop();
+      - micro_wake_word.stop:
+
+  - id: set_idle_or_mute_phase
+    then:
+      - if:
+          condition:
+            switch.is_off: mute
+          then:
+            - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+          else:
+            - lambda: id(voice_assistant_phase) = ${voice_assist_muted_phase_id};
+
+  # Talk to the assistant now, like after the wake word ("I'm muted" while
+  # the mic is off). Again while it runs: cancel.
+  - id: daruma_talk
+    then:
+      - if:
+          condition:
+            voice_assistant.is_running:
+          then:
+            - voice_assistant.stop:
+          else:
+            - if:
+                condition:
+                  lambda: return id(daruma_hub).muted();
+                then:
+                  - script.execute:
+                      id: show_message
+                      text: "I'm muted"
+                      seconds: 3
+                else:
+                  - voice_assistant.start:
+
+  # Short chiptune effect by synth name (components/daruma/synth.cpp, or one a persona
+  # adds). The hub plays a state's sound through it. Skipped when sounds are
+  # off, and never over the assistant, a ringing timer or an HA announcement.
+  - id: play_sound
+    mode: restart  # A newer sound replaces one still waiting for the bus.
+    parameters:
+      sound: string
+    then:
+      - if:
+          condition:
+            and:
+              - switch.is_on: sounds_enabled
+              - switch.is_off: timer_ringing
+              - not:
+                  voice_assistant.is_running:
+              # May replace another effect, never an HA announcement.
+              - or:
+                  - not:
+                      media_player.is_announcing:
+                  - lambda: return id(sfx_playing);
+          then:
+            # Mic and speaker share one I2S bus. Free it first, or the speaker
+            # fails to start ("Parent bus is busy") and the sound comes a
+            # second late. on_idle starts the wake word again.
+            - script.execute: stop_wake_word
+            - wait_until:
+                condition:
+                  not:
+                    microphone.is_capturing:
+                timeout: 500ms
+            - lambda: |-
+                // Null for an unknown sound or no memory; daruma_sounds logs why.
+                const audio::AudioFile *file = Daruma::Sounds::get(id(daruma_hub), sound);
+                if (file == nullptr) return;
+                id(sfx_playing) = true;
+                id(speaker_media_player)->play_file(file, true, false);

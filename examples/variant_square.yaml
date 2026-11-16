@@ -1,0 +1,18 @@
+# Build check: Daruma on a square screen (240x240), as the same BOX-3
+# with the display's dimensions overridden. Compile-only. It includes
+# box3.yaml, so keep the two in one folder with your secrets.yaml:
+#
+#   esphome compile variant_square.yaml
+
+substitutions:
+  name: daruma-square
+  friendly_name: Daruma Square
+
+packages:
+  device: !include box3.yaml
+
+display:
+  - id: !extend s3_box_lcd
+    dimensions:
+      width: 240
+      height: 240

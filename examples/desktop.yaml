@@ -1,0 +1,74 @@
+# Daruma in a window on a computer, for demos and tests. The personas and apps
+# of box3.yaml, on the desktop board (packages/board_desktop.yaml) instead
+# of the BOX-3. It includes the packages from this checkout, so it shows
+# your changes as they are. Nothing here is flashed to a device.
+#
+#   esphome run examples/desktop.yaml   a window: the mouse is the finger,
+#                                       H the red circle, T the top button
+#   demos/record.py                     demo GIFs of every persona
+#   pytest demos                        screen tests (see docs/testing.md)
+#
+# Calendar and Tasks ask "Home Assistant" for data through the API. The
+# demo runner answers with made-up events and tasks.
+
+substitutions:
+  name: daruma-desktop
+  friendly_name: Daruma Desktop
+
+packages:
+  board: !include ../packages/board_desktop.yaml
+  core: !include ../packages/core.yaml
+
+  persona_daruma: !include ../packages/persona_daruma.yaml
+  persona_pixel_corgi: !include ../packages/persona_pixel_corgi.yaml
+  persona_the_boss: !include ../packages/persona_the_boss.yaml
+  persona_eyes: !include ../packages/persona_eyes.yaml
+  persona_flat_corgi: !include
+    file: ../packages/persona_images.yaml
+    vars:
+      persona_id: flat_corgi
+      persona_name: "Flat corgi"
+      art: flat_corgi
+      # The pixel corgi's "awwwrrrr" when petted.
+      sounds:
+        pet:
+          - { note: C#3, to: F#3, seconds: 0.10, duty: 0.30, attack: 0.02, release: 0 }
+          - { note: F#3, to: B2, seconds: 0.32, duty: 0.25, attack: 0, release: 0.08, vibrato: 26 }
+  persona_jack_russell: !include ../packages/persona_jack_russell.yaml
+  persona_tabby_cat: !include ../packages/persona_tabby_cat.yaml
+
+  menu: !include ../packages/menu.yaml
+  pomodoro: !include ../packages/pomodoro.yaml
+  # Demo sources. The demo runner answers for them; nothing real is read.
+  app_tasks: !include
+    file: ../packages/app_tasks.yaml
+    vars: { source: todo, entity: todo.demo }
+  app_calendar: !include
+    file: ../packages/app_calendar.yaml
+    vars: { calendars: calendar.demo }
+  app_weather: !include
+    file: ../packages/app_weather.yaml
+    vars: { entity: weather.demo }
+  prompts: !include ../packages/prompts.yaml
+
+daruma:
+  apps: [tasks, calendar, weather, stats]
+  progress:
+    pomodoro: 1
+  menus:
+    main: [pomodoro, tasks, calendar]
+    quick: [pomodoro.skip, pomodoro.stop, stats, more]
+  # As on the BOX-3, but the top button changes the persona: there is no voice
+  # assistant here. The red circle's press opens the pomodoro menu
+  # (pomodoro's default binding).
+  bindings:
+    home.hold: { action: pomodoro.stop, when: idle }
+    top.double: { action: menu.open, menu: quick }
+    top.press: daruma.next_persona
+    screen.tap: menu.open
+    screen.stroke: daruma.pet
+
+# The pomodoro's clock in the board's time zone too.
+time:
+  - id: !extend pomo_time
+    timezone: ${desktop_timezone}

@@ -1,0 +1,49 @@
+# Pixel-art tabby cat persona: a brown-grey mackerel tabby with an "M" on its
+# forehead, big yellow-green eyes and a ringed tail, posing in an 80s
+# portrait studio: a mottled brown backdrop under a soft spotlight and a
+# velvet drape. At rest it sits with its tail curled round its paws, the tip
+# swaying, with a slow blink and an ear flick now and then. Tail up and
+# hooked when happy; eyes shut, purring and kneading when petted; a play
+# bow and a pounce to celebrate; curled in a ball asleep. Watches a laser
+# dot while you focus. The studio window shows the sky signal, the cat
+# grass on its sill grows with the progress signal, and the drape changes
+# color by weekday. Adds 'Tabby cat' to the Persona select, and "Tabby cat
+# rug" (the drape: weekday or plain) to the device settings.
+#
+# States find animations by name (petted -> Petted, celebrate -> Celebrate,
+# focus -> Focus); the rest fall back, and the build log lists how
+# (components/daruma/registry.py).
+#
+# Drawn by Python while the firmware compiles (pixel/daruma_pixel/
+# tabby_cat.py on cat.py and pet.py, in studio.py, through personas.py); edit
+# the art there and compile. Previews: see personas.py.
+
+daruma_sprites:
+  - id: tabby_cat
+    name: Tabby cat
+    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: tabby_cat }
+    params:
+      rug: { value: weekday, expose: true }
+    # Menu and apps: cream cards on the backdrop's brown, with the drape's
+    # maroon for accents.
+    theme:
+      style: paper
+      frame: "6A4A32"
+      edge: "2A1C16"
+      panel: "F6EEDE"
+      ink: "2E221C"
+      muted: "7A6656"
+      title: "F6EEDE"
+      accent: "8A2E48"
+      dot: "B08850"
+      dock: "F6EEDE"
+      dock_ink: "2E221C"
+      dock_muted: "7A6656"
+    # Petted: two low purrs, in and out, then a short rising trill.
+    sounds:
+      pet:
+        - { note: D3, seconds: 0.42, duty: 0.18, attack: 0.06, release: 0.06, vibrato: 24 }
+        - { rest: 0.05 }
+        - { note: C#3, seconds: 0.42, duty: 0.18, attack: 0.06, release: 0.08, vibrato: 22 }
+        - { rest: 0.10 }
+        - { note: G5, to: C6, seconds: 0.16, duty: 0.25, attack: 0.01, release: 0.05, vibrato: 30 }

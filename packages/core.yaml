@@ -1,0 +1,652 @@
+# Daruma core: the hub, voice assistant, mood, signals and the render
+# pipeline. Needs a board package (board_box3.yaml) for the hardware. Modules
+# (menu, apps, ...) plug into the hub (`id(daruma_hub)`) through
+# `daruma: modules:`; core never references them.
+#
+# Display rule: the persona animates only while idle, and only redraws when
+# something changed. Voice phases draw one still frame each, so screen
+# traffic does not compete with audio. The hub paces frames to the board's
+# display_profile (min_frame), and places everything by its Layout
+# (components/daruma/layout.h), so any screen size works.
+#
+# The board package sets the font sizes: font_size_text, font_size_small,
+# font_size_badge, font_size_icon, font_size_timer and font_size_title.
+#
+# Plug-in points on the hub (see components/daruma/hub.h), for a
+# module's `setup:` lambda (`hub` is the hub):
+#   add_layer(order, fn)            draw on top of the idle persona
+#   add_screen(priority, fn)        take over the idle screen (menu)
+#   add_input_handler(prio, fn)     what open screens get: TAP / HOLD / LONG_HOLD /
+#                                   SWIPE_* / STROKE / BACK / CLOSE / DISMISS
+#   add_gesture_filter(prio, fn)    take a gesture before any binding sees it
+#   add_menu_provider(order, fn)    menu dock buttons; set_menu_title(fn)
+#   layout()                        regions and px() for this screen size
+#   profile()                       colors, animate, slow() (clocks in minutes)
+#   add_app(app)                    full-screen apps on the menu's app board
+#   add_action(name, fn)            or `actions:` in the module entry
+#   set_activity / clear_activity / react   the state the persona shows
+#   set_progress(source, 0..10, behind)     the progress signal
+#
+#   add_tap_area(name, fn)          a part of the persona a tap leads somewhere
+#                                   (declare it in the module's areas:)
+#   set_action_button(name, fn)     an action's menu button for the moment
+#
+# Layer order used so far: 10 voice timer, 20 module timers, 30 temperature
+# badge, 90 muted label, 100 message bubble. Menu items: modules 0.
+# Tap areas: badge (here), plaque (pomodoro), next_event (calendar).
+#
+# Core's module `daruma` offers daruma.pet, daruma.next_persona,
+# daruma.previous_persona and daruma.close_message, and binds screen strokes to
+# daruma.pet, left and right swipes to the personas, and a downward swipe to
+# closing the message, unless the device yaml binds them. Module `voice`
+# offers voice.start (push to talk, again to cancel).
+#
+# A ringing timer takes any press, tap or hold on any input and stops. A
+# tap on a message bubble closes it.
+#
+# Signals: Window (sky), the clock (weekday, day part), progress from the
+# modules (or "Progress" in HA while "Progress source" is Custom), and
+# wellbeing from HA (esphome.<device>_set_wellbeing, -1 = unset).
+
+substitutions:
+  voice_assist_idle_phase_id: "1"
+  voice_assist_listening_phase_id: "2"
+  voice_assist_thinking_phase_id: "3"
+  voice_assist_replying_phase_id: "4"
+  voice_assist_announcing_phase_id: "5"
+  voice_assist_not_ready_phase_id: "10"
+  voice_assist_error_phase_id: "11"
+  voice_assist_muted_phase_id: "12"
+  voice_assist_timer_finished_phase_id: "20"
+
+  # Manrope has Cyrillic, so Ukrainian messages render. Bold weights read best
+  # on this small screen.
+  font_family: Manrope
+
+  # Unit of the "Outside temperature" number that HA sets: °F or °C.
+  temperature_unit: "°F"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.4.0
+  name_add_mac_suffix: false
+  on_boot:
+    - priority: 600
+      then:
+        - script.execute: draw_display
+        - delay: 30s
+        - if:
+            condition:
+              lambda: return id(init_in_progress);
+            then:
+              - lambda: id(init_in_progress) = false;
+              - script.execute: draw_display
+    - priority: -100
+      then:
+        - script.execute: blink_animation
+        - script.execute: look_animation
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma, daruma_eyes, daruma_images, daruma_sprites, daruma_menu, daruma_sounds]
+
+api:
+  on_client_connected:
+    - script.execute: draw_display
+  on_client_disconnected:
+    - script.execute: draw_display
+  actions:
+    - action: show_message
+      variables:
+        message: string
+        seconds: int
+      then:
+        # A new message from HA chimes; the same one again does not.
+        - lambda: |-
+            const std::string text = message;
+            if (!text.empty() && id(daruma_hub).message() != text)
+              id(daruma_hub).play_sound("notify");
+        - script.execute:
+            id: show_message
+            text: !lambda return message;
+            seconds: !lambda return seconds;
+    - action: wink
+      then:
+        - lambda: id(daruma_hub).wink();
+    - action: add_happiness
+      variables:
+        change_by: int
+      then:
+        - lambda: id(daruma_hub).add_happiness(change_by);
+    # The wellbeing signal, 0..10 (a plant sensor, a sleep score); -1 = unset.
+    - action: set_wellbeing
+      variables:
+        value: int
+      then:
+        - lambda: id(daruma_hub).set_wellbeing(value);
+
+font:
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 700
+    id: font_small
+    # Manrope lacks combining accents and U+02BC (bubbles swap in U+2019).
+    ignore_missing_glyphs: true
+    size: ${font_size_text}
+    # Smoothed edges. 1-bit glyphs at this size come out with uneven strokes.
+    # Smoothing blends toward the background passed to print(), black if none.
+    bpp: 4
+    glyphsets:
+      - GF_Latin_Core
+      - GF_Cyrillic_Core
+
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 800
+    id: font_badge
+    size: ${font_size_badge}
+    bpp: 4
+    glyphs: "0123456789-°"
+
+color:
+  - id: listening_color
+    hex: "00FFFF"
+  - id: voice_timer_color
+    hex: "3B89E3"
+  - id: paused_color
+    hex: "808080"
+
+# ---------------------------------------------------------------------------
+# Hub, core modules and mood
+# ---------------------------------------------------------------------------
+
+daruma:
+  id: daruma_hub
+  modules:
+    - name: daruma
+      actions:
+        daruma.pet:
+          - script.execute: loved_reaction
+        daruma.next_persona:
+          - lambda: |-
+              auto call = id(persona_select).make_call();
+              call.select_next(true);
+              call.perform();
+        daruma.previous_persona:
+          - lambda: |-
+              auto call = id(persona_select).make_call();
+              call.select_previous(true);
+              call.perform();
+        daruma.close_message:
+          - lambda: id(daruma_hub).clear_message();
+      bindings:
+        screen.tap: daruma.pet
+        screen.stroke: daruma.pet
+        screen.swipe_left: daruma.next_persona
+        screen.swipe_right: daruma.previous_persona
+        screen.swipe_down: daruma.close_message
+      # The temperature badge. A module may lead a tap on it somewhere (the
+      # Weather app does); without a target, a tap there is a tap on the persona.
+      areas: [badge]
+      setup: |-
+        hub.set_happiness_meter(id(happiness_meter));
+        hub.set_sound_player([](const std::string &sound) { id(play_sound).execute(sound); });
+
+        // The whole screen: a still frame per voice phase, else the idle persona.
+        // Idle motion (the persona, ticking clocks) only while no voice phase is up.
+        // HA calls that wait for a reply go out only while HA listens (ha_calls.h).
+        hub.set_ha_link([]() { return api::global_api_server->is_connected_with_state_subscription(); });
+
+        hub.set_frame_gate([]() {
+          const int phase = id(voice_assistant_phase);
+          return !id(init_in_progress) &&
+                 (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_muted_phase_id});
+        });
+
+        hub.set_renderer([](display::Display &it) {
+          auto *b = id(daruma_hub);
+          const auto &L = b->layout();
+          const int W = L.width;
+          const int H = L.height;
+          const int caption_y = H - L.px(36);
+          const Color caption(150, 150, 150);
+          using Daruma::StateId;
+          using Daruma::Utilities::Text;
+
+          if (id(init_in_progress)) {
+            b->draw_still(it, StateId::WAKING);
+            it.print(W / 2, caption_y, id(font_small), caption, TextAlign::TOP_CENTER, "Waking up...");
+            return;
+          }
+          #ifdef USE_WIFI
+          if (!wifi::global_wifi_component->is_connected()) {
+            b->draw_still(it, StateId::OFFLINE);
+            it.print(W / 2, caption_y, id(font_small), caption, TextAlign::TOP_CENTER, "No Wi-Fi");
+            return;
+          }
+          #endif
+          if (!api::global_api_server->is_connected()) {
+            b->draw_still(it, StateId::OFFLINE);
+            it.print(W / 2, caption_y, id(font_small), caption, TextAlign::TOP_CENTER, "No Home Assistant");
+            return;
+          }
+
+          switch (id(voice_assistant_phase)) {
+            case ${voice_assist_listening_phase_id}:
+              b->draw_still(it, StateId::LISTENING);
+              for (int i = 0; i < L.px(4); i++) {
+                it.rectangle(i, i, W - 2 * i, H - 2 * i, id(listening_color));
+              }
+              break;
+            case ${voice_assist_thinking_phase_id}:
+              b->draw_still(it, StateId::THINKING);
+              Text::bubble(it, id(font_small), id(text_request).state, L.px(8), false, 2, Color::WHITE, Color::BLACK);
+              break;
+            case ${voice_assist_replying_phase_id}:
+              b->draw_still(it, StateId::TALKING);
+              Text::bubble(it, id(font_small), id(text_response).state, H - L.px(8), true, 4, Color::WHITE, Color::BLACK);
+              break;
+            case ${voice_assist_announcing_phase_id}:
+              b->draw_still(it, StateId::TALKING);
+              if (!b->message().empty()) {
+                Text::bubble(it, id(font_small), b->message(), H - L.px(8), true, 4, Color::WHITE, Color::BLACK);
+              }
+              break;
+            case ${voice_assist_error_phase_id}:
+              b->draw_still(it, StateId::ERROR);
+              it.print(W / 2, caption_y, id(font_small), caption, TextAlign::TOP_CENTER, "Hmm, that didn't work");
+              break;
+            case ${voice_assist_timer_finished_phase_id}:
+              b->draw_still(it, StateId::ALARM);
+              Text::bubble(it, id(font_small), b->has_touch() ? "Time's up! Tap me." : "Time's up! Press a button.",
+                           H - L.px(8), true, 1, Color::WHITE, Color::BLACK);
+              break;
+            default: {
+              // Idle or muted. When only the persona moved, repaint just that,
+              // unless a message bubble sits on top of the persona. Otherwise a
+              // full frame; personas that can lift up to make room for a bubble.
+              // look_y is in design pixels; personas scale it.
+              const bool has_message = !b->message().empty();
+              if (has_message || !b->draw_idle_delta(it)) {
+                b->draw_idle(it, has_message ? -35.0f : 0.0f);
+              }
+              break;
+            }
+          }
+        });
+
+        // A message bubble needs no answer: a tap anywhere on the screen,
+        // on the bubble or not, closes it before anything else sees the tap.
+        hub.add_gesture_filter(90, [](const Daruma::GestureEvent &e) {
+          using G = Daruma::Gesture;
+          const bool tap = e.gesture == G::TAP || e.gesture == G::DOUBLE;
+          if (!e.touch || !tap || id(daruma_hub).ui_open() || id(daruma_hub).message().empty())
+            return false;
+          id(daruma_hub).clear_message();
+          return true;
+        });
+
+        // Where the badge is, while it shows.
+        hub.add_tap_area("badge", []() {
+          if (!id(temp_badge).state || !id(daruma_hub).message().empty() || std::isnan(id(outside_temp).state))
+            return Daruma::Rect{};
+          return id(daruma_hub).layout().badge();
+        });
+
+        // Outside temperature in a colored circle, bottom right. HA sets the
+        // number; hidden under a message bubble.
+        hub.add_layer(30, [](display::Display &it) {
+          if (!id(temp_badge).state || !id(daruma_hub).message().empty()) return;
+          const float t = id(outside_temp).state;
+          if (std::isnan(t)) return;
+          const float f = std::string("${temperature_unit}") == "°C" ? t * 9.0f / 5.0f + 32.0f : t;
+          // Smooth gradient in °F, from icy blue to fiery red.
+          static const struct { float f; uint8_t r, g, b; } STOPS[] = {
+              {-10, 110, 160, 236}, {20, 52, 108, 204}, {40, 30, 136, 168}, {60, 52, 150, 74},
+              {75, 214, 164, 30},   {88, 226, 108, 30}, {100, 200, 36, 28}, {110, 140, 16, 20},
+          };
+          const int last = sizeof(STOPS) / sizeof(STOPS[0]) - 1;
+          Color bg(STOPS[last].r, STOPS[last].g, STOPS[last].b);
+          if (f <= STOPS[0].f) {
+            bg = Color(STOPS[0].r, STOPS[0].g, STOPS[0].b);
+          } else {
+            for (int i = 0; i < last; i++) {
+              if (f <= STOPS[i + 1].f) {
+                const float k = (f - STOPS[i].f) / (STOPS[i + 1].f - STOPS[i].f);
+                auto mix = [k](uint8_t a, uint8_t b) { return (uint8_t) (a + (b - a) * k); };
+                bg = Color(mix(STOPS[i].r, STOPS[i + 1].r), mix(STOPS[i].g, STOPS[i + 1].g),
+                           mix(STOPS[i].b, STOPS[i + 1].b));
+                break;
+              }
+            }
+          }
+          // The bottom-right corner: the plaque's mirror, above the info line.
+          const auto &L = id(daruma_hub).layout();
+          const auto &theme = id(daruma_hub).theme();
+          const Daruma::Rect box = L.badge();
+          const int r = box.w / 2;
+          const int cx = box.cx();
+          const int cy = box.cy();
+          bg = theme.fit(bg);
+          const Color ink = theme.on(bg, Color::WHITE);
+          it.filled_circle(cx, cy, r, ink);
+          it.filled_circle(cx, cy, r - L.px(2), bg);
+          it.printf(cx + L.px(1), cy + L.px(1), id(font_badge), ink, bg, TextAlign::CENTER, "%d°", (int) roundf(t));
+        });
+
+        hub.add_layer(90, [](display::Display &it) {
+          if (id(daruma_hub).muted()) {
+            const auto &L = id(daruma_hub).layout();
+            it.print(L.width / 2, L.px(8), id(font_small), Color(150, 150, 150), TextAlign::TOP_CENTER, "muted");
+          }
+        });
+
+        hub.add_layer(100, [](display::Display &it) {
+          if (!id(daruma_hub).message().empty()) {
+            const auto &L = id(daruma_hub).layout();
+            Daruma::Utilities::Text::bubble(it, id(font_small), id(daruma_hub).message(), L.height - L.px(12), true, 3,
+                                               Color::WHITE, Color::BLACK);
+          }
+        });
+
+        // No mic mute button in the dock: the "Mute" switch is in HA, and a
+        // board with a mic switch (the BOX-3 has one on top) covers it by hand.
+        // A board without one can add a dock button for id(mute) itself.
+number:
+  - platform: template
+    name: Happiness level
+    id: happiness_meter
+    optimistic: true
+    min_value: -100
+    max_value: 100
+    step: 1
+    restore_value: true
+    initial_value: 0
+    icon: "mdi:emoticon-happy-outline"
+    on_value:
+      - lambda: id(daruma_hub).set_happiness(x, true, false);
+  # Progress while "Progress source" is Custom: 0 .. 10.
+  - platform: template
+    name: Progress
+    id: custom_progress
+    optimistic: true
+    min_value: 0
+    max_value: 10
+    step: 1
+    restore_value: true
+    initial_value: 5
+    icon: "mdi:sprout"
+    on_value:
+      - lambda: id(daruma_hub).set_custom_progress((int) x, id(custom_behind).state);
+  # Set by an HA automation from the weather. Shown in the temperature badge.
+  - platform: template
+    name: Outside temperature
+    id: outside_temp
+    optimistic: true
+    min_value: -100
+    max_value: 150
+    step: 1
+    mode: box
+    restore_value: true
+    initial_value: 0
+    unit_of_measurement: ${temperature_unit}
+    icon: "mdi:thermometer"
+    on_value:
+      - lambda: id(daruma_hub).request_redraw();
+
+select:
+  - platform: daruma
+    id: persona_select
+    name: Persona
+    entity_category: config
+  - platform: template
+    name: Mood override
+    id: state_selector
+    optimistic: true
+    entity_category: config
+    icon: "mdi:emoticon-happy-outline"
+    options:
+      - "Auto"
+      - "Happy"
+      - "Loved"
+      - "Neutral"
+      - "Sad"
+      - "Scared"
+      - "Sleepy"
+      - "Sleeping"
+    initial_option: "Auto"
+    on_value:
+      - lambda: id(daruma_hub).force_mood(x);
+  # What the window in the scene shows. Set it from an HA automation (weather,
+  # sun). Personas without a window ignore it.
+  - platform: template
+    name: Window
+    id: window_sky
+    optimistic: true
+    restore_value: true
+    icon: "mdi:weather-partly-cloudy"
+    options:
+      - "Clear"
+      - "Cloudy"
+      - "Rain"
+      - "Snow"
+      - "Night"
+    initial_option: "Clear"
+    on_value:
+      - lambda: id(daruma_hub).set_sky(x);
+  # Where the progress signal comes from: the modules (as
+  # weighted in daruma: progress), or "Progress" and "Progress behind",
+  # which an HA automation can set from anything. Restore keeps the index:
+  # add new options at the end.
+  - platform: template
+    name: Progress source
+    id: progress_source
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    icon: "mdi:sprout"
+    options:
+      - "Modules"
+      - "Custom"
+    initial_option: "Modules"
+    on_value:
+      - lambda: id(daruma_hub).set_progress_override(x == "Custom");
+
+# Clock: the weekday and the part of the day, for personas that dress the room.
+# Local time: Home Assistant sends its time zone with the time.
+time:
+  - platform: homeassistant
+    id: daruma_time
+
+# ---------------------------------------------------------------------------
+# Sensors and HA entities
+# ---------------------------------------------------------------------------
+
+sensor:
+  - platform: uptime
+    name: Uptime
+    entity_category: diagnostic
+    update_interval: 60s
+
+text_sensor:
+  - platform: template
+    id: text_request
+  - platform: template
+    id: text_response
+
+# Tells HA what happened on the device, so automations can react
+# (a joke on the screen, and so on). Modules add their own.
+event:
+  - platform: template
+    id: daruma_event
+    name: Event
+    icon: mdi:paw
+    event_types: [petted, scared, timer_finished]
+
+button:
+  - platform: restart
+    name: Restart
+    entity_category: diagnostic
+  - platform: template
+    name: Wink
+    icon: "mdi:emoticon-wink-outline"
+    on_press:
+      - lambda: id(daruma_hub).wink();
+
+switch:
+  # Custom progress (Progress source on Custom): behind its pace while on.
+  # The corgi's plant droops.
+  - platform: template
+    name: Progress behind
+    id: custom_behind
+    icon: "mdi:flower-pollen-outline"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - lambda: id(daruma_hub).set_custom_progress((int) id(custom_progress).state, true);
+    on_turn_off:
+      - lambda: id(daruma_hub).set_custom_progress((int) id(custom_progress).state, false);
+  - platform: template
+    name: Temperature badge
+    id: temp_badge
+    icon: "mdi:thermometer"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    on_turn_on:
+      - lambda: id(daruma_hub).request_redraw();
+    on_turn_off:
+      - lambda: id(daruma_hub).request_redraw();
+  - platform: template
+    name: Sounds
+    id: sounds_enabled
+    icon: "mdi:volume-high"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+  # Read by HA: when on, HA answers some events with a joke on the screen.
+  - platform: template
+    name: Jokes
+    id: jokes_enabled
+    icon: "mdi:emoticon-happy-outline"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+# ---------------------------------------------------------------------------
+# State and scheduling
+# ---------------------------------------------------------------------------
+
+globals:
+  - id: init_in_progress
+    type: bool
+    restore_value: false
+    initial_value: "true"
+  - id: voice_assistant_phase
+    type: int
+    restore_value: false
+    initial_value: ${voice_assist_not_ready_phase_id}
+
+# Frames come from the hub's scheduler (daruma: display_profile:
+# min_frame), not from a polling loop: it draws when something changed, the
+# persona moves only in idle and muted phases (the frame gate above), and 0 fps
+# when nothing moves.
+interval:
+  - interval: 15min
+    then:
+      - lambda: id(daruma_hub).decay_happiness();
+  # The weekday and day part follow the local clock. One path for boot,
+  # the hour and midnight: a poll, since a clock's on_time_sync is not
+  # reliable here. Only one Home Assistant time component gets the time
+  # from HA (pomodoro.yaml has one too), and the sync runs before HA's
+  # time zone is applied. Both setters do nothing when nothing changed.
+  - interval: 5s
+    then:
+      - lambda: |-
+          const auto now = id(daruma_time).now();
+          if (!now.is_valid()) return;
+          id(daruma_hub).set_weekday(now.day_of_week);
+          id(daruma_hub).set_hour(now.hour);
+
+script:
+  # Draw soon (the next frame the scheduler allows), whatever the phase.
+  - id: draw_display
+    then:
+      - lambda: id(daruma_hub).request_frame();
+
+  - id: show_message
+    mode: restart
+    parameters:
+      text: string
+      seconds: int
+    then:
+      - lambda: id(daruma_hub).show_message(text, seconds);
+      - script.execute: draw_display
+
+  # --- Persona animation timing (what each persona does with it is up to the persona)
+
+  - id: blink_animation
+    mode: single
+    then:
+      - delay: 1s
+      - while:
+          condition:
+            lambda: return true;
+          then:
+            - delay: !lambda return (random_uint32() % 2001) + 3000;
+            - lambda: |-
+                const uint32_t roll = random_uint32() % 100;
+                if (roll < 5) {
+                  id(daruma_hub).wink();
+                } else {
+                  id(daruma_hub).blink();
+                }
+                // About one blink in ten is a double blink.
+                if (roll >= 5 && roll < 15) {
+                  id(double_blink).execute();
+                }
+
+  - id: double_blink
+    mode: single
+    then:
+      - delay: 250ms
+      - lambda: id(daruma_hub).blink();
+
+  - id: look_animation
+    mode: single
+    then:
+      - delay: 1s
+      - while:
+          condition:
+            lambda: return true;
+          then:
+            - delay: !lambda return (random_uint32() % 2001) + 3000;
+            - lambda: id(daruma_hub).look_around();
+
+  # --- Reactions --------------------------------------------------------------
+
+  - id: scared_reaction
+    mode: restart
+    then:
+      - lambda: |-
+          id(daruma_hub).reset_reactions();
+          id(daruma_hub).react(Daruma::StateId::STARTLED);
+          id(daruma_hub).add_happiness(-10);
+      - event.trigger:
+          id: daruma_event
+          event_type: scared
+
+  - id: loved_reaction
+    mode: restart
+    then:
+      - lambda: |-
+          id(daruma_hub).reset_reactions();
+          id(daruma_hub).react(Daruma::StateId::PETTED);
+          id(daruma_hub).add_happiness(10);
+      - event.trigger:
+          id: daruma_event
+          event_type: petted

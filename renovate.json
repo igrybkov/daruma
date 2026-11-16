@@ -1,0 +1,65 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.esphome/**"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "ESPHome pins in scripts and docs (uvx --from esphome==..., DARUMA_ESPHOME)",
+      "managerFilePatterns": [
+        "/\\.(py|md|sh)$/"
+      ],
+      "matchStrings": [
+        "esphome==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "esphome",
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "The ESPHome version the README and the install guide ask for",
+      "managerFilePatterns": [
+        "/^README\\.md$/",
+        "/^docs/install\\.md$/"
+      ],
+      "matchStrings": [
+        "ESPHome (?<currentValue>\\d+\\.\\d+\\.\\d+) or later"
+      ],
+      "depNameTemplate": "esphome",
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "aioesphomeapi pins: uv run --with ..., and record.py's inline script metadata",
+      "managerFilePatterns": [
+        "/\\.(py|md)$/"
+      ],
+      "matchStrings": [
+        "aioesphomeapi==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "aioesphomeapi",
+      "datasourceTemplate": "pypi"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "One update for every place that names the ESPHome version",
+      "matchDepNames": [
+        "esphome"
+      ],
+      "groupName": "ESPHome"
+    },
+    {
+      "description": "aioesphomeapi follows ESPHome's API; update it with ESPHome",
+      "matchDepNames": [
+        "aioesphomeapi"
+      ],
+      "groupName": "ESPHome"
+    }
+  ]
+}

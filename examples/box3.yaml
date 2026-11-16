@@ -1,0 +1,154 @@
+# Daruma on an ESP32-S3-BOX-3: a persona, a voice assistant, a pomodoro timer,
+# today's tasks and calendar, and cards that Home Assistant can show.
+#
+# Copy this file into your ESPHome config folder, set the device name, add
+# the keys from secrets.example.yaml to your secrets.yaml, and compile it.
+# Everything else comes from this repository at `daruma_ref`: the
+# packages, and through them the ESPHome components and the pixel art.
+#
+# Drop a line from the `files:` list to drop that part. Include a persona
+# package more than once (with other vars) to A/B test art.
+#
+# Personas: every persona package below adds an option to the "Persona"
+# select on the device's page in Home Assistant. The first one in the list
+# is the default on a new device; after that the device keeps your choice
+# across reboots and updates. On the device, swipe left or right on the
+# screen to change it (daruma.next_persona and daruma.previous_persona,
+# core's default bindings; bind them to a button under `bindings:` too).
+#
+#   board_box3.yaml        the BOX-3 hardware and its named inputs
+#                          (required; board_box3_buttons.yaml drives it
+#                          by buttons only)
+#   core.yaml              hub, mood, signals, render pipeline (required)
+#   persona_daruma.yaml       a pixel-art daruma that paints its eyes as you
+#                          reach today's goal
+#   persona_pixel_corgi.yaml  a pixel-art corgi in a cozy room
+#   persona_the_boss.yaml     a pixel-art executive at her desk
+#   persona_jack_russell.yaml a pixel-art Jack Russell terrier
+#   persona_tabby_cat.yaml    a pixel-art tabby cat in a portrait studio
+#   persona_eyes.yaml         eyes drawn from shapes
+#   persona_images.yaml       a persona from PNG pictures (include per set)
+#   menu.yaml              tap menu (without it, a tap pets the hub)
+#   pomodoro.yaml          pomodoro timer, daily goal and tomatoes
+#   app_tasks.yaml         Tasks app: today's tasks from an HA to-do list
+#                          or script (needs menu.yaml; include per list)
+#   app_calendar.yaml      Calendar app: the next days' HA calendar events
+#                          (include per set of calendars)
+#   app_weather.yaml       Weather app: today's report from an HA weather
+#                          entity (a tap on the temperature badge opens it)
+#   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
+#
+# Inputs (board_box3.yaml): home (the red circle), top (the top-left
+# button), screen (touch). The bindings are below; with expose_bindings
+# each is also a select in Home Assistant, starting from these. The red
+# circle opens the pomodoro menu; in the menu it goes back (hold: closes
+# it). A ringing timer stops on any press or tap first. Holding the top
+# button 10 s resets to factory settings.
+#
+# Home Assistant actions (esphome.<name>_<action>): show_message(message,
+# seconds), wink(), add_happiness(change_by), set_wellbeing(value),
+# pomodoro_start(minutes), and prompt_show, prompt_update, prompt_close
+# and ask (see docs/prompts.md).
+#
+# To build against your own clone or fork, override where the packages
+# come from. They are fetched with git, so commit your changes first:
+#
+#   esphome -s daruma_url file:///path/to/daruma -s daruma_ref main \
+#       compile box3.yaml
+
+substitutions:
+  name: daruma
+  friendly_name: Daruma
+  # Optional starting values for the apps. You pick the real ones on the
+  # device's page in Home Assistant ("Tasks source", "Tasks entity",
+  # "Calendars", "Weather entity"); the device keeps them across reboots,
+  # and a saved value wins over these.
+  # Tasks: a to-do entity, or a script made from the "Daruma: task list
+  # from a sensor" blueprint (then source: script).
+  tasks_source: todo
+  tasks_entity: todo.shopping_list
+  # Calendars, comma-separated.
+  calendars: calendar.home
+  weather_entity: weather.home
+  # Where Daruma comes from. For a device you rely on, pin a commit (its
+  # full hash) or a release tag instead of main.
+  daruma_url: https://github.com/igrybkov/daruma
+  daruma_ref: main
+
+packages:
+  daruma:
+    url: ${daruma_url}
+    ref: ${daruma_ref}
+    files:
+      - packages/board_box3.yaml
+      - packages/core.yaml
+      - packages/persona_daruma.yaml
+      - packages/persona_pixel_corgi.yaml
+      - packages/persona_the_boss.yaml
+      - packages/persona_jack_russell.yaml
+      - packages/persona_tabby_cat.yaml
+      - packages/persona_eyes.yaml
+      - path: packages/persona_images.yaml
+        vars:
+          persona_id: flat_corgi
+          persona_name: "Flat corgi"
+          art: flat_corgi
+          # The pixel corgi's "awwwrrrr" when petted.
+          sounds:
+            pet:
+              - { note: C#3, to: F#3, seconds: 0.10, duty: 0.30, attack: 0.02, release: 0 }
+              - { note: F#3, to: B2, seconds: 0.32, duty: 0.25, attack: 0, release: 0.08, vibrato: 26 }
+      - packages/menu.yaml
+      - packages/pomodoro.yaml
+      - path: packages/app_tasks.yaml
+        vars:
+          source: ${tasks_source}
+          entity: ${tasks_entity}
+      - path: packages/app_calendar.yaml
+        vars:
+          calendars: ${calendars}
+      - path: packages/app_weather.yaml
+        vars:
+          entity: ${weather_entity}
+      - packages/prompts.yaml
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret wifi_fallback_password
+
+api:
+  encryption:
+    key: !secret daruma_api_key
+
+daruma:
+  # The app board, in this order. Each app gets an "App: <Name>" switch.
+  apps: [tasks, calendar, weather, stats]
+  # What grows the plant (or the bonsai), and how much each counts.
+  progress:
+    pomodoro: 1
+  # Menus of dock buttons. A tap on the persona opens the default main menu
+  # (Tasks, Calendar, More); pomodoro's own menu opens with a press on the
+  # red circle. One extra menu here:
+  menus:
+    quick: [pomodoro.skip, pomodoro.stop, stats, more]
+  # Input gestures to module actions. `when: idle` runs it only on the
+  # device's own screen; in the menu the red circle goes back.
+  bindings:
+    home.hold: { action: pomodoro.stop, when: idle }
+    # A double press on the top button opens the quick menu. Its single
+    # press (voice) then waits the double-press window (300 ms).
+    top.double: { action: menu.open, menu: quick }
+    top.press: voice.start
+    screen.tap: menu.open
+    screen.stroke: daruma.pet
+  expose_bindings: true
+  # A tap on the plaque opens the Pomodoro page, on the temperature badge
+  # the Weather app, on the next event line the Calendar (the modules'
+  # defaults). `targets:` sends one elsewhere, for example
+  # `plaque: { menu: pomodoro }`, or `badge: none`.
+  # Module colors and words for every persona (`theme:`), or for one persona by
+  # its id (`themes: { eyes: { colors: { pomodoro.plaque: "000000" } } }`).
+  # They win over the persona's own theme.

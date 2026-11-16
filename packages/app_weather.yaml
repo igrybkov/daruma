@@ -1,0 +1,242 @@
+# Weather app for Daruma. Needs core.yaml and menu.yaml.
+#
+# Today's report from one Home Assistant weather entity: now (the
+# condition's icon, the temperature big, its name), today's high and low,
+# the chance of rain and the wind, and a strip of the next hours (the hour,
+# an icon, the temperature, the chance of rain when there is one). Units
+# come from HA: the temperature shows as "72°", the wind in the entity's
+# unit. Five hours on a 320x240 screen, more on wide ones.
+#
+# A tap on the temperature badge (bottom right of the persona) opens it: the
+# app's default target for the core's tap area `badge`. The device yaml's
+# `targets: badge:` may send it elsewhere. It is on the app board too.
+#
+# Data: `weather.get_forecasts`, once hourly and once daily, one after the
+# other through the hub's gate for HA calls (ha_calls.h). Now, the units
+# and the wind come from the entity's own state. Only while the app is
+# open: when it opens, and every 30 minutes while it stays open. A weather
+# service without an hourly forecast still shows the rest. "Can't reach
+# Home Assistant" while HA is away; "Can't load the weather" when both
+# calls fail (a wrong entity, say). A tap on either tries again.
+#
+# Entity: the "Weather entity" text entity in HA (a setting, kept across
+# reboots). `entity` below is only the value before the first edit, and the
+# fallback when it is emptied.
+#
+# Needs "Allow the device to perform Home Assistant actions" on in the
+# ESPHome integration's options in HA.
+#
+# Words: the text_* values below are the English defaults of the theme
+# words <app_id>.loading, .offline, .error, .now, .high_low ({high},
+# {low}), .rain ({chance}), .wind ({speed}, {unit}), and one per condition:
+# .sunny, .clear_night, .partlycloudy, .cloudy, .fog, .hail, .lightning,
+# .lightning_rainy, .pouring, .rainy, .snowy, .snowy_rainy, .windy,
+# .windy_variant, .exceptional. Colors: <app_id>.icon (the condition
+# icons) and <app_id>.rain (the chance of rain under each hour).
+#
+# Include it once as is, or with vars for another entity:
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - path: packages/app_weather.yaml
+#           vars: { entity: weather.forecast_home }
+
+defaults:
+  app_id: weather
+  app_name: Weather
+  entity: weather.home
+  color: "3B9BE0"
+  # Hours the reply carries (the strip shows what fits).
+  hours: "12"
+  text_loading: "Loading…"
+  text_offline: "Can't reach Home Assistant"
+  text_error: "Can't load the weather"
+  text_now: "Now"
+  text_high_low: "H {high}  L {low}"
+  text_rain: "Rain {chance}%"
+  text_wind: "Wind {speed} {unit}"
+  text_sunny: "Sunny"
+  text_clear_night: "Clear"
+  text_partlycloudy: "Partly cloudy"
+  text_cloudy: "Cloudy"
+  text_fog: "Fog"
+  text_hail: "Hail"
+  text_lightning: "Lightning"
+  text_lightning_rainy: "Thunderstorm"
+  text_pouring: "Pouring"
+  text_rainy: "Rain"
+  text_snowy: "Snow"
+  text_snowy_rainy: "Sleet"
+  text_windy: "Windy"
+  text_windy_variant: "Windy"
+  text_exceptional: "Warning"
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_weather]
+
+daruma_weather:
+  - id: ${app_id}_app
+    time_id: daruma_time
+    refresh_interval: 30min
+    timeout: 10s
+
+color:
+  - id: ${app_id}_color
+    hex: "${color}"
+
+# The big temperature.
+font:
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 700
+    id: ${app_id}_font_big
+    size: ${ (font_size_timer | int) * 2 }
+    bpp: 4
+    glyphs: "0123456789-–°"
+
+text:
+  - platform: template
+    name: "${ 'Weather entity' if app_id == 'weather' else app_name ~ ' weather entity' }"
+    id: ${app_id}_entity
+    icon: "mdi:weather-partly-cloudy"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 64
+    initial_value: "${entity}"
+    on_value:
+      - lambda: id(${app_id}_app).reload();
+
+daruma:
+  modules:
+    - name: ${app_id}
+      apps:
+        - id: ${app_id}
+          name: ${app_name}
+      # A tap on the temperature badge opens the app.
+      targets:
+        badge: { app: "${app_id}" }
+      theme:
+        colors:
+          icon: "F5B82E"
+          rain: "4FA3E0"
+        words:
+          loading: "${text_loading}"
+          offline: "${text_offline}"
+          error: "${text_error}"
+          now: "${text_now}"
+          high_low: "${text_high_low}"
+          rain: "${text_rain}"
+          wind: "${text_wind}"
+          sunny: "${text_sunny}"
+          clear_night: "${text_clear_night}"
+          partlycloudy: "${text_partlycloudy}"
+          cloudy: "${text_cloudy}"
+          fog: "${text_fog}"
+          hail: "${text_hail}"
+          lightning: "${text_lightning}"
+          lightning_rainy: "${text_lightning_rainy}"
+          pouring: "${text_pouring}"
+          rainy: "${text_rainy}"
+          snowy: "${text_snowy}"
+          snowy_rainy: "${text_snowy_rainy}"
+          windy: "${text_windy}"
+          windy_variant: "${text_windy_variant}"
+          exceptional: "${text_exceptional}"
+      setup: |-
+        auto *w = id(${app_id}_app);
+        w->set_theme_prefix("${app_id}");
+        w->set_big_font(id(${app_id}_font_big));
+        // Through the hub's gate for HA calls with replies (ha_calls.h).
+        w->set_fetcher([](int request, int kind) {
+          id(daruma_hub).ha_calls().call("${app_id} forecast", [=](uint32_t call) {
+            id(${app_id}_fetch).execute(call, request, kind);
+          });
+        });
+
+        Daruma::App app;
+        app.id = "${app_id}";
+        app.name = "${app_name}";
+        app.icon = "\U000F0595";  // weather-partly-cloudy
+        app.color = id(${app_id}_color);
+        app.status = [w]() { return w->status(); };
+        app.draw = [w](Daruma::AppView &v) { w->draw(v); };
+        app.input = [w](Daruma::Input input, int x, int y) { return w->input(input, x, y); };
+        app.on_open = [w]() { w->on_open(); };
+        app.on_close = [w]() { w->on_close(); };
+        app.on_enable = [w](bool on) { w->set_enabled(on); };
+        hub.add_app(app);
+
+script:
+  # One forecast: kind 0 hourly, 1 daily. The reply goes back with the same
+  # request number. Runs from the hub's gate (ha_calls.h): `call` goes back
+  # to it with the answer.
+  - id: ${app_id}_fetch
+    mode: parallel
+    parameters:
+      call: int
+      request: int
+      kind: int
+    then:
+      - homeassistant.action:
+          action: weather.get_forecasts
+          data:
+            entity_id: !lambda return id(${app_id}_entity_now)();
+            type: !lambda 'return kind == 0 ? std::string("hourly") : std::string("daily");'
+          capture_response: true
+          # Hourly: {"u": temperature unit, "w": wind unit, "c": condition now,
+          # "t": temperature now, "ws": wind now, "h": [[epoch, condition,
+          # temperature, chance of rain], ...]} for the first `hours` hours.
+          # Daily: {"d": [[epoch, condition, high, low, chance of rain,
+          # wind], ...]} for the first three days. Missing values are null.
+          response_template: !lambda |-
+            const std::string e = id(${app_id}_entity_now)();
+            const std::string head = "{%- set e = '" + e + "' -%}{%- set f = response[e].forecast if e in response else [] -%}";
+            if (kind == 0)
+              return head + R"JINJA(
+            {%- set ns = namespace(h=[]) -%}
+            {%- for x in f[:${hours}] -%}
+            {%- set ns.h = ns.h + [[as_timestamp(x.datetime) | int, x.condition | default(''),
+                                    x.temperature | default(none), x.precipitation_probability | default(none)]] -%}
+            {%- endfor -%}
+            {{ {'u': state_attr(e, 'temperature_unit') or '', 'w': state_attr(e, 'wind_speed_unit') or '',
+                'c': states(e), 't': state_attr(e, 'temperature'), 'ws': state_attr(e, 'wind_speed'),
+                'h': ns.h} | to_json }})JINJA";
+            return head + R"JINJA(
+            {%- set ns = namespace(d=[]) -%}
+            {%- for x in f[:3] -%}
+            {%- set ns.d = ns.d + [[as_timestamp(x.datetime) | int, x.condition | default(''),
+                                    x.temperature | default(none), x.templow | default(none),
+                                    x.precipitation_probability | default(none), x.wind_speed | default(none)]] -%}
+            {%- endfor -%}
+            {{ {'d': ns.d} | to_json }})JINJA";
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_reply(request, response);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_error(request, error);
+
+globals:
+  # The weather entity to ask: the setting, or the build's when it is empty
+  # or not an entity id (it goes into the template, so only a-z, 0-9, _ and .).
+  - id: ${app_id}_entity_now
+    type: std::function<std::string()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        std::string e = id(${app_id}_entity).state;
+        const bool ok = e.rfind("weather.", 0) == 0 && e.size() > 8 &&
+                        e.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_.") == std::string::npos;
+        return ok ? e : std::string("${entity}");
+      }

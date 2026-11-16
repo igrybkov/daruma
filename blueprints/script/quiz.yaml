@@ -1,0 +1,230 @@
+blueprint:
+  name: Daruma quiz
+  domain: script
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/script/quiz.yaml
+  description: >-
+    A quiz on a Daruma device. Each question shows four answers, A to D,
+    and a 50:50 button that hides two wrong answers once per game. The card
+    marks the answer right or wrong, keeps the score, and shows the result
+    at the end. Dismissing a question (the red circle) ends the game.
+
+
+    Questions are a list like this. `correct` counts from 0 (A):
+
+    - question: Which planet has the most known moons?
+      answers: [Saturn, Jupiter, Uranus, Neptune]
+      correct: 0
+
+
+    Needs the device's prompts package (packages/prompts.yaml of Daruma).
+    Each question is shown with prompt_show, and the script waits for the
+    answer event esphome.daruma_prompt, so a question can wait longer
+    than the 25 s an ask allows.
+  input:
+    node_name:
+      name: Device node name
+      description: >-
+        The ESPHome node name with "-" as "_". Its actions are named after it
+        (esphome.daruma_prompt_show).
+      default: daruma
+      selector:
+        text: {}
+    questions:
+      name: Questions
+      description: A list of {question, answers (4), correct (0-3)}.
+      default:
+        - question: Which planet has the most known moons?
+          answers: [Saturn, Jupiter, Uranus, Neptune]
+          correct: 0
+        - question: How many legs does a spider have?
+          answers: ["6", "8", "10", "12"]
+          correct: 1
+        - question: What do bees make?
+          answers: [Milk, Silk, Honey, Wax paper]
+          correct: 2
+      selector:
+        object: {}
+    seconds:
+      name: Seconds per question
+      description: How long each question waits for an answer.
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 600
+          unit_of_measurement: s
+    pause:
+      name: Pause after each answer
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+          unit_of_measurement: s
+
+mode: single
+
+variables:
+  node: !input node_name
+  questions: !input questions
+  seconds: !input seconds
+  pause: !input pause
+  total: "{{ questions | count }}"
+  score: 0
+  lifeline: true
+  stopped: false
+
+sequence:
+  # A card left from the last game would end as "replaced"; closing it
+  # sends no event.
+  - action: "esphome.{{ node }}_prompt_close"
+    data:
+      id: quiz
+  - repeat:
+      for_each: "{{ questions }}"
+      sequence:
+        - condition: template
+          value_template: "{{ not stopped }}"
+        - variables:
+            correct: "{{ repeat.item.correct | int }}"
+            options: >-
+              {{ repeat.item.answers[:4] + (['50:50'] if lifeline else []) }}
+            title: "Question {{ repeat.index }} of {{ total }} · Score {{ score }}"
+        - action: "esphome.{{ node }}_prompt_show"
+          data:
+            id: quiz
+            layout: choice
+            title: "{{ title }}"
+            body: "{{ repeat.item.question }}"
+            options: "{{ options }}"
+            marks: []
+            style: game
+            timeout: "{{ seconds | int }}"
+            state: ""
+            sound: ""
+            dismissable: true
+        - wait_for_trigger:
+            - trigger: event
+              event_type: esphome.daruma_prompt
+              event_data:
+                id: quiz
+          timeout:
+            seconds: "{{ seconds | int + 5 }}"
+          continue_on_timeout: true
+        # No event (it was lost): count it as a timeout.
+        - variables:
+            answer: >-
+              {{ wait.trigger.event.data if wait.trigger
+                 else {'id': 'quiz', 'choice': '', 'index': -1, 'reason': 'timeout'} }}
+
+        # 50:50: hide two wrong answers and the button, then ask again.
+        - if:
+            - condition: template
+              value_template: "{{ answer.reason == 'chosen' and answer.index == 4 }}"
+          then:
+            - variables:
+                lifeline: false
+                wrong: "{{ [0, 1, 2, 3] | reject('eq', correct) | list }}"
+            - variables:
+                keep: "{{ wrong | random }}"
+            - variables:
+                marks: >-
+                  {% set ns = namespace(out=[]) %}
+                  {% for i in range(4) %}
+                  {% set ns.out = ns.out + (['hidden'] if i != correct and i != keep else ['']) %}
+                  {% endfor %}
+                  {{ ns.out + ['hidden'] }}
+            - action: "esphome.{{ node }}_prompt_show"
+              data:
+                id: quiz
+                layout: choice
+                title: "{{ title }}"
+                body: "{{ repeat.item.question }}"
+                options: "{{ options }}"
+                marks: "{{ marks }}"
+                style: game
+                timeout: "{{ seconds | int }}"
+                state: ""
+                sound: ""
+                dismissable: true
+            - wait_for_trigger:
+                - trigger: event
+                  event_type: esphome.daruma_prompt
+                  event_data:
+                    id: quiz
+              timeout:
+                seconds: "{{ seconds | int + 5 }}"
+              continue_on_timeout: true
+            # No event (it was lost): count it as a timeout.
+            - variables:
+                answer: >-
+                  {{ wait.trigger.event.data if wait.trigger
+                     else {'id': 'quiz', 'choice': '', 'index': -1, 'reason': 'timeout'} }}
+
+        - if:
+            - condition: template
+              value_template: "{{ answer.reason in ['dismissed', 'replaced'] }}"
+          then:
+            - variables:
+                stopped: true
+          else:
+            # Right or wrong (a timeout counts as wrong): mark it and show
+            # the right answer.
+            - variables:
+                right: "{{ answer.reason == 'chosen' and answer.index == correct }}"
+                score: "{{ score + (1 if answer.reason == 'chosen' and answer.index == correct else 0) }}"
+            - variables:
+                marks: >-
+                  {% set ns = namespace(out=[]) %}
+                  {% for i in range(options | count) %}
+                  {% if i == correct %}{% set m = 'correct' %}
+                  {% elif answer.reason == 'chosen' and i == answer.index %}{% set m = 'wrong' %}
+                  {% elif i >= 4 %}{% set m = 'hidden' %}
+                  {% else %}{% set m = '' %}{% endif %}
+                  {% set ns.out = ns.out + [m] %}
+                  {% endfor %}
+                  {{ ns.out }}
+            # A fresh card with the marks, not prompt_update: a question
+            # that timed out is gone, and show works either way.
+            - action: "esphome.{{ node }}_prompt_show"
+              data:
+                id: quiz
+                layout: choice
+                title: "{{ title }}"
+                body: "{{ 'Right!' if right else 'The answer: ' ~ repeat.item.answers[correct] }}"
+                options: "{{ options }}"
+                marks: "{{ marks }}"
+                style: game
+                timeout: -1
+                state: ""
+                sound: none
+                dismissable: true
+            - delay:
+                seconds: "{{ pause | int }}"
+            # Closed quietly, so the next question replaces nothing and no
+            # stray "replaced" answer can reach the next wait.
+            - action: "esphome.{{ node }}_prompt_close"
+              data:
+                id: quiz
+
+  - if:
+      - condition: template
+        value_template: "{{ stopped }}"
+    then:
+      - action: "esphome.{{ node }}_prompt_close"
+        data:
+          id: quiz
+    else:
+      - action: "esphome.{{ node }}_prompt_show"
+        data:
+          id: quiz
+          layout: message
+          title: Quiz over
+          body: "You got {{ score }} of {{ total }} right."
+          options: [OK]
+          marks: []
+          style: game
+          timeout: 30
+          state: ""
+          sound: ""
+          dismissable: true

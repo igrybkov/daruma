@@ -1,0 +1,33 @@
+# Eyes persona for Daruma: eyes drawn from shapes. They blink, glance and
+# wink, and change shape with the mood; while focusing they look down,
+# narrowed. No image assets. Param `color` sets the eye color.
+
+daruma_eyes:
+  - id: eyes
+    name: Eyes
+    params:
+      color: cyan
+    # Menu and apps: dark, with cyan outlines and icons to match the eyes.
+    theme:
+      style: outline
+      frame: "080A0E"
+      edge: "28323C"
+      panel: "141A20"
+      ink: "E1F5FA"
+      muted: "6E96A0"
+      title: "00DCF0"
+      accent: "00C8DC"
+      dot: "283C46"
+      dock: "141A20"
+      dock_ink: "E1F5FA"
+      dock_muted: "6E96A0"
+      icon_color: "00DCF0"
+      colors:
+        # The pomodoro plaque blends into the eyes' black screen.
+        pomodoro.plaque: "000000"
+    # A robot's version of being petted: two thin, quick blips.
+    sounds:
+      pet:
+        - { note: E6, seconds: 0.05, duty: 0.125 }
+        - { rest: 0.03 }
+        - { note: A6, seconds: 0.08, duty: 0.125, release: 0.03 }

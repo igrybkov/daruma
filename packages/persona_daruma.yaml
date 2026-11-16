@@ -1,0 +1,61 @@
+# Daruma persona: a red daruma doll on a cushion in a tatami room with shoji
+# screens, a tall window and a tokonoma alcove. It
+# keeps today's goal in its eyes, as a real daruma does (see README.md):
+#
+#   no eyes painted   before the first focus session of the day;
+#   one eye           after the first one;
+#   both eyes         at the daily goal;
+#   blank again       at midnight.
+#
+# The eyes follow the goal signal (pomodoro feeds it). When an eye gets
+# painted, the doll plays Paint once (the `paint` reaction), then goes on
+# with the new eyes. The cushion changes color by weekday, the tall window
+# shows the sky, and the bonsai in the alcove grows with the progress signal
+# (pixel/daruma_pixel/bonsai.py) and wilts while behind pace. It sits
+# with incense while focusing, and wobbles back up when scared. Adds
+# 'Daruma' to the Persona select, and "Daruma rug" (the cushion: weekday or plain) to
+# the device settings.
+#
+# Drawn by Python while the firmware compiles (pixel/daruma_pixel/daruma.py,
+# daruma_moods.py, daruma_persona.py); edit the art there and compile.
+
+daruma_sprites:
+  - id: daruma_doll
+    name: Daruma
+    pixel_art:
+      script: ../pixel/daruma_pixel/daruma_persona.py
+      persona: daruma0
+      goal:
+        started: daruma1
+        done: daruma2
+    play_once: [Paint, PaintFocus]
+    behaviors:
+      paint: { animation: Paint }
+    # A reaction during a focus session keeps the incense burning.
+    during:
+      focus: { Loved: LovedFocus, Scared: ScaredFocus, Paint: PaintFocus }
+    params:
+      rug: { value: weekday, expose: true }
+    # Menu and apps: a lacquer-red board with cream cards, gold titles and
+    # indigo ink.
+    theme:
+      style: paper
+      frame: "A8232A"
+      edge: "5A1014"
+      panel: "FAF2E2"
+      ink: "232A4E"
+      muted: "6C6880"
+      title: "F6D27A"
+      accent: "D49A2A"
+      dot: "6A161A"
+      dock: "FAF2E2"
+      dock_ink: "232A4E"
+      dock_muted: "6C6880"
+    # Petted: two soft wooden knocks, then a small bell.
+    sounds:
+      pet:
+        - { note: A5, to: E5, seconds: 0.035, duty: 0.25, attack: 0.001, release: 0.03 }
+        - { rest: 0.07 }
+        - { note: G5, to: D5, seconds: 0.035, duty: 0.25, attack: 0.001, release: 0.03 }
+        - { rest: 0.05 }
+        - { note: E7, seconds: 0.2, attack: 0.002, release: 0.18 }

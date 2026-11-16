@@ -1,0 +1,43 @@
+# Pixel-art corgi persona: front-facing Pembroke in a cozy room, animated per
+# mood (butt wag when happy), with a weather window (the sky signal), a
+# plant that grows with the progress signal, and a rug that changes color by
+# weekday. Reads a book while focusing. Adds 'Pixel corgi' to the Persona
+# select, and "Pixel corgi rug" (weekday or plain) to the device settings.
+#
+# States find animations by name (focus -> Focus); the rest fall back, and
+# the build log lists how (components/daruma/registry.py).
+#
+# Drawn by Python while the firmware compiles (pixel/daruma_pixel/personas.py);
+# edit the art there and compile. Previews: see that file.
+
+daruma_sprites:
+  - id: pixel_corgi
+    name: Pixel corgi
+    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: corgi }
+    behaviors:
+      focus: { animation: Focus }
+    # A reaction during a focus session keeps the glasses and the book.
+    during:
+      focus: { Loved: LovedFocus, Scared: ScaredFocus }
+    params:
+      rug: { value: weekday, expose: true }
+    # Menu and apps: a wooden board with cream cards, like the room.
+    theme:
+      style: wood
+      frame: "96623A"
+      edge: "603A22"
+      panel: "FCF2DE"
+      ink: "462C1E"
+      muted: "826046"
+      title: "FCF2DE"
+      accent: "D6A032"
+      dot: "704A2C"
+      dock: "FAF6EE"
+      dock_ink: "3C2C24"
+      dock_muted: "786458"
+    # Petted: a low, content "awwwrrrr", rising into the "aww" and rolling
+    # down through the "rrr".
+    sounds:
+      pet:
+        - { note: C#3, to: F#3, seconds: 0.10, duty: 0.30, attack: 0.02, release: 0 }
+        - { note: F#3, to: B2, seconds: 0.32, duty: 0.25, attack: 0, release: 0.08, vibrato: 26 }

@@ -1,0 +1,32 @@
+# Daruma board: the ESP32-S3-BOX-3 driven by its two buttons only, the
+# way an alarm clock without touch would be. The screen does not take
+# touches; the menu, apps and prompts move a focus ring instead. Pairs with
+# core.yaml.
+#
+# Inputs (bind them in the device yaml: home.press, top.hold, ...):
+#   home    the red circle under the screen: press, double, hold (1.5 s)
+#   top     the top-left button: press, double, hold (1 s)
+#
+# Navigation: top moves the focus (press: next, double: previous), home
+# picks (press), goes back (double) and closes (hold). Bindings on these
+# gestures need `when: idle`, so they run only on the device's own screen.
+# Something must bind menu.open, or the menu could never open.
+
+packages:
+  hardware: !include board_box3_hardware.yaml
+
+daruma:
+  inputs:
+    - name: home
+      button: home_button
+      gestures: [press, double, hold]
+      hold_time: 1.5s
+    - name: top
+      button: left_top_button
+      gestures: [press, double, hold]
+  navigation:
+    next: top.press
+    prev: top.double
+    select: home.press
+    back: home.double
+    close: home.hold

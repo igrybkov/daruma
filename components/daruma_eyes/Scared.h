@@ -1,0 +1,22 @@
+#pragma once
+#include "BaseState.h"
+#include "esphome/components/daruma/draw.h"
+
+namespace Daruma {
+    namespace States {
+        class Scared : public BaseState {
+        public:
+            Scared();
+
+            std::string getName() const override;
+            bool isAnimated() const override { return true; }
+            void render(
+                esphome::display::Display* display,
+                float x, float y,
+                float blinkPercentage,
+                esphome::Color eyeColor,
+                esphome::Color backgroundColor
+            ) override;
+        };
+    }
+}

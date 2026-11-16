@@ -1,0 +1,292 @@
+# Calendar app for Daruma. Needs core.yaml and menu.yaml.
+#
+# Opens on an agenda of the next days ("Days ahead", 14 by default): a
+# heading per day ("Today", "Tomorrow", "Wed 19 Nov"), only for days with
+# events, except Today, which shows "Nothing" when it is free. Under each
+# heading: the start time (or "All day") and the title. The event in
+# progress is highlighted and today's past events are dimmed. Swipe up or
+# down to scroll; on boards without touch, NEXT and PREV move a focus over
+# the rows. "+3 more" at the end means HA left events out.
+#
+# A tap on a day (or SELECT on it) opens that day: start and end times and
+# the title, with a line at the current time. Its arrows step a day back or
+# forward (30 days back, 60 ahead); a tap on the day name goes to today.
+# Back returns to the agenda. A tap on an error tries again.
+#
+# Board tile: "Next 14:00", "Until 15:00" during the last event, or "Free
+# today".
+#
+# Next event line, on the device's own screen: "14:00 Dentist" for an event
+# that starts within "Next event within" hours (a number setting, 0 = off,
+# 3 by default), "Now: Standup · until 10:30" while one runs, nothing when
+# none. Today only; all-day events never show; the title is cut to fit. It
+# reads the agenda (no extra HA calls), checks once a minute, and redraws
+# only its own strip when the text changes. It sits at the hub's info line
+# (bottom left, under the tomatoes; a persona's theme may put it at the top or
+# turn it off), in the menu's small font and the persona's dock colors, and
+# hides under a message bubble, the menu and prompts. `next_event` picks the
+# copies that show it: auto (the first copy, app_id calendar), on or off.
+# Several copies share one line: a running event first, else the soonest.
+# A tap on the line opens the Calendar app (its tap area `next_event`; with
+# several copies, the first one in the config; the device yaml's
+# `targets: next_event:` may send it elsewhere).
+#
+# Data: one request covers the agenda (calendar.get_events), when the app
+# opens, every 15 minutes and at midnight; the tile reads it too. HA merges
+# the calendars, sorts by start and sends at most `agenda_max` events, with
+# titles cut to `title_chars` and without descriptions. A day view outside
+# that range, or past the last event HA sent, asks for its own day.
+#
+# Include it once as is, or more than once with vars, one set of calendars
+# each:
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - packages/app_calendar.yaml
+#         - path: packages/app_calendar.yaml
+#           vars: { app_id: calendar_work, app_name: Work, calendars: calendar.work }
+#
+# Each copy gets its own app on the board, its own "App: <app_name>"
+# switch and settings ("<app_name> calendars", "<app_name> days ahead";
+# the first copy keeps "Calendars" and "Days ahead"), and its own theme
+# keys under <app_id>. A theme can rename or re-icon it by app_id (theme.py
+# `apps:`). Put every app_id in daruma: apps: to set the board order.
+# Two copies with one app_id fail the build.
+#
+# Calendars: the "Calendars" text entity in HA (comma-separated entity IDs).
+# A change takes effect at once, no rebuild, and survives reboots.
+# `calendars` is only the value before the first edit (a saved value wins
+# over it) and the fallback when the list is emptied.
+#
+# Needs "Allow the device to perform Home Assistant actions" on in the
+# ESPHome integration's options in HA. Without it the app shows "Can't reach
+# Home Assistant".
+#
+# Words: the text_* values below are the English defaults of the theme
+# words <app_id>.today, .tomorrow, .yesterday, .loading, .empty, .nothing,
+# .all_day, .more, .untitled, .offline, .error, .next, .until, .busy,
+# .free, .status_error, .weekdays (Sunday first), .months, and the line's
+# templates .line_next, .line_now and .line_now_open ({start}, {end} and
+# {title}; "now_open" is for an event that runs past today). A persona's
+# theme may set any of them (theme.py `words:`).
+#
+# "App: Calendar" off stops every fetch, the status line's included.
+
+# Values for one copy; an include's vars override them.
+defaults:
+  app_id: calendar
+  app_name: Calendar
+  calendars: "calendar.home"
+  color: "EF5B3F"
+  days_ahead: "14"
+  agenda_max: "25"
+  title_chars: "40"
+  text_today: "Today"
+  text_tomorrow: "Tomorrow"
+  text_yesterday: "Yesterday"
+  text_loading: "Loading…"
+  text_empty: "Nothing planned"
+  text_nothing: "Nothing"
+  text_all_day: "All day"
+  text_more: "more"
+  text_untitled: "Busy"
+  text_offline: "Can't reach Home Assistant"
+  text_error: "Can't load the calendar"
+  text_next: "Next"
+  text_until: "Until"
+  text_busy: "Busy"
+  text_free: "Free today"
+  text_status_error: "Offline"
+  text_weekdays: "Sun,Mon,Tue,Wed,Thu,Fri,Sat"
+  text_months: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+  # The next event line: which copies show it (auto, on, off), the first
+  # value of "Next event within" (hours, 0 = off), its font, and its text.
+  next_event: auto
+  next_event_hours: "3"
+  line_font: font_menu_small
+  text_line_next: "{start} {title}"
+  text_line_now: "Now: {title} · until {end}"
+  text_line_now_open: "Now: {title}"
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_calendar]
+
+daruma_calendar:
+  - id: ${app_id}_app
+    time_id: daruma_time
+    refresh_interval: 15min
+    timeout: 10s
+
+color:
+  - id: ${app_id}_color
+    hex: "${color}"
+
+text:
+  - platform: template
+    name: "${ 'Calendars' if app_id == 'calendar' else app_name ~ ' calendars' }"
+    id: ${app_id}_list
+    icon: "mdi:calendar-multiple"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 255
+    initial_value: "${calendars}"
+    on_value:
+      - lambda: id(${app_id}_app).reload();
+
+number:
+  - platform: template
+    name: "${ 'Next event within' if app_id == 'calendar' else app_name ~ ' next event within' }"
+    id: ${app_id}_line_hours
+    icon: "mdi:calendar-clock"
+    entity_category: config
+    # Copies that don't show the line keep it out of the way in HA.
+    disabled_by_default: ${ 'false' if next_event == 'on' or (next_event == 'auto' and app_id == 'calendar') else 'true' }
+    unit_of_measurement: h
+    mode: box
+    min_value: 0
+    max_value: 24
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: ${next_event_hours}
+    on_value:
+      - lambda: |-
+          if (!std::isnan(x))
+            id(${app_id}_app).set_line_hours(x);
+  - platform: template
+    name: "${ 'Days ahead' if app_id == 'calendar' else app_name ~ ' days ahead' }"
+    id: ${app_id}_days
+    icon: "mdi:calendar-range"
+    entity_category: config
+    mode: box
+    min_value: 1
+    max_value: 31
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: ${days_ahead}
+    on_value:
+      - lambda: |-
+          if (!std::isnan(x))
+            id(${app_id}_app).set_days_ahead((int) x);
+
+daruma:
+  modules:
+    - name: ${app_id}
+      apps:
+        - id: ${app_id}
+          name: ${app_name}
+      # The next event line, shared by every copy that shows it.
+      areas: [next_event]
+      targets:
+        next_event: { app: "${app_id}" }
+      theme:
+        words:
+          today: "${text_today}"
+          tomorrow: "${text_tomorrow}"
+          yesterday: "${text_yesterday}"
+          loading: "${text_loading}"
+          empty: "${text_empty}"
+          nothing: "${text_nothing}"
+          all_day: "${text_all_day}"
+          more: "${text_more}"
+          untitled: "${text_untitled}"
+          offline: "${text_offline}"
+          error: "${text_error}"
+          next: "${text_next}"
+          until: "${text_until}"
+          busy: "${text_busy}"
+          free: "${text_free}"
+          status_error: "${text_status_error}"
+          weekdays: "${text_weekdays}"
+          months: "${text_months}"
+          line_next: "${text_line_next}"
+          line_now: "${text_line_now}"
+          line_now_open: "${text_line_now_open}"
+      setup: |-
+        auto *cal = id(${app_id}_app);
+        cal->set_theme_prefix("${app_id}");
+        cal->set_agenda_limit(${agenda_max});
+        cal->set_days_ahead(${days_ahead});
+        cal->set_line_hours(${next_event_hours});
+        if (${ 'true' if next_event == 'on' or (next_event == 'auto' and app_id == 'calendar') else 'false' })
+          cal->show_line(id(${line_font}));
+        // Through the hub's gate for HA calls with replies (ha_calls.h).
+        cal->set_fetcher([](int request, const std::string &start, const std::string &end, int limit) {
+          id(daruma_hub).ha_calls().call("${app_id} events", [=](uint32_t call) {
+            id(${app_id}_fetch).execute(call, request, start, end, limit);
+          });
+        });
+
+        Daruma::App app;
+        app.id = "${app_id}";
+        app.name = "${app_name}";
+        app.icon = "\U000F00ED";  // calendar
+        app.color = id(${app_id}_color);
+        app.status = [cal]() { return cal->status(); };
+        app.draw = [cal](Daruma::AppView &v) { cal->draw(v); };
+        app.input = [cal](Daruma::Input input, int x, int y) { return cal->input(input, x, y); };
+        app.on_open = [cal]() { cal->on_open(); };
+        app.on_close = [cal]() { cal->on_close(); };
+        app.back = [cal]() { return cal->back(); };
+        app.on_enable = [cal](bool on) { cal->set_enabled(on); };
+        hub.add_app(app);
+
+script:
+  # Events between start and end. The reply goes back with the same request
+  # number, so the app can drop replies it no longer waits for. Runs from
+  # the hub's gate (ha_calls.h): `call` goes back to it with the answer.
+  - id: ${app_id}_fetch
+    mode: parallel
+    parameters:
+      call: int
+      request: int
+      start: string
+      end: string
+      limit: int
+    then:
+      - homeassistant.action:
+          action: calendar.get_events
+          data:
+            # An emptied list falls back to the build default.
+            entity_id: !lambda |-
+              const std::string &list = id(${app_id}_list).state;
+              return list.find_first_not_of(" ,") == std::string::npos ? std::string("${calendars}") : list;
+            start_date_time: !lambda return start;
+            end_date_time: !lambda return end;
+          capture_response: true
+          # Becomes {"n": events found, "e": [[start, end, all_day, title], ...]}:
+          # epoch seconds (an all-day event runs from local midnight to local
+          # midnight), sorted by start, at most `limit` events, titles without
+          # characters the font lacks (emoji) and cut to title_chars.
+          # Cancelled events are left out; descriptions never come along.
+          response_template: !lambda |-
+            return "{%- set limit = " + std::to_string(limit) + " -%}" R"JINJA(
+            {%- set ns = namespace(e=[]) -%}
+            {%- for cal in response.values() -%}
+            {%- for x in cal.get('events', []) if x.get('status', '') != 'cancelled' -%}
+            {%- set t = x.get('summary', '') | string
+                | regex_replace('[^ -~ -ɏЀ-ӿ–-…]+', '')
+                | regex_replace('\s+', ' ') | trim -%}
+            {%- set ns.e = ns.e + [[as_timestamp(x.start) | int, as_timestamp(x.end) | int,
+                                    ((x.start | string | length) == 10) | int, t[:${title_chars}]]] -%}
+            {%- endfor -%}
+            {%- endfor -%}
+            {%- set e = ns.e | sort(attribute='0') -%}
+            {{ {'n': e | count, 'e': e[:limit]} | to_json }})JINJA";
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_reply(request, response);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_error(request, error);

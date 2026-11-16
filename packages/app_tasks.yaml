@@ -1,0 +1,265 @@
+# Tasks app for Daruma: today's tasks as a checklist. Needs core.yaml
+# and menu.yaml (apps live on the menu's app board).
+#
+# Board tile: "3 left" or "All done", refreshed every `refresh`. Open the
+# app for the list: swipe up or down to page through it, tap a task to
+# check it off (to-do lists only). The row flips at once and flips back if
+# HA says no or does not answer in 10 s. Checking one off makes the device
+# happier (reaction task_done); the last one gets a fanfare (tasks_done).
+# Both fall back to celebrate. "App: Tasks" off stops the fetching.
+#
+# Marks at the end of a row: orange flag = flagged, red dot = overdue,
+# amber dot = due today.
+#
+# Include it once as is, or more than once with vars, one list each:
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - packages/app_tasks.yaml
+#         - path: packages/app_tasks.yaml
+#           vars: { app_id: tasks_family, app_name: Family, source: todo, entity: todo.family }
+#
+# Each copy gets its own app on the board, its own "App: <app_name>" switch,
+# "<app_name> source" and "<app_name> entity" settings, and its own theme
+# keys under <app_id>. A theme can rename or re-icon it by app_id
+# (theme.py `apps:`). Put every app_id in daruma: apps: to set the
+# board order. Two copies with one app_id fail the build.
+#
+# Source: two device settings in HA (Configuration), read at each fetch,
+# so a change needs no rebuild and fetches the new list at once:
+#   <app_name> source  "To-do list": an HA to-do list (todo.*). Tap to
+#                      check off.
+#                      "Script": an HA script that returns the list, such
+#                      as one made from the blueprint "Daruma: task list
+#                      from a sensor" (blueprints/script/
+#                      task_list.yaml). Read only.
+#   <app_name> entity  the todo.* or script.* entity ID.
+# `source` (todo or script) and `entity` are only the first values: once
+# changed in HA, the device keeps the stored ones.
+#
+# HA side: the list arrives through HA actions, so the device needs "Allow
+# the device to perform Home Assistant actions" turned on (Settings >
+# Devices > ESPHome > your device > Configure). Without it the app shows
+# "No answer from Home Assistant".
+#
+# HA trims a to-do list before it is sent (response_template below): at
+# most `max_items` tasks, titles cut to `title_chars`. A script trims its
+# own list (the blueprint has the same two inputs), and the device keeps
+# at most `max_items` of it. The device then drops glyphs its font lacks,
+# such as emoji.
+
+# Values for one copy; an include's vars override them.
+defaults:
+  app_id: tasks
+  app_name: Tasks
+  source: todo  # todo or script
+  entity: todo.shopping_list
+  color: "4A7FE0"
+  max_items: "15"
+  title_chars: "60"
+  # How often the tile count is fetched while the app is closed.
+  refresh: 5min
+  # Mood change per task checked off.
+  happiness: "5"
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_tasks]
+
+daruma_tasks:
+  - id: ${app_id}_list
+    font: font_small  # The menu's text font, which the app draws titles in.
+    timeout: 10s
+
+daruma:
+  modules:
+    - name: ${app_id}
+      apps:
+        - id: ${app_id}
+          name: ${app_name}
+      setup: |-
+        static Daruma::TaskView view(id(${app_id}_list));
+        auto *list = id(${app_id}_list);
+        list->set_on_change([]() { id(daruma_hub).request_redraw(); });
+        // Through the hub's gate for HA calls with replies (ha_calls.h).
+        list->set_fetcher([](int generation) {
+          id(daruma_hub).ha_calls().call("${app_id} fetch", [generation](uint32_t call) {
+            id(${app_id}_fetch).execute(call, generation);
+          });
+        });
+        list->set_checker([](const std::string &uid, bool done) {
+          id(daruma_hub).ha_calls().call("${app_id} check", [uid, done](uint32_t call) {
+            id(${app_id}_check).execute(call, uid, done);
+          });
+        });
+
+        Daruma::App tasks;
+        tasks.id = "${app_id}";
+        tasks.name = "${app_name}";
+        tasks.icon = "\U000F0756";  // format-list-checks
+        tasks.color = id(${app_id}_color);
+        tasks.status = []() { return view.status(); };
+        tasks.draw = [](Daruma::AppView &v) { view.draw(v); };
+        tasks.input = [](Daruma::Input input, int x, int y) { return view.input(input, x, y); };
+        tasks.on_open = []() { view.on_open(); };
+        tasks.on_enable = [](bool on) { id(${app_id}_list)->set_enabled(on); };
+        hub.add_app(tasks);
+
+esphome:
+  on_boot:
+    # First count for the tile, once HA is there.
+    - priority: -100
+      then:
+        - script.execute: ${app_id}_apply_source
+        - wait_until:
+            condition:
+              api.connected:
+        - lambda: id(${app_id}_list).refresh_idle();
+
+color:
+  - id: ${app_id}_color
+    hex: "${color}"
+
+select:
+  - platform: template
+    id: ${app_id}_kind
+    name: ${app_name} source
+    icon: "mdi:format-list-checks"
+    entity_category: config
+    # Restore keeps the option's index: add new options at the end.
+    options: [Script, To-do list]
+    initial_option: "${ 'Script' if source == 'script' else 'To-do list' }"
+    optimistic: true
+    restore_value: true
+    on_value:
+      - script.execute: ${app_id}_apply_source
+
+text:
+  - platform: template
+    id: ${app_id}_entity
+    name: ${app_name} entity
+    icon: "mdi:format-list-checks"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ${entity}
+    # Part of the stored value's key: changing it forgets the stored entity.
+    max_length: 120
+    on_value:
+      - script.execute: ${app_id}_apply_source
+
+interval:
+  - interval: ${refresh}
+    then:
+      - lambda: id(${app_id}_list).refresh_idle();
+
+script:
+  # Hand the two settings to the list; it fetches again when they changed.
+  - id: ${app_id}_apply_source
+    then:
+      - lambda: |-
+          const bool todo = id(${app_id}_kind).active_index().value_or(1) == 1;  // "To-do list"
+          id(${app_id}_list).set_source(todo, id(${app_id}_entity).state);
+
+  # Fetch the list. HA renders it as {"n": open count, "t": [[id, title,
+  # flags], ...]}. Flags: x done, f flagged, o overdue, d due today.
+  # Runs from the hub's gate (ha_calls.h): `call` goes back to it with the
+  # answer, so the next HA call can go.
+  - id: ${app_id}_fetch
+    mode: queued
+    max_runs: 2
+    parameters:
+      call: int
+      generation: int  # Handed back, so replies for an old source are dropped.
+    then:
+      - if:
+          condition:
+            lambda: return id(${app_id}_list).can_check();
+          then:
+            # To-do list: open items first, then done ones to fill up.
+            - homeassistant.action:
+                action: todo.get_items
+                data:
+                  entity_id: !lambda return id(${app_id}_list).source();
+                capture_response: true
+                response_template: |-
+                  {%- set items = (response.values() | list | first)['items'] -%}
+                  {%- set open = items | selectattr('status', 'eq', 'needs_action') | list -%}
+                  {%- set done = items | selectattr('status', 'eq', 'completed') | list -%}
+                  {%- set today = now().date() | string -%}
+                  {%- set ns = namespace(t=[]) -%}
+                  {%- for i in (open + done)[:${max_items}] -%}
+                  {%- set due = (i.get('due') or '') | string -%}
+                  {%- set ns.t = ns.t + [[i.get('uid') or '', (i.get('summary') or '')[:${title_chars}],
+                      'x' if i.status == 'completed' else ('o' if due and due[:10] < today else ('d' if due[:10] == today else ''))]] -%}
+                  {%- endfor -%}
+                  {{ {'n': open | count, 't': ns.t} | to_json }}
+                on_success:
+                  - lambda: |-
+                      id(daruma_hub).ha_calls().done(call);
+                      id(${app_id}_list).on_fetch_response(generation, response);
+                on_error:
+                  - lambda: |-
+                      id(daruma_hub).ha_calls().done(call);
+                      id(${app_id}_list).on_fetch_error(generation, error);
+          else:
+            # Script: it returns {"open": n, "tasks": [{id, title, done,
+            # flagged, overdue, due_today}, ...]}, already trimmed.
+            - homeassistant.action:
+                action: !lambda return id(${app_id}_list).source();
+                capture_response: true
+                response_template: |-
+                  {%- set r = response if response is mapping else {} -%}
+                  {%- set ns = namespace(t=[]) -%}
+                  {%- for t in (r.get('tasks') or [])[:${max_items}] -%}
+                  {%- set ns.t = ns.t + [[t.get('id') | string, (t.get('title') or '') | string,
+                      ('x' if t.get('done') else '') ~ ('f' if t.get('flagged') else '')
+                      ~ ('o' if t.get('overdue') else ('d' if t.get('due_today') else ''))]] -%}
+                  {%- endfor -%}
+                  {{ {'n': r.get('open', 0) | int(0), 't': ns.t} | to_json }}
+                on_success:
+                  - lambda: |-
+                      id(daruma_hub).ha_calls().done(call);
+                      id(${app_id}_list).on_fetch_response(generation, response);
+                on_error:
+                  - lambda: |-
+                      id(daruma_hub).ha_calls().done(call);
+                      id(${app_id}_list).on_fetch_error(generation, error);
+
+  # Check one to-do item off, or undo it.
+  - id: ${app_id}_check
+    mode: parallel
+    max_runs: 10
+    parameters:
+      call: int  # From the hub's gate; goes back with the answer.
+      uid: string
+      done: bool
+    then:
+      - homeassistant.action:
+          action: todo.update_item
+          data:
+            entity_id: !lambda return id(${app_id}_list).source();
+            item: !lambda return uid;
+            status: !lambda 'return done ? "completed" : "needs_action";'
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_list).on_check_result(uid, done, true);
+            - if:
+                condition:
+                  lambda: return done;
+                then:
+                  - lambda: |-
+                      id(daruma_hub).add_happiness(${happiness});
+                      id(daruma_hub).react(id(${app_id}_list).open_count() == 0 ? Daruma::StateId::TASKS_DONE
+                                                                           : Daruma::StateId::TASK_DONE);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_list).on_check_result(uid, done, false);

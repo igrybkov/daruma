@@ -1,0 +1,840 @@
+"""Drive the Daruma desktop build from Python, like a browser test drives a page.
+
+    with Device(build(), workdir, persona="Eyes") as device:
+        device.pet()
+        expect(device).to_have_state("petted")
+        device.show_prompt(id="door", title="Doorbell", options=["Unlock", "Ignore"], style="urgent")
+        device.get_by_role("button", name="Unlock").tap()
+        expect(device).to_fire_event("esphome.daruma_prompt", choice="Unlock")
+        expect(device).to_match_screenshot("after-unlock")
+
+How it works:
+
+- `build()` compiles `examples/desktop.yaml` for the host, in a scratch
+  copy of this repository, and a small library (fakeclock.c).
+- `Device` starts the program with that library loaded. The library hands
+  the program a clock that only this harness moves, and a fixed random
+  seed. So the same steps draw the same frames, run after run.
+- The harness talks to the program over the ESPHome API, as Home Assistant
+  does. It also plays Home Assistant: it answers the calendar and to-do
+  actions with made-up data (demo_data.py) and records the events the
+  device fires.
+- Touch and buttons go through the desktop board's `desktop_*` actions,
+  which move the SDL mouse and press the button sensors. The device's own
+  gesture code sees them as a finger and a button.
+- `ui()` lists what is on screen (buttons, tiles, prompt cards) with their
+  rectangles, from the menu and prompt code. Locators find parts by text or
+  role and tap their middle.
+
+Time only moves in `advance()`. Waiting helpers (`expect`, `Locator.wait_for`)
+advance the clock a frame at a time until the condition holds.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import ctypes
+import json
+import mmap
+import os
+import platform
+import re
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable
+
+HERE = Path(__file__).resolve().parent
+REPO_DIR = HERE.parent
+ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME", "esphome==2026.10.2")
+PYTHON = os.environ.get("DARUMA_PYTHON", "3.14")
+DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
+SOURCES = ["examples", "packages", "components", "pixel", "art"]
+GOLDEN_DIR = HERE.parent / "tests" / "golden"
+
+# The device's wall clock at the start of every run: Wednesday 11 March 2026,
+# 10:00 UTC (the board's time zone). A fixed morning, so screens repeat.
+EPOCH = 1773223200
+# Monotonic time at start; millis() starts here.
+START_NS = 1_000_000_000
+# One frame step: the BOX-3 profile draws at most every 100 ms.
+STEP = 0.05
+
+
+class DeviceError(RuntimeError):
+    """The program or the harness failed (not an assertion)."""
+
+
+# --------------------------------------------------------------------------
+# Building
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class Build:
+    program: Path
+    clock_lib: Path
+    port: int
+    # Persona names that come from private packages: demos of them stay out of the repo.
+    private_personas: set[str] = field(default_factory=set)
+
+
+def _copy_sources(src: Path) -> None:
+    src.mkdir(parents=True, exist_ok=True)
+    for name in SOURCES:
+        target = src / name
+        if target.is_dir():
+            shutil.rmtree(target)
+        shutil.copytree(REPO_DIR / name, target, ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
+
+
+def _persona_name(package: Path) -> str:
+    """The persona name a package adds to the Persona select: its first `name:`."""
+    for line in package.read_text().splitlines():
+        m = re.match(r"\s+name:\s*\"?([^\"#]+?)\"?\s*(#.*)?$", line)
+        if m:
+            return m.group(1)
+    raise DeviceError(f"No persona name in {package}")
+
+
+def build_clock_lib(out: Path) -> Path:
+    out.mkdir(parents=True, exist_ok=True)
+    if platform.system() == "Darwin":
+        lib, flags = out / "libfakeclock.dylib", ["-dynamiclib"]
+    else:
+        lib, flags = out / "libfakeclock.so", ["-shared", "-fPIC", "-ldl"]
+    source = HERE / "fakeclock.c"
+    if not lib.exists() or lib.stat().st_mtime < source.stat().st_mtime:
+        subprocess.run(["cc", "-O2", "-Wall", *flags, "-o", str(lib), str(source)], check=True)
+    return lib
+
+
+def build(
+    out: Path,
+    *,
+    variant: str = "standard",
+    private_packages: list[str] | None = None,
+    port: int = 6053,
+    timezone: str = "UTC",
+    quiet: bool = True,
+) -> Build:
+    """Compile the desktop build in `out` (a scratch folder) and return it.
+
+    `variant` picks the screen: standard (320x240), wide (480x272) or square
+    (240x240). `private_packages` are extra persona packages (paths), whose
+    personas are marked private. `timezone` is the clock's
+    (an IANA name); another than UTC gets a build folder of its own.
+    """
+    out = Path(out)
+    src = out / "src"
+    _copy_sources(src)
+    config_dir = src / "examples"
+    name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
+    if private_packages:
+        name += "-private"  # Its own build folder: the public build stays as it is.
+    if timezone != "UTC":
+        name += "-" + slug(timezone.split("/")[-1])[:10]  # Host names: at most 31 characters.
+    subs = {"name": name, "desktop_api_port": str(port), "desktop_timezone": timezone, **VARIANTS[variant]}
+    yaml_name = DEVICE_YAML
+    private: set[str] = set()
+    if private_packages:
+        lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
+        for i, pkg in enumerate(private_packages):
+            pkg = Path(pkg).resolve()
+            lines.append(f"  private_{i}: !include {pkg}")
+            private.add(_persona_name(pkg))
+        yaml_name = "desktop-private.yaml"
+        (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
+    cmd = ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"]
+    for k, v in subs.items():
+        cmd += ["-s", k, v]
+    cmd += ["compile", yaml_name]
+    log = out / f"compile-{name}.log"
+    with open(log, "w") as fh:
+        result = subprocess.run(cmd, cwd=config_dir, stdout=fh if quiet else None, stderr=subprocess.STDOUT)
+    if result.returncode != 0:
+        tail = "\n".join(log.read_text().splitlines()[-30:]) if quiet else ""
+        raise DeviceError(f"Compile failed (log: {log})\n{tail}")
+    program = config_dir / ".esphome" / "build" / name / ".pioenvs" / name / "program"
+    return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
+
+
+# Screen sizes, with font sizes to match (as examples/variant_*.yaml).
+VARIANTS: dict[str, dict[str, str]] = {
+    "standard": {},
+    "wide": {
+        "desktop_width": "480", "desktop_height": "272",
+        "font_size_text": "19", "font_size_small": "15", "font_size_badge": "19",
+        "font_size_icon": "34", "font_size_timer": "25", "font_size_title": "23",
+    },
+    "square": {"desktop_width": "240", "desktop_height": "240"},
+}
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+# --------------------------------------------------------------------------
+# What is on screen
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Node:
+    role: str
+    name: str
+    x: int
+    y: int
+    w: int
+    h: int
+    focused: bool = False
+    value: str = ""
+
+    @property
+    def center(self) -> tuple[int, int]:
+        return self.x + self.w // 2, self.y + self.h // 2
+
+
+@dataclass
+class Event:
+    """Something the device told Home Assistant."""
+
+    type: str  # an HA event ("esphome.daruma_prompt") or "entity:<name>"
+    data: dict[str, Any]
+    at: float  # device seconds
+
+
+class Locator:
+    """A lazy query over the parts on screen; resolved on each use."""
+
+    def __init__(self, device: Device, description: str, match: Callable[[Node], bool]):
+        self.device = device
+        self.description = description
+        self._match = match
+
+    def __repr__(self) -> str:
+        return f"Locator({self.description})"
+
+    def all(self) -> list[Node]:
+        return [n for n in self.device.ui() if self._match(n)]
+
+    def count(self) -> int:
+        return len(self.all())
+
+    def is_visible(self) -> bool:
+        return bool(self.all())
+
+    def wait_for(self, timeout: float = 5.0) -> Node:
+        """Advance frame by frame until the part shows; return it."""
+        found = self.device.wait_until(lambda: self.all(), timeout)
+        if not found:
+            raise AssertionError(f"{self} did not show within {timeout} s. On screen: {self.device.ui_text()}")
+        return found[0]
+
+    def bounding_box(self, timeout: float = 5.0) -> tuple[int, int, int, int]:
+        n = self.wait_for(timeout)
+        return n.x, n.y, n.w, n.h
+
+    def tap(self, timeout: float = 5.0) -> None:
+        x, y = self.wait_for(timeout).center
+        self.device.tap(x, y)
+
+
+# --------------------------------------------------------------------------
+# The clock file
+# --------------------------------------------------------------------------
+
+
+class Clock:
+    """The clock and seed that fakeclock.c reads, in a shared file."""
+
+    def __init__(self, path: Path, seed: int, epoch: int):
+        self.path = path
+        path.write_bytes(b"\0" * 4096)
+        self._fh = open(path, "r+b")
+        self._map = mmap.mmap(self._fh.fileno(), 4096)
+        self.ns = START_NS
+        struct.pack_into("<QQQ", self._map, 0, self.ns, epoch, seed or 1)
+        # One aligned 8-byte store, so the program never reads half a time.
+        # (struct.pack_into clears the bytes before it writes them.)
+        self._now = ctypes.c_uint64.from_buffer(self._map, 0)
+
+    def set(self, ns: int) -> None:
+        self.ns = ns
+        self._now.value = ns
+
+    def close(self) -> None:
+        del self._now
+        self._map.close()
+        self._fh.close()
+
+
+# --------------------------------------------------------------------------
+# The device
+# --------------------------------------------------------------------------
+
+
+class Device:
+    """One running desktop device. Use as a context manager."""
+
+    def __init__(
+        self,
+        build: Build,
+        workdir: Path,
+        *,
+        persona: str | None = None,
+        seed: int = 1,
+        epoch: int = EPOCH,
+        timezone: str = "Etc/UTC",
+        window: bool = False,
+        data: Any = None,
+        golden: Path | None = None,
+        update_golden: bool = False,
+    ):
+        from demo_data import DemoData
+
+        self.build = build
+        self.workdir = Path(workdir)
+        self.persona = persona
+        self.seed = seed
+        self.epoch = epoch
+        # The time zone "HA" sends with the time, as Home Assistant does. The
+        # desktop build keeps its own (build(timezone=...)): give both the same.
+        self.timezone = timezone
+        self.window = window
+        self.data = data if data is not None else DemoData()
+        # Where to_match_screenshot() keeps its pictures.
+        self.golden = golden
+        self.update_golden = update_golden
+        self.events: list[Event] = []
+        self.frames_dir: Path | None = None
+        self.skipped: list[tuple[int, int]] = []  # (from, to) ms of the recording left out
+        self.captions: list[tuple[int, str]] = []  # (ms of the recording, text) from caption()
+        self._proc: subprocess.Popen | None = None
+        self._loop = asyncio.new_event_loop()
+        self._client = None
+        self._entities: dict[str, Any] = {}
+        self._entity_by_key: dict[int, Any] = {}
+        self._states: dict[str, Any] = {}
+        self._services: dict[str, Any] = {}
+        self._answers = 0
+        self._calls_seen = 0  # Everything the device sent "HA": actions and events.
+        self._status: dict[str, Any] = {}
+        self._record_start_ns = 0
+        self._paused_at: int | None = None
+
+    # --- life cycle ---------------------------------------------------------
+
+    def __enter__(self) -> Device:
+        self.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
+    def start(self) -> None:
+        self.workdir.mkdir(parents=True, exist_ok=True)
+        prefs = self.workdir / "prefs"
+        shutil.rmtree(prefs, ignore_errors=True)
+        prefs.mkdir()
+        _wait_port_free(self.build.port)
+        self.clock = Clock(self.workdir / "clock", self.seed, self.epoch)
+        env = dict(os.environ)
+        env.update(
+            DARUMA_CLOCK=str(self.clock.path),
+            ESPHOME_PREFDIR=str(prefs),
+            ESPHOME_SNAPSHOT_DIR=str(self.workdir),
+            TZ=self.timezone,
+        )
+        if platform.system() == "Darwin":
+            env["DYLD_INSERT_LIBRARIES"] = str(self.build.clock_lib)
+        else:
+            env["LD_PRELOAD"] = str(self.build.clock_lib)
+        if not self.window:
+            env["SDL_VIDEODRIVER"] = "dummy"
+        self._log = open(self.workdir / "device.log", "w")
+        self._proc = subprocess.Popen([str(self.build.program)], env=env, stdout=self._log, stderr=subprocess.STDOUT)
+        self._run(self._connect())
+        # The subscriptions take effect before the clock first moves, so the
+        # device sees "HA" arrive at the same time on every run.
+        self._settle()
+        self.advance(1.0)
+        if self.persona:
+            self.set("Persona", self.persona)
+            self.advance(1.0)
+            if self.status()["persona"] != self.persona:
+                raise DeviceError(f"No persona named {self.persona!r}; personas: {self.personas()}")
+
+    def close(self) -> None:
+        if self._client is not None:
+            try:
+                self._run(self._client.disconnect(), timeout=3)
+            except Exception:  # noqa: BLE001 - closing anyway
+                pass
+            self._client = None
+        if self._proc is not None:
+            self._proc.terminate()
+            try:
+                self._proc.wait(5)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+            self._proc = None
+            self._log.close()
+        if hasattr(self, "clock"):
+            self.clock.close()
+        self._loop.close()
+
+    def _run(self, coro, timeout: float = 30):
+        if self._proc is not None and self._proc.poll() is not None:
+            raise DeviceError(f"The program stopped (code {self._proc.returncode}); see {self.workdir / 'device.log'}")
+        return self._loop.run_until_complete(asyncio.wait_for(coro, timeout))
+
+    async def _connect(self) -> None:
+        import logging
+
+        from aioesphomeapi import APIClient
+
+        # Refused connections while the program starts are expected; keep them out of the output.
+        logging.getLogger("aioesphomeapi").setLevel(logging.ERROR)
+
+        deadline = time.monotonic() + 20
+        while True:
+            client = APIClient("127.0.0.1", self.build.port, None, client_info="daruma-harness",
+                               timezone=self.timezone)
+            try:
+                await client.connect(login=True)
+                break
+            except Exception:  # noqa: BLE001 - the program is still starting
+                if time.monotonic() > deadline or self._proc.poll() is not None:
+                    raise DeviceError(f"Could not reach the program; see {self.workdir / 'device.log'}")
+                await asyncio.sleep(0.1)
+        self._client = client
+        entities, services = await client.list_entities_services()
+        for e in entities:
+            self._entities[e.name] = e
+            self._entity_by_key[e.key] = e
+        self._services = {s.name: s for s in services}
+        client.subscribe_states(self._on_state)
+        client.subscribe_service_calls(self._on_service_call)
+
+    # --- Home Assistant's side -------------------------------------------------
+
+    def _on_state(self, state) -> None:
+        info = self._entity_by_key.get(state.key)
+        if info is None:
+            return
+        self._states[info.name] = state
+        event_type = getattr(state, "event_type", None)
+        if event_type:
+            self.events.append(Event(f"entity:{info.name}", {"event_type": event_type}, self.now()))
+
+    def _on_service_call(self, call) -> None:
+        self._calls_seen += 1
+        if call.is_event:
+            data = dict(call.data)
+            for k, v in call.data_template.items():
+                # The device's templates here only cast a variable: "{{ index | int }}".
+                m = re.fullmatch(r"\{\{\s*(\w+)[^}]*\}\}", v)
+                data[k] = call.variables.get(m.group(1), v) if m else v
+            self.events.append(Event(call.service, data, self.now()))
+            return
+        ok, response = self.data.answer(call.service, dict(call.data), self.wall_time())
+        if call.call_id:
+            body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
+            self._client.send_homeassistant_action_response(
+                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body)
+            self._answers += 1
+
+    # --- time ------------------------------------------------------------------
+
+    def now(self) -> float:
+        """Seconds on the device's monotonic clock since start."""
+        return (self.clock.ns - START_NS) / 1e9
+
+    def wall_time(self) -> int:
+        """The device's wall clock now, in epoch seconds."""
+        return self.epoch + self.clock.ns // 1_000_000_000
+
+    def _sync(self) -> dict:
+        svc = self._services["desktop_status"]
+        result = self._run(self._client.execute_service(svc, {}, return_response=True))
+        if result is None or not result.success:
+            raise DeviceError(f"desktop_status failed: {result}")
+        self._status = json.loads(result.response_data or b"{}")
+        return self._status
+
+    def _settle(self) -> None:
+        # The device takes a new time at the start of a turn of its main loop.
+        # Wait until it reports that time. Then round trips until two rounds
+        # in a row bring nothing from the device: every component has looped
+        # at the new time, everything sent before is handled, and a call to
+        # "HA" (and the next one it queues after the answer) lands at this
+        # time too, before the runner sends anything else.
+        want = (self.clock.ns // 1_000_000) & 0xFFFFFFFF
+        for _ in range(1000):
+            if self._sync()["millis"] == want:
+                break
+        else:
+            raise DeviceError("The device does not take the runner's clock (is fakeclock loaded?)")
+        quiet = 0
+        while quiet < 2:
+            before = self._calls_seen
+            self._sync()
+            self._sync()
+            quiet = quiet + 1 if self._calls_seen == before else 0
+
+    def advance(self, seconds: float, step: float = STEP) -> None:
+        """Move the device's clock on, a step at a time."""
+        target = self.clock.ns + int(round(seconds * 1e9))
+        step_ns = int(round(step * 1e9))
+        while self.clock.ns < target:
+            self.clock.set(min(target, self.clock.ns + step_ns))
+            self._settle()
+
+    def skip(self, seconds: float) -> None:
+        """Advance fast, in 1 s steps, and leave the time out of the recording."""
+        recording = self.frames_dir is not None
+        if recording:
+            self._call("desktop_record_pause", paused=True)
+            # Handled before the clock moves, or the first skipped frame is kept.
+            self._settle()
+            start = self._rec_ms()
+        self.advance(seconds, step=1.0)
+        if recording:
+            self.skipped.append((start, self._rec_ms()))
+            self._call("desktop_record_pause", paused=False)
+            self._settle()
+
+    def wait_until(self, condition: Callable[[], Any], timeout: float = 5.0) -> Any:
+        """Advance frame by frame until condition() is truthy; return its value, or None."""
+        end = self.clock.ns + int(timeout * 1e9)
+        while True:
+            value = condition()
+            if value:
+                return value
+            if self.clock.ns >= end:
+                return None
+            self.advance(STEP)
+
+    # --- device state ------------------------------------------------------------
+
+    def status(self) -> dict:
+        return self._status or self._sync()
+
+    def state(self) -> str:
+        """The state the persona shows now: a reaction, the top activity or the mood."""
+        return self.status()["state"]
+
+    def ui(self) -> list[Node]:
+        return [Node(**n) for n in self.status().get("ui", [])]
+
+    def ui_text(self) -> str:
+        return ", ".join(f"{n.role}:{n.name!r}" for n in self.ui()) or "(no parts)"
+
+    def personas(self) -> list[str]:
+        return list(self._entities["Persona"].options)
+
+    def entity_state(self, name: str) -> Any:
+        s = self._states.get(name)
+        return getattr(s, "state", None) if s is not None else None
+
+    def get_by_text(self, text: str, exact: bool = True) -> Locator:
+        if exact:
+            return Locator(self, f"text={text!r}", lambda n: n.name == text)
+        return Locator(self, f"text~={text!r}", lambda n: text.lower() in n.name.lower())
+
+    def get_by_role(self, role: str, name: str | None = None) -> Locator:
+        return Locator(self, f"role={role} name={name!r}",
+                       lambda n: n.role == role and (name is None or n.name == name))
+
+    # --- input -------------------------------------------------------------------
+
+    def _call(self, action: str, **data: Any) -> None:
+        if action not in self._services:
+            raise DeviceError(f"No API action {action!r}; there are: {', '.join(sorted(self._services))}")
+        self._run(self._client.execute_service(self._services[action], data))
+
+    def _until_input_done(self) -> None:
+        self._settle()
+        self.wait_until(lambda: not self._sync().get("touch_busy"), timeout=30)
+        # Gestures fire on lift-off; give the hub a frame to act and draw.
+        self.advance(0.15)
+
+    def tap(self, x: int, y: int) -> None:
+        self._call("desktop_tap", x=int(x), y=int(y))
+        self._until_input_done()
+
+    def hold(self, x: int, y: int, seconds: float) -> None:
+        self._call("desktop_hold", x=int(x), y=int(y), ms=int(seconds * 1000))
+        self._until_input_done()
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, seconds: float = 0.25) -> None:
+        self._call("desktop_swipe", x1=int(x1), y1=int(y1), x2=int(x2), y2=int(y2), ms=int(seconds * 1000))
+        self._until_input_done()
+
+    def stroke(self, x: int, y: int) -> None:
+        self._call("desktop_stroke", x=int(x), y=int(y))
+        self._until_input_done()
+
+    def pet(self) -> None:
+        """Stroke the middle of the persona."""
+        w, h = self.screen_size()
+        self.stroke(w // 2, h * 2 // 5)
+
+    def react(self, state: str) -> None:
+        """Play a reaction by its state name ("petted", "startled", ...), as a module would."""
+        self._call("desktop_react", state=state)
+        self._settle()
+
+    def states(self) -> list[dict[str, Any]]:
+        """Every state the build knows, in StateId order: {name, kind, duration_ms}."""
+        if not hasattr(self, "_state_list"):
+            svc = self._services["desktop_states"]
+            result = self._run(self._client.execute_service(svc, {}, return_response=True))
+            if result is None or not result.success:
+                raise DeviceError(f"desktop_states failed: {result}")
+            self._state_list = json.loads(result.response_data or b"{}")["states"]
+        return self._state_list
+
+    def show(self, state: str) -> None:
+        """Show any registered state by name: a mood is forced, an activity
+        held, a reaction played. "" ends the forced mood and the activity."""
+        known = {s["name"]: s for s in self.states()}
+        if state and state not in known:
+            raise DeviceError(f"No state {state!r}; states: {', '.join(known)}")
+        self._call("desktop_show", state=state)
+        self._settle()
+        info = known.get(state)
+        # A sound-only reaction (duration 0) never shows as the state.
+        if info and not (info["kind"] == "reaction" and info["duration_ms"] == 0):
+            expect(self).to_have_state(state, timeout=2)
+
+    def voice(self, phase: str, text: str = "") -> None:
+        """The voice assistant's screen for a phase: listening, thinking,
+        replying, error, timer, or idle to end it."""
+        self._call("desktop_voice", phase=phase, words=text)
+        self._settle()
+
+    def caption(self, text: str) -> None:
+        """A caption for the recording from now on (record.py draws it under the screen)."""
+        if self.frames_dir is not None:
+            self.captions.append((self._rec_ms(), text))
+
+    def press(self, input_name: str, seconds: float = 0.08) -> None:
+        """Press a board input ("home", "top") for `seconds`."""
+        self._call("desktop_press", input=input_name, ms=int(seconds * 1000))
+        self._until_input_done()
+
+    def screen_size(self) -> tuple[int, int]:
+        img = self.screenshot()
+        return img.size
+
+    # --- Home Assistant actions and entities -----------------------------------------
+
+    def action(self, name: str, **data: Any) -> None:
+        """Call one of the device's API actions, as an HA automation would."""
+        self._call(name, **data)
+        self._settle()
+
+    def show_message(self, text: str, seconds: int = 5) -> None:
+        self.action("show_message", message=text, seconds=seconds)
+
+    def show_prompt(self, id: str, title: str = "", body: str = "", options: list[str] | None = None,
+                    layout: str = "message", style: str = "info", timeout: int = 0, state: str = "",
+                    sound: str = "", marks: list[str] | None = None, dismissable: bool = True) -> None:
+        """prompt_show with HA's "empty means default" values filled in."""
+        self.action("prompt_show", id=id, layout=layout, title=title, body=body, options=options or [],
+                    marks=marks or [], style=style, timeout=timeout, state=state, sound=sound,
+                    dismissable=dismissable)
+
+    def update_prompt(self, id: str, body: str = "", marks: list[str] | None = None, countdown: int = -1) -> None:
+        self.action("prompt_update", id=id, body=body, marks=marks or [], countdown=countdown)
+
+    def set(self, entity: str, value: Any) -> None:
+        """Set a select, number, switch or text entity by its name, as HA would."""
+        info = self._entities.get(entity)
+        if info is None:
+            raise DeviceError(f"No entity {entity!r}")
+        kind = type(info).__name__
+        c = self._client
+        if kind == "SelectInfo":
+            c.select_command(info.key, str(value))
+        elif kind == "NumberInfo":
+            c.number_command(info.key, float(value))
+        elif kind == "SwitchInfo":
+            c.switch_command(info.key, bool(value))
+        elif kind == "TextInfo":
+            c.text_command(info.key, str(value))
+        elif kind == "ButtonInfo":
+            c.button_command(info.key)
+        else:
+            raise DeviceError(f"Can't set {entity!r} ({kind})")
+        self._settle()
+
+    # --- pictures ----------------------------------------------------------------------
+
+    def screenshot(self, path: Path | None = None):
+        """The screen now, as a PIL image (RGB). Saved as PNG when `path` is given."""
+        from PIL import Image
+
+        shots = self.workdir / "shots"
+        self._call("desktop_screenshot", dir=str(shots), name="now")
+        self._settle()
+        bmp = shots / "now.bmp"
+        with Image.open(bmp) as im:
+            img = im.convert("RGB")
+        if path is not None:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            img.save(path)
+        return img
+
+    def _rec_ms(self) -> int:
+        return (self.clock.ns - self._record_start_ns) // 1_000_000
+
+    def record_start(self, frames_dir: Path) -> None:
+        """Save every frame (and sound) from now on, for a GIF or a trace."""
+        frames_dir = Path(frames_dir)
+        shutil.rmtree(frames_dir, ignore_errors=True)
+        self.frames_dir = frames_dir
+        self.skipped = []
+        self.captions = []
+        self._record_start_ns = self.clock.ns
+        self._call("desktop_record_start", dir=str(frames_dir))
+        self._settle()
+
+    def record_stop(self) -> Path | None:
+        if self.frames_dir is None:
+            return None
+        self._call("desktop_record_stop")
+        self._settle()
+        out, self.frames_dir = self.frames_dir, None
+        return out
+
+
+def _wait_port_free(port: int, timeout: float = 10) -> None:
+    """A program from the last run may still hold the API port for a moment."""
+    deadline = time.monotonic() + timeout
+    while True:
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                return
+        if time.monotonic() > deadline:
+            raise DeviceError(f"Port {port} is in use: is another desktop device running?")
+        time.sleep(0.1)
+
+
+# --------------------------------------------------------------------------
+# Expectations
+# --------------------------------------------------------------------------
+
+
+def _count_over(diff, tolerance: int) -> int:
+    """Pixels where any channel differs by more than `tolerance`."""
+    data = diff.tobytes()
+    return sum(1 for i in range(0, len(data), 3) if max(data[i], data[i + 1], data[i + 2]) > tolerance)
+
+
+def expect(target: Device | Locator) -> DeviceAssertions | LocatorAssertions:
+    if isinstance(target, Locator):
+        return LocatorAssertions(target)
+    return DeviceAssertions(target)
+
+
+class LocatorAssertions:
+    def __init__(self, locator: Locator):
+        self.locator = locator
+
+    def to_be_visible(self, timeout: float = 5.0) -> None:
+        self.locator.wait_for(timeout)
+
+    def to_be_hidden(self, timeout: float = 5.0) -> None:
+        if self.locator.device.wait_until(lambda: not self.locator.all(), timeout) is None:
+            raise AssertionError(f"{self.locator} still shows after {timeout} s")
+
+    def to_have_value(self, value: str, timeout: float = 5.0) -> None:
+        if not self.locator.device.wait_until(lambda: any(n.value == value for n in self.locator.all()), timeout):
+            raise AssertionError(f"{self.locator} has no value {value!r}: {self.locator.all()}")
+
+
+class DeviceAssertions:
+    def __init__(self, device: Device):
+        self.device = device
+
+    def to_have_state(self, state: str | list[str], timeout: float = 5.0) -> None:
+        """The persona shows this state, or one of a list (a persona may play its own reaction first)."""
+        wanted = [state] if isinstance(state, str) else list(state)
+        if not self.device.wait_until(lambda: self.device.state() in wanted, timeout):
+            raise AssertionError(f"State is {self.device.state()!r}, not {state!r}, after {timeout} s")
+
+    def to_fire_event(self, event: str, /, timeout: float = 5.0, **data: Any) -> Event:
+        """An HA event ("esphome.daruma_prompt") or an event entity ("entity:Event")
+        whose data has these values."""
+
+        def match() -> Event | None:
+            for e in self.device.events:
+                if e.type == event and all(str(e.data.get(k)) == str(v) for k, v in data.items()):
+                    return e
+            return None
+
+        found = self.device.wait_until(match, timeout)
+        if not found:
+            seen = [(e.type, e.data) for e in self.device.events]
+            raise AssertionError(f"No event {event} {data} within {timeout} s; seen: {seen}")
+        return found
+
+    def to_have_entity(self, name: str, value: Any, timeout: float = 5.0) -> None:
+        def ok() -> bool:
+            v = self.device.entity_state(name)
+            return v == value or str(v) == str(value)
+
+        if not self.device.wait_until(ok, timeout):
+            raise AssertionError(f"{name} is {self.device.entity_state(name)!r}, not {value!r}")
+
+    def to_match_screenshot(self, name: str, *, mask: list[tuple[int, int, int, int]] = (),
+                            tolerance: int = 0, max_diff_pixels: int = 0) -> None:
+        """Compare the screen with the golden PNG `name`.
+
+        A pixel differs when a channel is off by more than `tolerance`; the
+        check fails with more than `max_diff_pixels` such pixels. `mask`
+        rectangles (x, y, w, h) are left out. Writes the actual picture and a
+        diff next to the frames on failure; with update_golden, writes the
+        golden instead.
+        """
+        from PIL import Image, ImageChops
+
+        b = self.device
+        if b.golden is None:
+            raise DeviceError("No golden folder set for this device")
+        golden = b.golden / f"{name}.png"
+        actual = b.screenshot()
+        for x, y, w, h in mask:
+            actual.paste((255, 0, 255), (x, y, x + w, y + h))
+        if b.update_golden:
+            golden.parent.mkdir(parents=True, exist_ok=True)
+            actual.save(golden, optimize=True)
+            return
+        out = b.workdir / "results"
+        if not golden.exists():
+            out.mkdir(parents=True, exist_ok=True)
+            actual.save(out / f"{name}-actual.png")
+            raise AssertionError(f"No golden {golden}; run with --update-golden. Actual: {out / (name + '-actual.png')}")
+        with Image.open(golden) as g:
+            expected = g.convert("RGB")
+        if expected.size != actual.size:
+            raise AssertionError(f"{name}: size {actual.size}, golden {expected.size}")
+        diff = ImageChops.difference(actual, expected)
+        bad = _count_over(diff, tolerance)
+        if bad > max_diff_pixels:
+            out.mkdir(parents=True, exist_ok=True)
+            actual.save(out / f"{name}-actual.png")
+            mark = diff.point(lambda v: 255 if v > tolerance else 0).convert("L")
+            red = Image.new("RGB", actual.size, (255, 0, 0))
+            Image.composite(red, Image.blend(expected, Image.new("RGB", actual.size), 0.6), mark).save(
+                out / f"{name}-diff.png")
+            raise AssertionError(f"{name}: {bad} pixels differ (allowed {max_diff_pixels}); see {out}")

@@ -1,0 +1,97 @@
+name: activities
+description: >-
+  Every activity the registry knows, and the pomodoro's reactions, with a
+  caption: the voice assistant's screens, attention, offline and waking,
+  then a focus block's states, the menu and the Weather app in the
+  persona's theme, a message and a doorbell card. Together with
+  emotions.yaml it shows every state (see covered_states).
+showcase: true
+personas: all
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 1.5
+  # The voice assistant, as the BOX-3 draws it.
+  - caption: "Voice: listening"
+  - voice: listening
+  - wait: 2
+  - caption: "Voice: thinking"
+  - voice: {phase: thinking, text: "Will it rain tomorrow?"}
+  - wait: 2
+  - caption: "Voice: talking"
+  - voice: {phase: replying, text: "No rain tomorrow. Sunny, with a high of 68."}
+  - wait: 3
+  - caption: "Voice: error"
+  - voice: error
+  - wait: 2
+  - caption: A timer rang
+  - voice: timer
+  - wait: 2.5
+  - voice: idle
+  - wait: 0.5
+  # Activities other modules hold.
+  - caption: Attention
+  - show: attention
+  - wait: 2
+  - caption: Offline
+  - show: offline
+  - wait: 2
+  - caption: Waking
+  - show: waking
+  - wait: 2
+  - show: ""
+  - wait: 0.5
+  # A focus block and its reactions.
+  - caption: Focus
+  - show: focus
+  - wait: 3
+  - caption: Paused (a sound)
+  - show: paused
+  - wait: 1
+  - caption: Focus stopped
+  - show: focus_stopped
+  - wait: 2
+  - caption: Focus done
+  - show: focus_done
+  - wait: 3.5
+  - caption: Break
+  - show: break
+  - wait: 2.5
+  - caption: Break over
+  - show: break_over
+  - wait: 2.5
+  - show: ""
+  - caption: Goal
+  - show: goal
+  - wait: 3.5
+  # The menu and an app, in this persona's theme.
+  - caption: The menu
+  - tap: [160, 100]
+  - expect: {visible: {text: More}}
+  - wait: 1.5
+  - caption: The apps
+  - tap: {text: More}
+  - expect: {visible: {role: tile, name: Weather}}
+  - wait: 1.5
+  - caption: Weather
+  - tap: {role: tile, name: Weather}
+  - expect: {visible: {role: app, name: Weather}}
+  - wait: 2.5
+  - press: {input: home, seconds: 2}
+  - wait: 1
+  # Home Assistant talks to it.
+  - caption: A message from Home Assistant
+  - message: {text: Dinner is ready!, seconds: 4}
+  - wait: 4
+  - caption: A doorbell card
+  - prompt:
+      id: door
+      title: Doorbell
+      body: Someone is at the front door.
+      options: [Unlock, Talk, Ignore]
+      style: urgent
+  - expect: {visible: {role: button, name: Unlock}, state: attention}
+  - wait: 2.5
+  - tap: {role: button, name: Unlock}
+  - wait: 1.5

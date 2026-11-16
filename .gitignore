@@ -1,0 +1,14 @@
+# ESPHome build output and git caches
+.esphome/
+# Your own secrets (see examples/secrets.example.yaml)
+secrets.yaml
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+# macOS
+.DS_Store
+# Python package builds
+build/
+*.egg-info/
+uv.lock

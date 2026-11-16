@@ -1,0 +1,40 @@
+name: tour
+description: >-
+  Idle with blinks, a pet, a short focus block from the menu, the jingle when
+  it ends, and the fanfare when the second block reaches the daily goal.
+personas: all
+test_personas: all
+setup:
+  - set: {Outside temperature: 64, Pomodoro daily goal: 2, Pomodoro focus: 5}
+  - wait: 1
+steps:
+  - wait: 3
+  - snapshot: idle
+  - pet: true
+  - expect: {state: petted}
+  - wait: 2.5
+  # The menu: Focus starts the 5-minute block at once.
+  - tap: [160, 100]
+  - expect: {visible: {text: Focus}}
+  - snapshot: dock
+  - tap: {text: Focus}
+  - expect: {state: focus}
+  - wait: 3
+  - snapshot: focus
+  # The end of the block: skip most of it.
+  - skip: 293
+  # Daruma paints an eye first (its paint reaction).
+  - expect: {state: [focus_done, paint], timeout: 6}
+  - wait: 3
+  # The break starts on its own; skip it, then a second block from the red
+  # circle's pomodoro menu.
+  - skip: 300
+  - wait: 2
+  - press: home
+  - tap: {text: Focus}
+  - expect: {state: focus}
+  - wait: 1.5
+  - skip: 293
+  - expect: {state: [goal, paint], timeout: 8}
+  - snapshot: goal
+  - wait: 3

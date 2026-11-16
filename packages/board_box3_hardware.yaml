@@ -1,0 +1,203 @@
+# ESP32-S3-BOX-3 hardware for Daruma: the screen and its profile, font
+# sizes, audio, buttons and touch. A board package includes it and names
+# the inputs: board_box3.yaml (touch and both buttons) or
+# board_box3_buttons.yaml (the buttons only).
+#
+# Parts come from the official BOX-3 firmware:
+#   https://github.com/esphome/wake-word-voice-assistants (esp32-s3-box-3.yaml)
+#
+# What core.yaml expects from a board: the display `s3_box_lcd` (its lambda
+# hands drawing to the hub), the mic `box_mic`, the speaker `box_speaker`,
+# the font sizes below, and the hub's `id(daruma_hub)` fed with the inputs and
+# the mute state.
+#
+# The BOX-3 has a mic and a speaker, so it brings core's voice and audio
+# part too (core_voice.yaml).
+#
+# Fixed safety inputs, never bindable: the mute switch on top cuts the mics
+# in hardware; holding the top button 10 s resets to factory settings. A
+# press-down on the top button runs its press binding at once, so the reset
+# hold starts with that action too.
+
+packages:
+  voice: !include core_voice.yaml
+
+substitutions:
+  # Font sizes for this screen (320x240 at about 2.4 inches).
+  font_size_text: "17"    # names, bubbles, app text
+  font_size_small: "13"   # labels, captions
+  font_size_badge: "17"   # the temperature badge
+  font_size_icon: "30"    # Material Design Icons in the menu
+  font_size_timer: "22"   # the pomodoro countdown
+  font_size_title: "20"   # prompt titles and questions
+
+esp32:
+  board: esp32s3box
+  flash_size: 16MB
+  cpu_frequency: 240MHz
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+i2c:
+  - id: i2c_adc_dac
+    scl: GPIO18
+    sda: GPIO8
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin:
+      number: GPIO45
+      ignore_strapping_warning: true
+    i2s_bclk_pin: GPIO17
+    i2s_mclk_pin: GPIO2
+
+audio_adc:
+  - platform: es7210
+    i2c_id: i2c_adc_dac
+    id: es7210_adc
+    bits_per_sample: 16bit
+    sample_rate: 16000
+
+audio_dac:
+  - platform: es8311
+    i2c_id: i2c_adc_dac
+    id: es8311_dac
+    bits_per_sample: 16bit
+    sample_rate: 48000
+
+microphone:
+  - platform: i2s_audio
+    id: box_mic
+    sample_rate: 16000
+    i2s_din_pin: GPIO16
+    bits_per_sample: 16bit
+    adc_type: external
+
+speaker:
+  - platform: i2s_audio
+    id: box_speaker
+    i2s_dout_pin: GPIO15
+    dac_type: external
+    sample_rate: 48000
+    bits_per_sample: 16bit
+    channel: left
+    audio_dac: es8311_dac
+    buffer_duration: 100ms
+
+output:
+  - platform: ledc
+    pin: GPIO47
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    id: led
+    name: Screen
+    icon: "mdi:television"
+    entity_category: config
+    output: backlight_output
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 250ms
+
+spi:
+  - id: spi_bus
+    clk_pin: 7
+    mosi_pin: 6
+
+display:
+  - platform: mipi_spi
+    id: s3_box_lcd
+    model: S3BOX
+    invert_colors: false
+    data_rate: 40MHz
+    cs_pin: 5
+    dc_pin: 4
+    reset_pin:
+      number: 48
+      inverted: true
+    update_interval: never
+    # Keep the buffer between frames so personas can repaint only what changed;
+    # the driver then sends just that region. Every screen paints its own
+    # full background.
+    auto_clear_enabled: false
+    lambda: id(daruma_hub).render(it);
+
+touchscreen:
+  - platform: gt911
+    id: s3_box_touch
+    i2c_id: i2c_adc_dac
+    address: 0x5D
+    interrupt_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+
+binary_sensor:
+  # Mute switch on top. It cuts the mics in hardware; this pin only reports it.
+  - platform: gpio
+    pin:
+      number: GPIO1
+      inverted: true
+    id: hw_mute
+    name: Mic hardware mute
+    entity_category: diagnostic
+    on_state:
+      - lambda: id(daruma_hub).set_hardware_mute(x);
+
+  - platform: gpio
+    pin:
+      number: GPIO0
+      ignore_strapping_warning: true
+      mode: INPUT_PULLUP
+      inverted: true
+    id: left_top_button
+    internal: true
+    # Contact bounce must not reach the bindings: a press fires on press-down.
+    filters:
+      - delayed_on_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for at least 10s
+        then:
+          - button.press: factory_reset_btn
+
+  # Red circle under the screen.
+  - platform: gt911
+    id: home_button
+    index: 0
+    internal: true
+    filters:
+      - delayed_on_off: 20ms
+
+button:
+  - platform: factory_reset
+    id: factory_reset_btn
+    internal: true
+
+switch:
+  - platform: gpio
+    name: Speaker Enable
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    disabled_by_default: true
+
+daruma:
+  # The layout comes from this display's size.
+  display: s3_box_lcd
+  # A color LCD that redraws fast: animate, and repaint only what moved. A
+  # full frame takes about 50 ms of main-loop time, so frames stay 100 ms
+  # apart (up to 10 fps) to leave room for the API and audio.
+  display_profile:
+    colors: full
+    animate: true
+    min_frame: 100ms
+    partial_refresh: true

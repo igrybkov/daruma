@@ -1,0 +1,277 @@
+blueprint:
+  name: Daruma prompt demos
+  domain: script
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/script/prompt_demos.yaml
+  description: >-
+    Try every kind of card a Daruma device can show, and see the answer come
+    back to Home Assistant. Run the script and pick a demo:
+
+
+    - Yes or no: a quick question with `ask`. The answer comes back in the
+    same call, within 25 s.
+
+    - Urgent alert: a red card with one button. Only the button closes it.
+
+    - Card that stays: an info card with no countdown. It waits until you
+    tap one of its buttons.
+
+    - List: ten options that scroll. Swipe up or down, then tap one.
+
+    - Two stacked alerts: an urgent card that stays, then a second one on
+    top of it 15 s later. Answer them in any order.
+
+    - All of them, one after another.
+
+
+    After each answer the device shows what it sent to Home Assistant. The
+    script's trace has every answer event in full.
+
+
+    Needs the device's prompts package (packages/prompts.yaml of Daruma).
+    See docs/prompts.md for every field these cards use.
+  input:
+    node_name:
+      name: Device node name
+      description: >-
+        The ESPHome node name with "-" as "_". Its actions are named after it
+        (esphome.daruma_prompt_show).
+      default: daruma
+      selector:
+        text: {}
+    wait_minutes:
+      name: Wait for an answer
+      description: How long a card that stays waits before the script gives up.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: min
+
+mode: single
+
+fields:
+  demo:
+    name: Demo
+    description: Which card to show.
+    required: true
+    default: all
+    selector:
+      select:
+        options:
+          - label: Yes or no
+            value: yes_no
+          - label: Urgent alert
+            value: urgent_alert
+          - label: Card that stays
+            value: sticky_card
+          - label: List
+            value: list
+          - label: Two stacked alerts
+            value: stacked_alerts
+          - label: All of them
+            value: all
+
+variables:
+  node: !input node_name
+  wait_minutes: !input wait_minutes
+  demos: >-
+    {{ ['yes_no', 'urgent_alert', 'sticky_card', 'list', 'stacked_alerts']
+       if demo == 'all' else [demo] }}
+
+sequence:
+  - repeat:
+      for_each: "{{ demos }}"
+      sequence:
+        - choose:
+            # A quick question: ask waits for the answer in the same call.
+            - conditions: "{{ repeat.item == 'yes_no' }}"
+              sequence:
+                - action: "esphome.{{ node }}_ask"
+                  data:
+                    id: demo_yes_no
+                    layout: message
+                    title: "Demo: yes or no"
+                    body: Do you like cards like this one?
+                    options: ["Yes", "No"]
+                    marks: []
+                    style: info
+                    timeout: 20
+                    state: ""
+                    sound: ""
+                    dismissable: true
+                  response_variable: answer
+                - action: "esphome.{{ node }}_show_message"
+                  data:
+                    message: "Sent: {{ answer.choice or answer.reason }}"
+                    seconds: 3
+
+            # An urgent card that only its button can close.
+            - conditions: "{{ repeat.item == 'urgent_alert' }}"
+              sequence:
+                - action: "esphome.{{ node }}_prompt_show"
+                  data:
+                    id: demo_urgent
+                    layout: message
+                    title: "Demo: urgent alert"
+                    body: The front door is open.
+                    options: [OK]
+                    marks: []
+                    style: urgent
+                    timeout: -1
+                    state: ""
+                    sound: ""
+                    dismissable: false
+                - wait_for_trigger:
+                    - trigger: event
+                      event_type: esphome.daruma_prompt
+                      event_data:
+                        id: demo_urgent
+                  timeout:
+                    minutes: "{{ wait_minutes | int }}"
+                  continue_on_timeout: true
+                - action: "esphome.{{ node }}_show_message"
+                  data:
+                    message: >-
+                      {{ 'Sent: ' ~ wait.trigger.event.data.choice
+                         if wait.trigger else 'No answer' }}
+                    seconds: 3
+
+            # An info card with no countdown.
+            - conditions: "{{ repeat.item == 'sticky_card' }}"
+              sequence:
+                - action: "esphome.{{ node }}_prompt_show"
+                  data:
+                    id: demo_sticky
+                    layout: message
+                    title: "Demo: laundry is done"
+                    body: Hang the shirts before they wrinkle.
+                    options: [OK, Remind me later]
+                    marks: []
+                    style: info
+                    timeout: -1
+                    state: ""
+                    sound: ""
+                    dismissable: false
+                - wait_for_trigger:
+                    - trigger: event
+                      event_type: esphome.daruma_prompt
+                      event_data:
+                        id: demo_sticky
+                  timeout:
+                    minutes: "{{ wait_minutes | int }}"
+                  continue_on_timeout: true
+                - action: "esphome.{{ node }}_show_message"
+                  data:
+                    message: >-
+                      {{ 'Sent: ' ~ wait.trigger.event.data.choice
+                         if wait.trigger else 'No answer' }}
+                    seconds: 3
+
+            # A list that scrolls.
+            - conditions: "{{ repeat.item == 'list' }}"
+              sequence:
+                - action: "esphome.{{ node }}_prompt_show"
+                  data:
+                    id: demo_list
+                    layout: list
+                    title: "Demo: pick a snack"
+                    body: Swipe up or down to see more.
+                    options:
+                      - Apple
+                      - Banana
+                      - Carrot sticks
+                      - Cheese
+                      - Crackers
+                      - Grapes
+                      - Nuts
+                      - Popcorn
+                      - Yogurt
+                      - Dark chocolate
+                    marks: []
+                    style: info
+                    timeout: -1
+                    state: ""
+                    sound: ""
+                    dismissable: true
+                - wait_for_trigger:
+                    - trigger: event
+                      event_type: esphome.daruma_prompt
+                      event_data:
+                        id: demo_list
+                  timeout:
+                    minutes: "{{ wait_minutes | int }}"
+                  continue_on_timeout: true
+                - action: "esphome.{{ node }}_show_message"
+                  data:
+                    message: >-
+                      {{ 'Sent: ' ~ (wait.trigger.event.data.choice
+                         or wait.trigger.event.data.reason)
+                         if wait.trigger else 'No answer' }}
+                    seconds: 3
+
+            # Two urgent cards: the second goes on top of the first.
+            - conditions: "{{ repeat.item == 'stacked_alerts' }}"
+              sequence:
+                - action: "esphome.{{ node }}_prompt_show"
+                  data:
+                    id: demo_stack_1
+                    layout: message
+                    title: "Demo: alert 1 of 2"
+                    body: The front door is open. A second alert comes in 15 s.
+                    options: [OK]
+                    marks: []
+                    style: urgent
+                    timeout: -1
+                    state: ""
+                    sound: ""
+                    dismissable: false
+                # Both answers are caught whichever comes first: one branch
+                # waits for the first card from the start, so an early answer
+                # to it is not missed while the second is on its way.
+                - parallel:
+                    - sequence:
+                        - wait_for_trigger:
+                            - trigger: event
+                              event_type: esphome.daruma_prompt
+                              event_data:
+                                id: demo_stack_1
+                          timeout:
+                            minutes: "{{ wait_minutes | int }}"
+                          continue_on_timeout: true
+                        - action: "esphome.{{ node }}_show_message"
+                          data:
+                            message: >-
+                              {{ 'Alert 1 sent: ' ~ wait.trigger.event.data.choice
+                                 if wait.trigger else 'No answer to alert 1' }}
+                            seconds: 3
+                    - sequence:
+                        - delay:
+                            seconds: 15
+                        - action: "esphome.{{ node }}_prompt_show"
+                          data:
+                            id: demo_stack_2
+                            layout: message
+                            title: "Demo: alert 2 of 2"
+                            body: Water leak under the sink.
+                            options: [OK, Snooze]
+                            marks: []
+                            style: urgent
+                            timeout: -1
+                            state: ""
+                            sound: ""
+                            dismissable: false
+                        - wait_for_trigger:
+                            - trigger: event
+                              event_type: esphome.daruma_prompt
+                              event_data:
+                                id: demo_stack_2
+                          timeout:
+                            minutes: "{{ wait_minutes | int }}"
+                          continue_on_timeout: true
+                        - action: "esphome.{{ node }}_show_message"
+                          data:
+                            message: >-
+                              {{ 'Alert 2 sent: ' ~ wait.trigger.event.data.choice
+                                 if wait.trigger else 'No answer to alert 2' }}
+                            seconds: 3

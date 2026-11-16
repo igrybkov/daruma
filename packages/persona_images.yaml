@@ -1,0 +1,49 @@
+# Image persona for Daruma. Include once per art set to A/B test them:
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - path: packages/persona_images.yaml
+#           vars: {persona_id: corgi_a, persona_name: "Corgi A", art: corgi_a}
+#
+# Each include adds an option to the "Persona" select in HA.
+#
+# Var `sounds` (optional): the persona's own sound effects, as a persona's
+# `sounds:` block (components/daruma/sounds.py), for example its `pet`.
+#
+# Art goes in art/<art>/ of this repository as PNGs up to 320x240
+# (centered), named:
+#   moods:  neutral, happy, sad, loved, scared, sleepy, sleeping
+#   blinks: neutral_blink, happy_blink, sad_blink
+#   winks:  neutral_wink, happy_wink
+#   activities: listening, thinking, talking
+# Frames are keyed by state name. States without one (focus, alarm, offline,
+# the reactions, ...) show their fallback's picture (components/daruma/registry.py).
+# For a smaller set, copy this file and drop frames; Neutral is the one
+# every set needs.
+#
+# Budget: pictures are stored compressed (runs of flat color), so a set of
+# simple flat-color art takes 50-100 KB. Photos or gradients do not compress
+# and are limited to 255 colors each.
+
+defaults:
+  sounds: {}
+
+daruma_images:
+  - id: ${persona_id}
+    name: ${persona_name}
+    art: ../art/${art}
+    sounds: ${sounds}
+    frames:
+      Neutral: { image: "neutral", blink: "neutral_blink", wink: "neutral_wink" }
+      Happy: { image: "happy", blink: "happy_blink", wink: "happy_wink" }
+      Sad: { image: "sad", blink: "sad_blink" }
+      Loved: "loved"
+      Scared: "scared"
+      Sleepy: "sleepy"
+      Sleeping: "sleeping"
+      listening: "listening"
+      thinking: "thinking"
+      talking: "talking"

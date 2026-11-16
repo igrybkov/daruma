@@ -1,0 +1,28 @@
+# Build check: Daruma on a 16:9 screen (480x272), as the same BOX-3
+# with the display's dimensions overridden. Compile-only: the panel is not
+# that size. It includes box3.yaml, so keep the two in one folder with your
+# secrets.yaml:
+#
+#   esphome compile variant_wide.yaml
+
+substitutions:
+  name: daruma-wide
+  friendly_name: Daruma Wide
+  font_size_text: "19"
+  font_size_small: "15"
+  font_size_badge: "19"
+  font_size_icon: "34"
+  font_size_timer: "25"
+  font_size_title: "23"
+
+packages:
+  device: !include box3.yaml
+
+display:
+  - id: !extend s3_box_lcd
+    dimensions:
+      width: 480
+      height: 272
+      # Larger than the panel: no padding to compute from its native size.
+      pad_width: 0
+      pad_height: 0

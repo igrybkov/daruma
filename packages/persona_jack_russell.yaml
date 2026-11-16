@@ -1,0 +1,52 @@
+# Pixel-art Jack Russell persona: a small, mostly white terrier with a caramel
+# head, a white blaze and folded button ears, on a green velvet couch in its
+# own living room (living_room.py): an arched window with curtains (the sky
+# signal), a hanging spider plant (the progress signal, wilting when behind)
+# and a knitted throw over the couch arm that changes color by weekday. Its
+# tail is the signal: fast wags when happy or petted, the odd wag at rest,
+# held low when sad. To celebrate (and for the daily goal and done tasks) it
+# sits pretty on its hind legs, paws up, tongue out. Holds a tennis ball
+# in its mouth while you focus, and keeps it through a pat. Sleeps curled
+# up on the seat. Adds 'Jack Russell' to the Persona select, and "Jack
+# Russell throw" (weekday or plain) to the device settings.
+#
+# States find animations by name (petted -> Petted, celebrate -> Celebrate,
+# focus -> Focus); the rest fall back, and the build log lists how
+# (components/daruma/registry.py).
+#
+# Drawn by Python while the firmware compiles (pixel/daruma_pixel/
+# jack_russell.py on dog.py, through personas.py); edit the art there and
+# compile. Previews: see personas.py.
+
+daruma_sprites:
+  - id: jack_russell
+    name: Jack Russell
+    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: jack_russell }
+    params:
+      rug: { value: weekday, expose: true, name: throw }
+    # A reaction during a focus session keeps the ball.
+    during:
+      focus: { Petted: PettedFocus, Scared: ScaredFocus, Celebrate: CelebrateFocus }
+    # Menu and apps: cream cards on a caramel board, with sage accents like
+    # its lower wall.
+    theme:
+      style: paper
+      frame: "C48A52"
+      edge: "6E4426"
+      panel: "FBF7EE"
+      ink: "3A2A20"
+      muted: "7A6656"
+      title: "FBF7EE"
+      accent: "5E7A58"
+      dot: "8A5A32"
+      dock: "FBF7EE"
+      dock_ink: "3A2A20"
+      dock_muted: "7A6656"
+    # Petted: three short, rising happy yips.
+    sounds:
+      pet:
+        - { note: A5, to: E6, seconds: 0.06, duty: 0.25, attack: 0.002, release: 0.02 }
+        - { rest: 0.06 }
+        - { note: B5, to: F#6, seconds: 0.06, duty: 0.25, attack: 0.002, release: 0.02 }
+        - { rest: 0.08 }
+        - { note: C#6, to: A6, seconds: 0.09, duty: 0.25, attack: 0.002, release: 0.05 }

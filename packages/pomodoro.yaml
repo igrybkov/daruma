@@ -1,0 +1,1381 @@
+# Pomodoro for Daruma, as a module. Needs core.yaml. Works with or
+# without the menu.
+#
+# Classic timing by default: 25 min focus, 5 min short break, 15 min long
+# break after every 4th pomodoro. Breaks are always the classic length.
+#
+# Screen: a plaque in the bottom-left corner (layout corner_left, above the
+# info line). Idle, it shows one tomato per pomodoro of the daily goal
+# (pending green, done red, extra purple on a gold star past the goal). During a
+# focus or a break it shows the timer: mm:ss in the phase color with a
+# blinking colon, and one dot per pomodoro of the goal under it (filled
+# when done). Paused: gray, the colon still, and a tab with a pause sign on
+# the plaque's top edge. Slow screens show whole minutes ("12m"), with the
+# pause sign before them instead of the tab. Each tick repaints only the
+# plaque. A tap on the plaque opens the Pomodoro page (its tap area
+# `plaque`; the device yaml's `targets: plaque:` may send it elsewhere).
+#
+# Actions (bind them in the device yaml): pomodoro.toggle (start, pause or
+# resume), pomodoro.start (a focus of the "Pomodoro focus" length, at once),
+# pomodoro.custom (pick the length), pomodoro.stop, pomodoro.skip,
+# pomodoro.break and pomodoro.long_break. Each has a button look, so a menu
+# may list it (`daruma: menus:`). A listed action shows only when it
+# makes sense now (pomodoro_rules.h): no Break during a focus, no Stop
+# while idle. Toggle's label follows: Start, Pause or Resume.
+# Default bindings: hold the screen 1-3 s and let go to toggle; hold 3 s
+# to stop; a press on `home` (the BOX-3's red circle) opens the `pomodoro`
+# menu. A device binds home.press to pomodoro.toggle for the old one-press
+# start.
+# Menu buttons (with menu.yaml), wherever a menu lists `pomodoro`, from
+# pomodoro_rules.h:
+#   focus      Pause or Resume, Stop, Skip
+#   break      Resume (when paused), Focus (ends the break), End
+#   idle       Focus (starts at once), Custom (asks 25 / 15 / 10 / 5 min);
+#              plus Break and Long break while the break window is open:
+#              the last focus ended less than the break it earned ago.
+# A focus starts its break by itself, so the window shows after End or Stop
+# on that break. Default menu `pomodoro`: those buttons. The menu title
+# shows "N of goal today".
+#
+# Pomodoro page (app id `stats`, named "Pomodoro"; it replaces the Stats
+# app): the timer, big, or the focus length while idle; the phase and today
+# against the goal; a dot per pomodoro of the goal; this week's bars, the
+# week's total and the streak; and the buttons above, with Custom showing
+# the lengths in their place.
+#
+# States: the activities focus and break (the corgi reads while focusing,
+# the daruma sits with incense), and the reactions focus_done, goal (also
+# each bonus pomodoro), paused (sound only), focus_stopped and break_over.
+# Each plays its sound through the persona's behavior: blips on start, pause
+# and resume, a sad slide on an early stop, a jingle when a focus block
+# ends (a fanfare at and past the goal), and a "wee-woo" when the break is
+# over.
+#
+# Mood: +10 per pomodoro; the goal adds +30; each bonus pomodoro adds +15;
+# stopping a focus block early -5. Hourly during workday hours: a full
+# pomodoro behind pace -10 (with a nudge), on pace +5.
+#
+# Progress source `pomodoro`: this week's finished pomodoros, from 0 on
+# Monday to 10 at the weekly goal (daily goal x 5 workdays, or 7 with
+# weekends on). Behind while the hourly pace check finds you a full
+# pomodoro behind, until the next finished one.
+#
+# Goal signal: none until today's first pomodoro, started after it, done at
+# the daily goal; none again at midnight. When a finished pomodoro moves it
+# up, a persona with its own `paint` look plays that (the daruma paints an
+# eye) after the usual reaction.
+#
+# Theme colors (a persona's theme `colors:`, or the device's `theme:`):
+# pomodoro.focus, .focus_short, .break, .long_break, .paused, .pending (a
+# pomodoro still to do), .done, .extra (past the goal), .leaf, .star,
+# .plaque. Pending, done and extra color both the tomatoes and the timer's
+# dots. The old names .tomato_unripe, .tomato and .tomato_bonus still work.
+#
+# Words (theme `words:`), with the text_* values below as English defaults:
+# pomodoro.button_start, .button_focus, .button_custom, .button_pause,
+# .button_resume, .button_stop, .button_skip, .button_break,
+# .button_long_break, .button_end, .minutes, .pick_title, .today ({done},
+# {goal}), .ready, .phase_focus, .phase_short_break, .phase_long_break,
+# .phase_paused, .week ({n}), .streak ({n}), .weekdays (Monday first).
+#
+# HA action: esphome.<device>_pomodoro_start(minutes), 0 = focus setting.
+
+substitutions:
+  pomo_idle: "0"
+  pomo_focus: "1"
+  pomo_short_break: "2"
+  pomo_long_break: "3"
+
+  # Short focus presets offered next to the classic length in the menu.
+  quick_focus_a: "15"
+  quick_focus_b: "10"
+  quick_focus_c: "5"
+
+  # Button labels, in menus and on the Pomodoro page. Short: five buttons
+  # share the dock. They are the defaults of the module's theme words.
+  text_toggle: "Start"
+  text_stop: "Stop"
+  text_skip: "Skip"
+  text_focus: "Focus"
+  text_break: "Break"
+  text_pomo_long_break: "Long break"
+  text_pomo_custom: "Custom"
+  text_pomo_pause: "Pause"
+  text_pomo_resume: "Resume"
+  text_pomo_end: "End"
+  # Under each length in the picker ("25 min"), and its title.
+  text_pomo_minutes: "min"
+  text_pomo_pick_title: "Focus for how long?"
+  # The menu title and the page: {done} and {goal} are numbers.
+  text_pomo_today: "{done} of {goal} today"
+  # The Pomodoro page.
+  text_pomo_app: "Pomodoro"
+  text_pomo_ready: "Ready"
+  text_pomo_phase_focus: "Focus"
+  text_pomo_phase_short_break: "Short break"
+  text_pomo_phase_long_break: "Long break"
+  text_pomo_phase_paused: "Paused"
+  text_pomo_week: "{n} this week"
+  text_pomo_streak: "Streak {n}"
+  text_pomo_weekdays: "M,T,W,T,F,S,S"
+
+daruma:
+  modules:
+    - name: pomodoro
+      states:
+        focus: { kind: activity, fallback: neutral, sound: start }
+        break: { kind: activity, fallback: neutral, sound: start }
+        focus_done: { kind: reaction, fallback: happy, sound: focus_done, duration: 3s }
+        goal: { kind: reaction, fallback: celebrate, sound: goal, duration: 3s }
+        paused: { kind: reaction, fallback: neutral, sound: pause }
+        focus_stopped: { kind: reaction, fallback: sad, sound: stop, duration: 1500ms }
+        break_over: { kind: reaction, fallback: attention, sound: break_over, duration: 2s }
+      actions:
+        pomodoro.toggle:
+          - script.execute: pomodoro_toggle
+        pomodoro.stop:
+          - script.execute: pomodoro_stop
+        pomodoro.skip:
+          - script.execute: pomodoro_skip
+        pomodoro.start:
+          - script.execute:
+              id: pomodoro_begin
+              phase: ${pomo_focus}
+              minutes: 0
+        pomodoro.break:
+          - script.execute:
+              id: pomodoro_begin
+              phase: ${pomo_short_break}
+              minutes: 0
+        pomodoro.long_break:
+          - script.execute:
+              id: pomodoro_begin
+              phase: ${pomo_long_break}
+              minutes: 0
+        # From a menu it shows the lengths in the dock; bound to an input,
+        # it opens the Pomodoro page with the lengths (needs menu.yaml).
+        pomodoro.custom:
+          - lambda: |-
+              if (id(daruma_hub).run_action("menu.app:stats")) {
+                id(pomo_page_pick) = true;
+                id(daruma_hub).request_redraw();
+              }
+      apps:
+        - { id: stats, name: "${text_pomo_app}" }
+      progress: [pomodoro]
+      theme:
+        colors:
+          focus: "FF6347"
+          focus_short: "C9503A"
+          break: "26ED3A"
+          paused: "808080"
+          long_break: "1BA39C"
+          pending: "9CCC3C"
+          done: "E8322B"
+          extra: "8E44AD"
+          leaf: "2E7D32"
+          star: "FFD700"
+          plaque: "3A2216"
+        words:
+          button_start: "${text_toggle}"
+          button_focus: "${text_focus}"
+          button_custom: "${text_pomo_custom}"
+          button_pause: "${text_pomo_pause}"
+          button_resume: "${text_pomo_resume}"
+          button_stop: "${text_stop}"
+          button_skip: "${text_skip}"
+          button_break: "${text_break}"
+          button_long_break: "${text_pomo_long_break}"
+          button_end: "${text_pomo_end}"
+          minutes: "${text_pomo_minutes}"
+          pick_title: "${text_pomo_pick_title}"
+          today: "${text_pomo_today}"
+          ready: "${text_pomo_ready}"
+          phase_focus: "${text_pomo_phase_focus}"
+          phase_short_break: "${text_pomo_phase_short_break}"
+          phase_long_break: "${text_pomo_phase_long_break}"
+          phase_paused: "${text_pomo_phase_paused}"
+          week: "${text_pomo_week}"
+          streak: "${text_pomo_streak}"
+          weekdays: "${text_pomo_weekdays}"
+        # The names before pending, done and extra.
+        aliases:
+          tomato_unripe: pending
+          tomato: done
+          tomato_bonus: extra
+      bindings:
+        screen.hold: pomodoro.toggle
+        screen.long_hold: pomodoro.stop
+        # Boards without a `home` input skip it (the build log says so).
+        home.press: { action: menu.open, menu: pomodoro }
+      # Focus, Pause, Stop, ... for menus that list `pomodoro`.
+      menu: true
+      buttons:
+        pomodoro.toggle: { label: "${text_toggle}", icon: "\U000F040A", color: pomodoro.focus }
+        pomodoro.stop: { label: "${text_stop}", icon: "\U000F04DB", color: pomodoro.paused }
+        pomodoro.skip: { label: "${text_skip}", icon: "\U000F04AD", color: pomodoro.paused }
+        pomodoro.start: { label: "${text_focus}", icon: "\U000F051B", color: pomodoro.focus }
+        pomodoro.break: { label: "${text_break}", icon: "\U000F0176", color: pomodoro.break }
+        pomodoro.long_break: { label: "${text_pomo_long_break}", icon: "\U000F04B9", color: pomodoro.long_break }
+        pomodoro.custom: { label: "${text_pomo_custom}", icon: "\U000F1AD3", color: pomodoro.focus_short }
+      menus:
+        pomodoro: [pomodoro]
+      # A tap on the plaque opens the Pomodoro page.
+      areas: [plaque]
+      targets:
+        plaque: { app: stats }
+      setup: |-
+
+        // The plaque in the bottom-left corner (plaque.h). Idle: today's
+        // tomatoes. During a focus or a break, running or paused: the
+        // timer, with one dot per pomodoro of the goal under it. Hidden
+        // while a message bubble covers the bottom.
+        hub.add_layer(20, [](display::Display &it) {
+          using Daruma::Utilities::Draw;
+          const auto &L = id(daruma_hub).layout();
+          const auto &theme = id(daruma_hub).theme();
+          const bool clipped = it.is_clipping();
+          if (!id(daruma_hub).message().empty()) {
+            if (!clipped) id(pomo_drawn_plaque) = Daruma::Rect{};
+            return;
+          }
+          const int goal = std::max((int) id(pomo_daily_goal).state, 1);
+          const int done = id(pomo_done);
+          const int slots = id(pomo_slots)();
+          const Color plaque = theme.color("pomodoro.plaque");
+
+          if (id(pomo_phase) == ${pomo_idle}) {
+            const auto p = Daruma::TomatoPlaque::compute(L, slots);
+            if (!clipped) id(pomo_drawn_plaque) = p.rect;
+            Draw::roundedRectangle(&it, p.rect.x, p.rect.y, p.rect.w, p.rect.h, L.px(6), plaque);
+            // Stars first, so neighbouring tomatoes stay on top.
+            for (int i = goal; i < std::min(done, slots); i++) {
+              int x, y;
+              p.center(i, &x, &y);
+              Draw::star(&it, x, y - L.px(2), p.r + L.px(4), (p.r + L.px(4)) / 2, theme.color("pomodoro.star"));
+            }
+            // On gray and mono screens the colors may meet: kept readable on
+            // the plaque, and a tomato still to do becomes a ring when it
+            // would look like a done one.
+            const Color ripe = theme.on(plaque, theme.color("pomodoro.done"));
+            const Color unripe = theme.on(plaque, theme.color("pomodoro.pending"));
+            for (int i = 0; i < slots; i++) {
+              int x, y;
+              p.center(i, &x, &y);
+              if (i >= done && unripe.raw_32 == ripe.raw_32) {
+                it.circle(x, y, p.r, unripe);
+                continue;
+              }
+              const Color body = i >= done ? unripe : (i >= goal ? theme.on(plaque, theme.color("pomodoro.extra")) : ripe);
+              // Bonus tomatoes shrink a little so their star shows around them.
+              const int size = (i >= goal && i < done) ? p.r - 1 : p.r;
+              Draw::tomato(&it, x, y, size, body, theme.color("pomodoro.leaf"), i < done);
+            }
+            return;
+          }
+
+          const auto p = id(pomo_timer_plaque)();
+          if (!clipped) id(pomo_drawn_plaque) = p.rect;
+          Draw::roundedRectangle(&it, p.rect.x, p.rect.y, p.rect.w, p.rect.h, L.px(6), plaque);
+          const bool paused = id(pomo_paused);
+          const Color c = theme.on(plaque, paused ? theme.color("pomodoro.paused")
+                                   : theme.color(id(pomo_phase) == ${pomo_focus} ? "pomodoro.focus" : "pomodoro.break"));
+          const int left = std::min(std::max(id(pomo_left), 0), 99 * 60 + 59);
+          // Paused: the digits gray, and a pause sign (drawn, so it reads
+          // in mono too): on a tab on the plaque's top edge, or before the
+          // minutes on slow screens.
+          auto pause_bars = [&](int cx, int top, int bh, int bw, int gap, Color color) {
+            const int x = cx - gap / 2 - bw;
+            it.filled_rectangle(x, top, bw, bh, color);
+            it.filled_rectangle(x + bw + gap, top, bw, bh, color);
+          };
+          const bool slow = id(daruma_hub).profile().slow();
+          if (paused && !slow) {
+            const auto tab = p.pause_tab();
+            Draw::roundedRectangle(&it, tab.x, tab.y, tab.w, tab.h, tab.h / 2, c);
+            pause_bars(tab.cx(), tab.y + p.tab_bar, tab.h - 2 * p.tab_bar, p.tab_bar, p.tab_bar, plaque);
+          }
+          if (slow) {
+            // Minutes only, redrawn when one turns over.
+            const std::string text = str_sprintf("%dm", (left + 59) / 60);
+            const int shift = paused ? L.px(5) : 0;
+            it.print(p.digits_cx() + shift, p.baseline, id(font_timer), c, TextAlign::BASELINE_CENTER, text.c_str());
+            if (paused) {
+              int w, x_offset, baseline, height;
+              id(font_timer).measure(text.c_str(), &w, &x_offset, &baseline, &height);
+              const int bh = p.cap * 3 / 4;
+              pause_bars(p.digits_cx() + shift - w / 2 - L.px(6), p.digits_top + (p.cap - bh) / 2, bh,
+                         std::max(L.px(3), 2), std::max(L.px(2), 1), c);
+            }
+          } else {
+            // One fixed cell per digit, so the numbers never shift.
+            const int digits[4] = {left / 600, left / 60 % 10, left % 60 / 10, left % 10};
+            for (int i = 0; i < 4; i++) {
+              const char d[2] = {(char) ('0' + digits[i]), 0};
+              it.print(p.digit_cx(i), p.baseline, id(font_timer), c, TextAlign::BASELINE_CENTER, d);
+            }
+            // The colon blinks with the seconds while running, and stays
+            // while paused.
+            if (paused || left % 2 == 0) {
+              const int d = std::max(L.px(3), 2);
+              it.filled_rectangle(p.sep_cx() - d / 2, p.digits_top + p.cap * 3 / 10 - d / 2, d, d, c);
+              it.filled_rectangle(p.sep_cx() - d / 2, p.digits_top + p.cap * 8 / 10 - d / 2, d, d, c);
+            }
+          }
+          // Today's pomodoros: filled when done, a ring while still to do.
+          for (int i = 0; i < slots; i++) {
+            int x, y;
+            p.dot(i, slots, &x, &y);
+            if (i < done) {
+              it.filled_circle(x, y, p.dot_r,
+                               theme.on(plaque, theme.color(i >= goal ? "pomodoro.extra" : "pomodoro.done")));
+            } else {
+              it.circle(x, y, p.dot_r, theme.on(plaque, theme.color("pomodoro.pending")));
+            }
+          }
+        });
+
+        // The plaque leads somewhere: a tap on it runs its target (the
+        // Pomodoro page by default; `targets: plaque:` in the device yaml).
+        // Hidden under a message bubble, like the plaque.
+        hub.add_tap_area("plaque", []() {
+          if (!id(daruma_hub).message().empty())
+            return Daruma::Rect{};
+          if (id(pomo_phase) == ${pomo_idle})
+            return Daruma::TomatoPlaque::compute(id(daruma_hub).layout(), id(pomo_slots)()).rect;
+          const auto p = id(pomo_timer_plaque)();
+          return id(pomo_paused) ? p.rect.united(p.pause_tab()) : p.rect;
+        });
+
+        hub.set_menu_title([]() { return id(pomo_today_text)(); });
+
+        // Menus that list `pomodoro`: the buttons that make sense now
+        // (pomodoro_rules.h).
+        hub.add_menu_provider(0, [](std::vector<Daruma::MenuItem> &items) {
+          for (auto b : Daruma::Pomodoro::buttons(id(pomo_now)()))
+            items.push_back(id(pomo_button)(b));
+        });
+
+        // An action listed on its own in a menu shows only when it makes
+        // sense now, with the label for the moment.
+        using Daruma::Pomodoro::Button;
+        auto listed = [&hub](const char *action, Button b) {
+          hub.set_action_button(action, [b](Daruma::MenuItem &item) {
+            if (!Daruma::Pomodoro::shows(id(pomo_now)(), b))
+              return false;
+            auto action = std::move(item.action);
+            item = id(pomo_button)(b);
+            if (item.submenu.empty())
+              item.action = std::move(action);
+            return true;
+          });
+        };
+        listed("pomodoro.start", Button::FOCUS);
+        listed("pomodoro.custom", Button::CUSTOM);
+        listed("pomodoro.skip", Button::SKIP);
+        listed("pomodoro.break", Button::BREAK);
+        listed("pomodoro.long_break", Button::LONG_BREAK);
+        // Stop ends a focus, or a break (End).
+        hub.set_action_button("pomodoro.stop", [](Daruma::MenuItem &item) {
+          const auto now = id(pomo_now)();
+          const bool end = Daruma::Pomodoro::shows(now, Button::END);
+          if (!end && !Daruma::Pomodoro::shows(now, Button::STOP))
+            return false;
+          auto action = std::move(item.action);
+          item = id(pomo_button)(end ? Button::END : Button::STOP);
+          item.action = std::move(action);
+          return true;
+        });
+        // Toggle always does something: start, pause or resume.
+        hub.set_action_button("pomodoro.toggle", [](Daruma::MenuItem &item) {
+          const auto &t = id(daruma_hub).theme();
+          if (id(pomo_phase) == ${pomo_idle}) {
+            item.label = t.word("pomodoro.button_start");
+          } else {
+            auto action = std::move(item.action);
+            item = id(pomo_button)(id(pomo_paused) ? Button::RESUME : Button::PAUSE);
+            item.action = std::move(action);
+          }
+          return true;
+        });
+
+        // The Pomodoro page (app id `stats`, so menus, the apps: list and
+        // its switch keep working): the timer or "Ready", today against the
+        // goal, this week, and the buttons for now. A tap on the plaque
+        // opens it.
+        Daruma::App page;
+        page.id = "stats";
+        page.name = "${text_pomo_app}";
+        page.icon = "\U000F051B";  // timer-outline
+        page.color = Daruma::default_theme().color("pomodoro.focus");
+        page.status = []() {
+          const auto &t = id(daruma_hub).theme();
+          if (id(pomo_phase) != ${pomo_idle}) {
+            const int left = std::max(id(pomo_left), 0);
+            return str_sprintf("%s %d:%02d", id(pomo_phase_word)().c_str(), left / 60, left % 60);
+          }
+          const int streak = id(pomo_streak_now)();
+          if (streak > 0)
+            return Daruma::fill(t.word("pomodoro.streak"), "n", std::to_string(streak));
+          int week = 0;
+          for (uint8_t d : id(pomo_days)) week += d;
+          return Daruma::fill(t.word("pomodoro.week"), "n", std::to_string(week));
+        };
+        page.on_open = []() {
+          id(pomo_page_open) = true;
+          id(pomo_page_focus) = 0;
+        };
+        page.on_close = []() {
+          id(pomo_page_open) = false;
+          id(pomo_page_pick) = false;
+        };
+        // Back leaves the length picker first.
+        page.back = []() {
+          if (!id(pomo_page_pick))
+            return false;
+          id(pomo_page_pick) = false;
+          id(daruma_hub).request_redraw();
+          return true;
+        };
+        page.draw = [](Daruma::AppView &v) { id(pomo_page_draw)(v); };
+        page.input = [](Daruma::Input input, int x, int y) { return id(pomo_page_input)(input, x, y); };
+        hub.add_app(page);
+
+esphome:
+  on_boot:
+    - priority: -100
+      then:
+        - script.execute: pomodoro_publish
+        - script.execute: pomodoro_progress
+
+api:
+  actions:
+    - action: pomodoro_start
+      variables:
+        minutes: int
+      then:
+        - script.execute:
+            id: pomodoro_begin
+            phase: ${pomo_focus}
+            minutes: !lambda return minutes;
+
+time:
+  - platform: homeassistant
+    id: pomo_time
+    on_time:
+      # Reset the daily pomodoro count at midnight.
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - lambda: |-
+              const auto now = id(pomo_time).now();
+              // Yesterday: Sunday or Saturday is a weekend.
+              const int yesterday = now.day_of_week == 1 ? 7 : now.day_of_week - 1;
+              const bool goal_day = (yesterday != 1 && yesterday != 7) || id(pomo_goal_weekends).state;
+              if (goal_day) {
+                const bool met = id(pomo_done) >= std::max((int) id(pomo_daily_goal).state, 1);
+                id(pomo_streak) = met ? id(pomo_streak) + 1 : 0;
+              }
+              id(pomo_done) = 0;
+              id(pomo_behind) = false;
+              id(pomo_focus_ended) = false;
+              if (now.day_of_week == 2) {  // Monday.
+                id(pomo_week) = 0;
+                id(pomo_days) = {};
+              }
+              id(pomo_days)[id(pomo_today_index)()] = 0;
+              id(daruma_hub).request_redraw();
+          - script.execute: pomodoro_publish
+          - script.execute: pomodoro_progress
+      # Hourly pace check against the daily goal, during workday hours.
+      # Ahead of pace: a little happier. A full pomodoro behind: sadder.
+      - seconds: 0
+        minutes: 0
+        then:
+          - lambda: |-
+              const auto now = id(pomo_time).now();
+              if (!now.is_valid()) return;
+              const bool weekend = now.day_of_week == 1 || now.day_of_week == 7;  // Sun, Sat
+              if (weekend && !id(pomo_goal_weekends).state) return;
+              const int start = (int) id(workday_start).state;
+              const int end = (int) id(workday_end).state;
+              if (end <= start || now.hour <= start || now.hour > end) return;
+
+              const int goal = (int) id(pomo_daily_goal).state;
+              const int done = id(pomo_done);
+              const float expected = goal * float(now.hour - start) / float(end - start);
+              id(pomo_behind) = done < goal && done + 1 <= expected;
+              id(pomodoro_progress).execute();
+              if (done >= goal) return;
+
+              if (done + 1 <= expected) {
+                id(daruma_hub).add_happiness(-10);
+                if (id(pomo_phase) == ${pomo_idle}) {
+                  id(show_message).execute(
+                      now.hour == end ? str_sprintf("%d of %d today. Tomorrow is a new day.", done, goal)
+                                      : str_sprintf("%d of %d so far. One more?", done, goal),
+                      60);
+                }
+              } else if (done >= expected) {
+                id(daruma_hub).add_happiness(5);
+              }
+
+font:
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 700
+    id: font_timer
+    size: ${font_size_timer}
+    glyphs: "0123456789:m"
+  # The Pomodoro page's timer: twice the plaque's.
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 700
+    id: font_pomo_big
+    size: ${ (font_size_timer | int) * 2 }
+    bpp: 4
+    glyphs: "0123456789:m"
+
+number:
+  - platform: template
+    name: Pomodoro focus
+    id: pomo_focus_minutes
+    entity_category: config
+    icon: "mdi:timer-outline"
+    unit_of_measurement: min
+    optimistic: true
+    restore_value: true
+    initial_value: 25
+    min_value: 5
+    max_value: 90
+    step: 5
+  - platform: template
+    name: Pomodoro short break
+    id: pomo_short_break_minutes
+    entity_category: config
+    icon: "mdi:coffee-outline"
+    unit_of_measurement: min
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+    min_value: 1
+    max_value: 30
+    step: 1
+  - platform: template
+    name: Pomodoro long break
+    id: pomo_long_break_minutes
+    entity_category: config
+    icon: "mdi:sofa-outline"
+    unit_of_measurement: min
+    optimistic: true
+    restore_value: true
+    initial_value: 15
+    min_value: 5
+    max_value: 60
+    step: 5
+  - platform: template
+    name: Pomodoros before long break
+    id: pomo_long_break_every
+    entity_category: config
+    icon: "mdi:repeat"
+    optimistic: true
+    restore_value: true
+    initial_value: 4
+    min_value: 2
+    max_value: 8
+    step: 1
+  - platform: template
+    name: Pomodoro daily goal
+    id: pomo_daily_goal
+    entity_category: config
+    icon: "mdi:flag-checkered"
+    optimistic: true
+    restore_value: true
+    initial_value: 3
+    min_value: 1
+    max_value: 16
+    step: 1
+    on_value:
+      - script.execute: pomodoro_progress
+      - lambda: id(daruma_hub).request_redraw();
+  - platform: template
+    name: Workday start
+    id: workday_start
+    entity_category: config
+    icon: "mdi:briefcase-clock-outline"
+    unit_of_measurement: h
+    optimistic: true
+    restore_value: true
+    initial_value: 9
+    min_value: 0
+    max_value: 23
+    step: 1
+  - platform: template
+    name: Workday end
+    id: workday_end
+    entity_category: config
+    icon: "mdi:briefcase-off-outline"
+    unit_of_measurement: h
+    optimistic: true
+    restore_value: true
+    initial_value: 18
+    min_value: 1
+    max_value: 24
+    step: 1
+
+sensor:
+  - platform: template
+    name: Pomodoro remaining
+    id: pomo_remaining
+    icon: "mdi:timer-sand"
+    unit_of_measurement: min
+    accuracy_decimals: 0
+  - platform: template
+    name: Pomodoros today
+    id: pomo_done_sensor
+    icon: "mdi:counter"
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+text_sensor:
+  - platform: template
+    name: Pomodoro phase
+    id: pomo_phase_sensor
+    icon: "mdi:timer-cog-outline"
+
+binary_sensor:
+  - platform: template
+    name: Pomodoro paused
+    id: pomo_paused_sensor
+    icon: "mdi:pause-circle-outline"
+  - platform: template
+    name: Pomodoro goal reached
+    icon: "mdi:flag-checkered"
+    lambda: return id(pomo_done) >= (int) id(pomo_daily_goal).state;
+
+button:
+  - platform: template
+    name: Pomodoro start
+    icon: "mdi:timer-play-outline"
+    on_press:
+      - script.execute:
+          id: pomodoro_begin
+          phase: ${pomo_focus}
+          minutes: 0
+  - platform: template
+    name: Pomodoro pause or resume
+    icon: "mdi:play-pause"
+    on_press:
+      - script.execute: pomodoro_toggle
+  - platform: template
+    name: Pomodoro skip
+    icon: "mdi:skip-next-outline"
+    on_press:
+      - script.execute: pomodoro_skip
+  - platform: template
+    name: Pomodoro stop
+    icon: "mdi:timer-stop-outline"
+    on_press:
+      - script.execute: pomodoro_stop
+
+# Every step of the timer, for HA automations. focus_done, goal_reached and
+# bonus all end a focus block: below, at, and past the daily goal.
+event:
+  - platform: template
+    id: pomo_event
+    name: Pomodoro event
+    icon: mdi:timer-outline
+    event_types: [focus_started, break_started, paused, resumed, stopped,
+                  focus_done, goal_reached, bonus, break_over]
+
+switch:
+  - platform: template
+    name: Pomodoro goal on weekends
+    id: pomo_goal_weekends
+    icon: "mdi:calendar-weekend-outline"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      - script.execute: pomodoro_progress
+
+globals:
+  - id: pomo_phase
+    type: int
+    restore_value: false
+    initial_value: ${pomo_idle}
+  - id: pomo_paused
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: pomo_left
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: pomo_total
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: pomo_done
+    type: int
+    restore_value: true
+    initial_value: "0"
+  # Finished pomodoros since Monday; the progress signal.
+  - id: pomo_week
+    type: int
+    restore_value: true
+    initial_value: "0"
+  # A full pomodoro behind today's pace at the last hourly check.
+  - id: pomo_behind
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  # Finished pomodoros per day this week, Monday first (Stats app).
+  - id: pomo_days
+    type: std::array<uint8_t, 7>
+    restore_value: true
+    initial_value: "std::array<uint8_t, 7>{}"
+  # Goal days in a row that met the goal, up to yesterday. Days without a
+  # goal (weekends, unless the goal counts them) neither add nor break it.
+  - id: pomo_streak
+    type: int
+    restore_value: true
+    initial_value: "0"
+  # Helpers for the Pomodoro page, as globals so lambdas anywhere can call them.
+  - id: pomo_today_index
+    type: std::function<int()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const auto now = id(pomo_time).now();
+        return now.is_valid() ? (now.day_of_week + 5) % 7 : 0;  // Monday = 0.
+      }
+  # Today's goal stage: none before the first pomodoro, started after it,
+  # done at the daily goal (the goal signal).
+  - id: pomo_goal_stage
+    type: std::function<Daruma::Goal()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const int done = id(pomo_done);
+        if (done <= 0)
+          return Daruma::Goal::NONE;
+        return done >= std::max((int) id(pomo_daily_goal).state, 1) ? Daruma::Goal::DONE
+                                                                     : Daruma::Goal::STARTED;
+      }
+  # Slots on the plaque: the goal, or more once past it.
+  - id: pomo_slots
+    type: std::function<int()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const int goal = std::max((int) id(pomo_daily_goal).state, 1);
+        return std::min(std::max(goal, id(pomo_done)), Daruma::PLAQUE_MAX_SLOTS);
+      }
+  # The timer plaque for the timer font and today's slots.
+  - id: pomo_timer_plaque
+    type: std::function<Daruma::TimerPlaque()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        int widest = 0;
+        for (char c = '0'; c <= '9'; c++) {
+          const auto *g = id(font_timer).find_glyph(c);
+          if (g != nullptr) widest = std::max(widest, g->advance);
+        }
+        return Daruma::TimerPlaque::compute(id(daruma_hub).layout(), widest, id(font_timer).get_capheight(),
+                                               id(pomo_slots)());
+      }
+  # Where a full frame last drew the plaque (empty: not drawn).
+  - id: pomo_drawn_plaque
+    type: Daruma::Rect
+    restore_value: false
+  # The timer ticked: repaint only the plaque when it is the one on screen,
+  # else a full frame. Nothing while a screen or a bubble covers it.
+  - id: pomo_tick
+    type: std::function<void()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        // The Pomodoro page shows the timer too: redraw it.
+        if (id(pomo_page_open)) {
+          id(daruma_hub).request_redraw();
+          return;
+        }
+        if (id(daruma_hub).ui_open() || id(daruma_hub).screen_shown() || !id(daruma_hub).message().empty())
+          return;
+        const Daruma::Rect r = id(pomo_timer_plaque)().rect;
+        if (r == id(pomo_drawn_plaque))
+          id(daruma_hub).request_area(r);
+        else
+          id(daruma_hub).request_redraw();
+      }
+  - id: pomo_streak_now
+    type: std::function<int()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const bool met = id(pomo_done) >= std::max((int) id(pomo_daily_goal).state, 1);
+        return id(pomo_streak) + (met ? 1 : 0);
+      }
+
+  # When the last focus of the day ended (millis), and the break it earned,
+  # for the break window (pomodoro_rules.h). Cleared at midnight.
+  - id: pomo_focus_ended
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: pomo_focus_end_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  - id: pomo_earned_long
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  # The Pomodoro page: on screen, showing the length picker, and the
+  # focused button on boards without touch.
+  - id: pomo_page_open
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: pomo_page_pick
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: pomo_page_focus
+    type: int
+    restore_value: false
+    initial_value: "0"
+  # The pomodoro as pomodoro_rules.h sees it now.
+  - id: pomo_now
+    type: std::function<Daruma::Pomodoro::Now()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        Daruma::Pomodoro::Now n;
+        n.phase = static_cast<Daruma::Pomodoro::Phase>(id(pomo_phase));
+        n.paused = id(pomo_paused);
+        n.since_focus_end = id(pomo_focus_ended) ? (int32_t) ((millis() - id(pomo_focus_end_ms)) / 1000) : -1;
+        n.earned_long = id(pomo_earned_long);
+        n.short_break_s = (int32_t) id(pomo_short_break_minutes).state * 60;
+        n.long_break_s = (int32_t) id(pomo_long_break_minutes).state * 60;
+        return n;
+      }
+  # "2 of 4 today" (the word pomodoro.today).
+  - id: pomo_today_text
+    type: std::function<std::string()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const std::string text = Daruma::fill(id(daruma_hub).theme().word("pomodoro.today"), "done",
+                                                 std::to_string(id(pomo_done)));
+        return Daruma::fill(text, "goal", std::to_string((int) id(pomo_daily_goal).state));
+      }
+  # The phase in words: Ready, Focus, Short break, Long break, Paused.
+  - id: pomo_phase_word
+    type: std::function<std::string()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const auto &t = id(daruma_hub).theme();
+        if (id(pomo_phase) != ${pomo_idle} && id(pomo_paused))
+          return t.word("pomodoro.phase_paused");
+        switch (id(pomo_phase)) {
+          case ${pomo_focus}: return t.word("pomodoro.phase_focus");
+          case ${pomo_short_break}: return t.word("pomodoro.phase_short_break");
+          case ${pomo_long_break}: return t.word("pomodoro.phase_long_break");
+          default: return t.word("pomodoro.ready");
+        }
+      }
+  # One button: its word, icon, color and what it does. Custom carries the
+  # length picker as its submenu.
+  - id: pomo_button
+    type: std::function<Daruma::MenuItem(Daruma::Pomodoro::Button)>
+    restore_value: false
+    initial_value: |-
+      [](Daruma::Pomodoro::Button b) {
+        using Daruma::Pomodoro::Button;
+        const auto &t = id(daruma_hub).theme();
+        const char *word = "pomodoro.button_focus";
+        const char *icon = "\U000F051B";  // timer-outline
+        const char *color = "pomodoro.focus";
+        std::function<void()> act;
+        switch (b) {
+          case Button::FOCUS:
+            act = []() { id(pomodoro_begin).execute(${pomo_focus}, 0); };
+            break;
+          case Button::CUSTOM:
+            word = "pomodoro.button_custom";
+            icon = "\U000F1AD3";  // timer-edit-outline
+            color = "pomodoro.focus_short";
+            break;
+          case Button::PAUSE:
+            word = "pomodoro.button_pause";
+            icon = "\U000F03E4";  // pause
+            act = []() { id(pomodoro_toggle).execute(); };
+            break;
+          case Button::RESUME:
+            word = "pomodoro.button_resume";
+            icon = "\U000F040A";  // play
+            color = "pomodoro.break";
+            act = []() { id(pomodoro_toggle).execute(); };
+            break;
+          case Button::STOP:
+            word = "pomodoro.button_stop";
+            icon = "\U000F04DB";  // stop
+            color = "pomodoro.paused";
+            act = []() { id(pomodoro_stop).execute(); };
+            break;
+          case Button::SKIP:
+            word = "pomodoro.button_skip";
+            icon = "\U000F04AD";  // skip-next
+            color = "pomodoro.paused";
+            act = []() { id(pomodoro_skip).execute(); };
+            break;
+          case Button::BREAK:
+            word = "pomodoro.button_break";
+            icon = "\U000F0176";  // coffee
+            color = "pomodoro.break";
+            act = []() { id(pomodoro_begin).execute(${pomo_short_break}, 0); };
+            break;
+          case Button::LONG_BREAK:
+            word = "pomodoro.button_long_break";
+            icon = "\U000F04B9";  // sofa
+            color = "pomodoro.long_break";
+            act = []() { id(pomodoro_begin).execute(${pomo_long_break}, 0); };
+            break;
+          case Button::END:
+            word = "pomodoro.button_end";
+            icon = "\U000F0FAA";  // coffee-off
+            color = "pomodoro.break";
+            act = []() { id(pomodoro_stop).execute(); };
+            break;
+        }
+        const Color bg = t.color(color);
+        // Dark icons on light buttons, white on dark ones.
+        const Color fg = (bg.r * 299 + bg.g * 587 + bg.b * 114) / 1000 >= 150 ? Color::BLACK : Color::WHITE;
+        Daruma::MenuItem item = Daruma::MenuItem::make(t.word(word), icon, bg, fg, act);
+        if (b == Button::CUSTOM) {
+          item.submenu_title = t.word("pomodoro.pick_title");
+          item.submenu = id(pomo_lengths)();
+        }
+        return item;
+      }
+  # The length picker: the focus setting, then the short presets.
+  - id: pomo_lengths
+    type: std::function<std::vector<Daruma::MenuItem>()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        const auto &t = id(daruma_hub).theme();
+        std::vector<Daruma::MenuItem> items;
+        const int lengths[4] = {(int) id(pomo_focus_minutes).state, ${quick_focus_a}, ${quick_focus_b}, ${quick_focus_c}};
+        for (int i = 0; i < 4; i++) {
+          const int minutes = lengths[i];
+          // A preset the same as the setting shows once.
+          if (i > 0 && minutes == lengths[0])
+            continue;
+          items.push_back(Daruma::MenuItem::make(
+              t.word("pomodoro.minutes"), str_sprintf("%d", minutes),
+              t.color(i == 0 ? "pomodoro.focus" : "pomodoro.focus_short"), Color::WHITE,
+              [minutes]() { id(pomodoro_begin).execute(${pomo_focus}, minutes); }));
+        }
+        return items;
+      }
+  # The Pomodoro page's buttons now: the picker, or the ones that make sense.
+  - id: pomo_page_buttons
+    type: std::function<std::vector<Daruma::MenuItem>()>
+    restore_value: false
+    initial_value: |-
+      []() {
+        if (id(pomo_page_pick))
+          return id(pomo_lengths)();
+        std::vector<Daruma::MenuItem> items;
+        for (auto b : Daruma::Pomodoro::buttons(id(pomo_now)()))
+          items.push_back(id(pomo_button)(b));
+        return items;
+      }
+  # Where the page's button i of n sits, in app-area coordinates (w x h):
+  # a row along the bottom, each in an even share of the width.
+  - id: pomo_page_slot
+    type: std::function<Daruma::Rect(int, int, int, int)>
+    restore_value: false
+    initial_value: |-
+      [](int w, int h, int n, int i) {
+        const auto &L = id(daruma_hub).layout();
+        const int pad = L.px(8);
+        const int span = (w - 2 * pad) / std::max(n, 1);
+        const int r = std::min(L.px(17), span / 2 - L.px(3));
+        const int cx = pad + span * i + span / 2;
+        const int cy = h - L.px(40);
+        return Daruma::Rect{cx - r, cy - r, 2 * r, 2 * r};
+      }
+  - id: pomo_page_draw
+    type: std::function<void(Daruma::AppView &)>
+    restore_value: false
+    initial_value: |-
+      [](Daruma::AppView &v) {
+        using Daruma::fit_text;
+        using Daruma::text_width;
+        auto &it = v.display;
+        const auto &t = v.theme;
+        const auto &th = id(daruma_hub).theme();
+        const int pad = v.px(12);
+        const int phase = id(pomo_phase);
+        const bool idle = phase == ${pomo_idle};
+        const bool paused = !idle && id(pomo_paused);
+        const int goal = std::max((int) id(pomo_daily_goal).state, 1);
+        const int done = id(pomo_done);
+
+        // The time, big: what is left, or the focus length while idle.
+        const Color phase_color = idle ? t.muted
+                                       : t.on(t.panel, th.color(paused ? "pomodoro.paused"
+                                                                       : (phase == ${pomo_focus} ? "pomodoro.focus"
+                                                                                                 : "pomodoro.break")));
+        const int secs = idle ? (int) id(pomo_focus_minutes).state * 60 : std::min(std::max(id(pomo_left), 0), 99 * 60 + 59);
+        const std::string time = (!idle && id(daruma_hub).profile().slow()) ? str_sprintf("%dm", (secs + 59) / 60)
+                                                                        : str_sprintf("%02d:%02d", secs / 60, secs % 60);
+        it.print(v.x + pad, v.y + v.px(4), &id(font_pomo_big), phase_color, TextAlign::TOP_LEFT, time.c_str(), t.panel);
+        const int time_w = text_width(it, &id(font_pomo_big), time);
+
+        // Right of it: the phase in words, and today against the goal.
+        const int room = std::max(v.w - 2 * pad - time_w - v.px(10), v.px(20));
+        const int rx = v.x + v.w - pad;
+        it.print(rx, v.y + v.px(18), v.text, idle ? t.ink : phase_color, TextAlign::CENTER_RIGHT,
+                 fit_text(it, v.text, id(pomo_phase_word)(), room).c_str(), t.panel);
+        it.print(rx, v.y + v.px(40), v.small, t.muted, TextAlign::CENTER_RIGHT,
+                 fit_text(it, v.small, id(pomo_today_text)(), room).c_str(), t.panel);
+
+        // Today: one dot per pomodoro of the goal, filled when done; past
+        // the goal, the extra ones in their own color.
+        const int slots = id(pomo_slots)();
+        const int dot_r = std::max(v.px(5), 2);
+        const int step = 2 * dot_r + v.px(4);
+        const int dots_y = v.y + v.px(60);
+        for (int i = 0; i < slots; i++) {
+          const int cx = v.x + pad + dot_r + i * step;
+          if (i < done)
+            it.filled_circle(cx, dots_y, dot_r, t.on(t.panel, th.color(i >= goal ? "pomodoro.extra" : "pomodoro.done")));
+          else
+            it.circle(cx, dots_y, dot_r, t.on(t.panel, th.color("pomodoro.pending")));
+        }
+
+        // This week: a bar per day against the goal line, and the totals.
+        int week = 0, top_value = goal;
+        for (uint8_t d : id(pomo_days)) {
+          week += d;
+          top_value = std::max(top_value, (int) d);
+        }
+        const int today = id(pomo_today_index)();
+        const int bars_w = (v.w - 2 * pad) * 3 / 5;
+        const int base = v.y + v.px(96);
+        const int span = v.px(24);
+        const float unit = span / float(top_value);
+        const int goal_y = base - (int) (goal * unit);
+        for (int x = v.x + pad; x < v.x + pad + bars_w; x += v.px(8))
+          it.horizontal_line(x, goal_y, v.px(4), t.accent);
+        const auto letters = Daruma::split_words(t.word("pomodoro.weekdays"));
+        const int col = bars_w / 7;
+        const int bar_w = std::min(v.px(14), col - v.px(4));
+        const Color bar = th.color("pomodoro.focus");
+        for (int i = 0; i < 7; i++) {
+          const int cx = v.x + pad + col * i + col / 2;
+          const int value = id(pomo_days)[i];
+          if (value > 0) {
+            const int h = std::max(2, (int) (value * unit));
+            it.filled_rectangle(cx - bar_w / 2, base - h, bar_w, h,
+                                value >= goal ? t.fit(bar) : t.fit(Daruma::shade(bar, 0.65f)));
+          }
+          if (i < (int) letters.size())
+            it.print(cx, base + v.px(8), v.small, i == today ? t.ink : t.muted, TextAlign::CENTER,
+                     letters[i].c_str(), t.panel);
+        }
+        const int tx = v.x + pad + bars_w + v.px(10);
+        const int troom = v.x + v.w - pad - tx;
+        it.print(tx, base - v.px(18), v.small, t.ink, TextAlign::CENTER_LEFT,
+                 fit_text(it, v.small, Daruma::fill(t.word("pomodoro.week"), "n", std::to_string(week)), troom).c_str(),
+                 t.panel);
+        const int streak = id(pomo_streak_now)();
+        if (streak > 0)
+          it.print(tx, base + v.px(2), v.small, t.on(t.panel, bar), TextAlign::CENTER_LEFT,
+                   fit_text(it, v.small, Daruma::fill(t.word("pomodoro.streak"), "n", std::to_string(streak)), troom).c_str(),
+                   t.panel);
+
+        // The buttons for now (or the length picker), along the bottom.
+        const auto items = id(pomo_page_buttons)();
+        const int n = items.size();
+        id(pomo_page_focus) = std::min(std::max(id(pomo_page_focus), 0), std::max(n - 1, 0));
+        for (int i = 0; i < n; i++) {
+          const auto &item = items[i];
+          const Daruma::Rect r = id(pomo_page_slot)(v.w, v.h, n, i);
+          const int cx = v.x + r.cx(), cy = v.y + r.cy(), rad = r.w / 2;
+          if (v.focus && i == id(pomo_page_focus)) {
+            const Color ring = t.on(t.panel, t.focus_color());
+            for (int k = v.px(3); k <= v.px(5); k++)
+              it.circle(cx, cy, rad + k, ring);
+          }
+          const Color bg = t.fit(item.background);
+          it.filled_circle(cx, cy, rad, bg);
+          if (t.mode != Daruma::ColorMode::FULL && bg.raw_32 == t.fit(t.panel).raw_32)
+            it.circle(cx, cy, rad, t.ink);
+          const bool glyph = !item.icon.empty() && (uint8_t) item.icon[0] >= 0xF0;
+          it.print(cx, cy, glyph ? v.icons : v.text, t.on(bg, item.foreground), TextAlign::CENTER, item.icon.c_str(), bg);
+          const int slot_w = (v.w - v.px(16)) / std::max(n, 1);
+          it.print(cx, cy + rad + v.px(9), v.small, t.ink, TextAlign::CENTER,
+                   fit_text(it, v.small, item.label, slot_w - v.px(2)).c_str(), t.panel);
+          Daruma::UiTree::add("button", glyph ? item.label : item.icon + " " + item.label,
+                                 Daruma::Rect{cx - rad, cy - rad, 2 * rad, 2 * rad}, v.focus && i == id(pomo_page_focus));
+        }
+      }
+  # Taps and button input on the page. A button runs and the page stays:
+  # Custom swaps the row for the lengths, a length starts the focus.
+  - id: pomo_page_input
+    type: std::function<bool(Daruma::Input, int, int)>
+    restore_value: false
+    initial_value: |-
+      [](Daruma::Input input, int x, int y) {
+        using Daruma::Input;
+        const auto items = id(pomo_page_buttons)();
+        const int n = items.size();
+        auto press = [&](int i) {
+          if (i < 0 || i >= n)
+            return;
+          const auto &item = items[i];
+          if (!item.submenu.empty()) {
+            id(pomo_page_pick) = true;
+          } else {
+            id(pomo_page_pick) = false;
+            if (item.action)
+              item.action();
+          }
+          id(pomo_page_focus) = 0;
+          id(daruma_hub).request_redraw();
+        };
+        switch (input) {
+          case Input::NEXT:
+          case Input::PREV:
+            if (n > 0)
+              id(pomo_page_focus) = (id(pomo_page_focus) + (input == Input::NEXT ? 1 : n - 1)) % n;
+            id(daruma_hub).request_redraw();
+            return true;
+          case Input::SELECT:
+            press(id(pomo_page_focus));
+            return true;
+          case Input::TAP: {
+            const auto &c = id(daruma_hub).layout().content;
+            for (int i = 0; i < n; i++) {
+              // A little room around each button, for fingers.
+              const Daruma::Rect r = id(pomo_page_slot)(c.w, c.h, n, i).inset(-id(daruma_hub).layout().px(6));
+              if (r.contains(x, y)) {
+                press(i);
+                return true;
+              }
+            }
+            return false;
+          }
+          default:
+            return false;
+        }
+      }
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: return id(pomo_phase) != ${pomo_idle} && !id(pomo_paused);
+          then:
+            - lambda: |-
+                id(pomo_left) -= 1;
+                // Slow screens show minutes: redraw when one turns over.
+                if (!id(daruma_hub).profile().slow() || id(pomo_left) % 60 == 0)
+                  id(pomo_tick)();
+                if (id(pomo_left) % 60 == 0) {
+                  id(pomo_remaining).publish_state(std::max(id(pomo_left), 0) / 60);
+                }
+            - if:
+                condition:
+                  lambda: return id(pomo_left) <= 0;
+                then:
+                  - script.execute: pomodoro_phase_done
+
+script:
+  - id: pomodoro_begin
+    mode: restart
+    parameters:
+      phase: int
+      minutes: int  # 0 = use the setting for this phase
+    then:
+      - event.trigger:
+          id: pomo_event
+          event_type: !lambda 'return phase == ${pomo_focus} ? "focus_started" : "break_started";'
+      - lambda: |-
+          int length = minutes;
+          if (length <= 0) {
+            switch (phase) {
+              case ${pomo_focus}: length = id(pomo_focus_minutes).state; break;
+              case ${pomo_short_break}: length = id(pomo_short_break_minutes).state; break;
+              default: length = id(pomo_long_break_minutes).state; break;
+            }
+          }
+          // A break right after a focus block is quiet: focus_done just played.
+          const bool sound = phase == ${pomo_focus} || id(pomo_phase) == ${pomo_idle};
+          id(pomo_phase) = phase;
+          id(pomo_paused) = false;
+          id(pomo_total) = std::max(length, 1) * 60;
+          id(pomo_left) = id(pomo_total);
+          id(daruma_hub).set_activity("pomodoro", phase == ${pomo_focus} ? Daruma::StateId::FOCUS
+                                                                    : Daruma::StateId::BREAK, sound);
+          // The plaque turns into the timer, or changes color: a full frame,
+          // also when a reaction keeps the persona's state as it was.
+          id(daruma_hub).request_redraw();
+      - script.execute: pomodoro_publish
+
+  - id: pomodoro_phase_done
+    then:
+      - if:
+          condition:
+            lambda: return id(pomo_phase) == ${pomo_focus};
+          then:
+            - lambda: |-
+                id(pomo_done) += 1;
+                id(pomo_week) += 1;
+                id(pomo_days)[id(pomo_today_index)()] = std::min(id(pomo_done), 255);
+                id(pomo_behind) = false;
+                // The break window starts now (pomodoro_rules.h).
+                id(pomo_focus_ended) = true;
+                id(pomo_focus_end_ms) = millis();
+                id(pomo_earned_long) = Daruma::Pomodoro::earns_long(id(pomo_done), (int) id(pomo_long_break_every).state);
+                const int done = id(pomo_done);
+                const int goal = (int) id(pomo_daily_goal).state;
+                id(daruma_hub).add_happiness(10);
+                if (done == goal) {
+                  id(daruma_hub).add_happiness(30);
+                  id(show_message).execute(str_sprintf("Daily goal done! %d of %d.", done, goal), 20);
+                } else if (done < goal) {
+                  id(show_message).execute(str_sprintf("Nice work! %d of %d. Break time.", done, goal), 15);
+                } else {
+                  // Past the goal: rarer, so a bigger party.
+                  id(daruma_hub).add_happiness(15);
+                  id(show_message).execute(str_sprintf("Bonus tomato! %d today. Legend.", done), 15);
+                }
+                // The goal and every bonus one: hearts and a fanfare.
+                id(daruma_hub).react(done >= goal ? Daruma::StateId::GOAL : Daruma::StateId::FOCUS_DONE);
+                // After our own reaction, so a persona that paints the goal's
+                // stage (paint) plays that instead.
+                id(daruma_hub).set_goal(id(pomo_goal_stage)(), true);
+                id(pomodoro_progress).execute();
+            - event.trigger:
+                id: pomo_event
+                event_type: !lambda |-
+                  const int done = id(pomo_done), goal = (int) id(pomo_daily_goal).state;
+                  return done == goal ? "goal_reached" : (done > goal ? "bonus" : "focus_done");
+            - script.execute:
+                id: pomodoro_begin
+                phase: !lambda |-
+                  const int every = std::max((int) id(pomo_long_break_every).state, 1);
+                  return Daruma::Pomodoro::earns_long(id(pomo_done), every) ? ${pomo_long_break} : ${pomo_short_break};
+                minutes: 0
+          else:
+            - lambda: |-
+                id(pomo_phase) = ${pomo_idle};
+                id(pomo_paused) = false;
+                id(pomo_left) = 0;
+                id(daruma_hub).clear_activity("pomodoro");
+                id(daruma_hub).react(Daruma::StateId::BREAK_OVER);
+                id(daruma_hub).request_redraw();
+            - script.execute:
+                id: show_message
+                text: "Break's over. Press the red dot for the next round."
+                seconds: 60
+            - event.trigger:
+                id: pomo_event
+                event_type: break_over
+            - script.execute: pomodoro_publish
+
+  - id: pomodoro_toggle
+    then:
+      - if:
+          condition:
+            lambda: return id(pomo_phase) == ${pomo_idle};
+          then:
+            - script.execute:
+                id: pomodoro_begin
+                phase: ${pomo_focus}
+                minutes: 0
+          else:
+            - lambda: |-
+                id(pomo_paused) = !id(pomo_paused);
+                // Paused: not focusing. Resumed: back to it, with its sound.
+                if (id(pomo_paused)) {
+                  id(daruma_hub).clear_activity("pomodoro");
+                  id(daruma_hub).react(Daruma::StateId::PAUSED);
+                } else {
+                  id(daruma_hub).set_activity("pomodoro", id(pomo_phase) == ${pomo_focus} ? Daruma::StateId::FOCUS
+                                                                                     : Daruma::StateId::BREAK);
+                }
+                id(daruma_hub).request_redraw();
+            - event.trigger:
+                id: pomo_event
+                event_type: !lambda 'return id(pomo_paused) ? "paused" : "resumed";'
+            - script.execute: pomodoro_publish
+
+  - id: pomodoro_skip
+    then:
+      - if:
+          condition:
+            lambda: return id(pomo_phase) == ${pomo_focus};
+          then:
+            # Skipped focus does not count toward the daily total.
+            - script.execute:
+                id: pomodoro_begin
+                phase: ${pomo_short_break}
+                minutes: 0
+          else:
+            - script.execute: pomodoro_stop
+
+  - id: pomodoro_stop
+    then:
+      - if:
+          condition:
+            lambda: return id(pomo_phase) == ${pomo_focus};
+          then:
+            # Quitting a focus block early makes the device a little sad.
+            - lambda: |-
+                id(daruma_hub).add_happiness(-5);
+                id(daruma_hub).react(Daruma::StateId::FOCUS_STOPPED);
+            - event.trigger:
+                id: pomo_event
+                event_type: stopped
+      - lambda: |-
+          id(pomo_phase) = ${pomo_idle};
+          id(pomo_paused) = false;
+          id(pomo_left) = 0;
+          id(daruma_hub).clear_activity("pomodoro");
+          id(daruma_hub).request_redraw();
+      - script.execute: pomodoro_publish
+
+  # This week's pomodoros as progress, 0..10, rounded up so the first one
+  # shows. Also today's goal stage, quietly (boot, midnight, settings).
+  - id: pomodoro_progress
+    then:
+      - lambda: |-
+          const int days = id(pomo_goal_weekends).state ? 7 : 5;
+          const int target = std::max((int) id(pomo_daily_goal).state, 1) * days;
+          const int progress = std::min((id(pomo_week) * 10 + target - 1) / target, 10);
+          id(daruma_hub).set_progress("pomodoro", progress, id(pomo_behind));
+          id(daruma_hub).set_goal(id(pomo_goal_stage)());
+
+  - id: pomodoro_publish
+    then:
+      - lambda: |-
+          static const char *const names[] = {"idle", "focus", "short_break", "long_break"};
+          const int phase = id(pomo_phase);
+          id(pomo_phase_sensor).publish_state(names[phase >= 0 && phase <= 3 ? phase : 0]);
+          id(pomo_paused_sensor).publish_state(id(pomo_paused));
+          id(pomo_remaining).publish_state(phase == ${pomo_idle} ? 0 : (std::max(id(pomo_left), 0) + 59) / 60);
+          id(pomo_done_sensor).publish_state(id(pomo_done));

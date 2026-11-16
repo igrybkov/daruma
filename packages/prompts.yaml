@@ -1,0 +1,174 @@
+# Prompts for Daruma: full-screen cards that Home Assistant shows,
+# updates and closes. The answer goes back to HA. Needs core.yaml; works
+# with or without the menu. Usage and HA examples: docs/prompts.md.
+#
+# HA actions (esphome.<node>_<action>). HA makes every field required, so
+# "" (or [] or -1) stands for "the default":
+#   prompt_show(id, layout, title, body, options, marks, style, timeout,
+#               state, sound, dismissable)
+#   prompt_update(id, body, marks, countdown)
+#   prompt_close(id)               "" closes them all
+#   ask(...same fields as prompt_show)  waits for the answer and returns
+#               {id, choice, index, reason}; at most 25 s (HA stops waiting
+#               for a response at 30 s), then reason "timeout". For longer
+#               waits, use prompt_show and wait for the answer event.
+# timeout: 0 is the default of 60 s (25 s for ask), -1 is none. In
+# prompt_update, countdown -1 keeps the countdown and 0 stops it.
+# A bad value fails the HA action with a message that names the field.
+#
+# Answers: the HA event esphome.daruma_prompt with {id, choice, index,
+# reason}; HA adds device_id. Reasons: chosen, dismissed, timeout, replaced.
+# HA lets a device fire esphome.* events without "perform HA actions".
+#
+# Priority: urgent, then game, then the menu and apps, then info. A lower
+# prompt waits behind a higher one. Info prompts also wait while a focus
+# session runs (hold_back_during). Prompts draw only while the device is
+# idle: not during a voice reply, an announcement or a ringing timer.
+#
+# A prompt shows its state on the persona (default attention) and plays
+# its sound when it first comes on screen: by default `notify`, or `urgent`
+# for an urgent prompt, which repeats every 15 s while nobody answers (3
+# times in all). sound: none is silent. Sounds go through core's
+# play_sound, so the Sounds switch silences them. An urgent prompt also
+# turns the screen light on.
+#
+# Dismissing: a tap outside the card or the red circle dismisses at once.
+# A tap on the card but not on a button does nothing. An info message with
+# at most one button goes with any tap. dismissable: false ignores all of
+# these.
+#
+# Action: prompts.dismiss. Theme colors: prompts.urgent, .game,
+# .countdown, .selected, .correct, .wrong.
+
+substitutions:
+  # The board's screen backlight, turned on for urgent prompts.
+  prompt_screen_light: led
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_prompts]
+
+daruma_prompts:
+  id: prompts
+  title_font: font_prompt_title
+  text_font: font_small
+  hold_back_during: [focus]
+  on_answer:
+    # id, choice and reason go as plain strings. Only index goes through a
+    # template, so HA turns it into a number.
+    - homeassistant.event:
+        event: esphome.daruma_prompt
+        data:
+          id: !lambda return prompt_id;
+          choice: !lambda return choice;
+          reason: !lambda return reason;
+        data_template:
+          index: "{{ index | int }}"
+        variables:
+          index: !lambda return std::to_string(index);
+  on_shown:
+    - if:
+        condition:
+          lambda: return style == "urgent";
+        then:
+          - light.turn_on: ${prompt_screen_light}
+
+font:
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 800
+    id: font_prompt_title
+    ignore_missing_glyphs: true
+    size: ${font_size_title}
+    bpp: 4
+    glyphsets:
+      - GF_Latin_Core
+      - GF_Cyrillic_Core
+
+api:
+  actions:
+    - action: prompt_show
+      variables:
+        id: string
+        layout: string
+        title: string
+        body: string
+        options: string[]
+        marks: string[]
+        style: string
+        timeout: int
+        state: string
+        sound: string
+        dismissable: bool
+      then:
+        - lambda: |-
+            id(prompts).set_call_error(call_id, id(prompts).show(
+                id, layout, title, body, Daruma::PromptController::list(options),
+                Daruma::PromptController::list(marks), style, timeout, state, sound, dismissable));
+        # api.respond copies the arguments, and a list argument can't be
+        # copied unless the steps hold one non-synchronous action, which
+        # makes the arguments owning copies.
+        - delay: 0ms
+        - api.respond:
+            success: !lambda return id(prompts).call_error(call_id).empty();
+            error_message: !lambda return id(prompts).take_call_error(call_id);
+
+    - action: prompt_update
+      variables:
+        id: string
+        body: string
+        marks: string[]
+        countdown: int
+      then:
+        - lambda: |-
+            id(prompts).set_call_error(call_id,
+                id(prompts).update(id, body, Daruma::PromptController::list(marks), countdown));
+        # api.respond copies the arguments, and a list argument can't be
+        # copied unless the steps hold one non-synchronous action, which
+        # makes the arguments owning copies.
+        - delay: 0ms
+        - api.respond:
+            success: !lambda return id(prompts).call_error(call_id).empty();
+            error_message: !lambda return id(prompts).take_call_error(call_id);
+
+    - action: prompt_close
+      variables:
+        id: string
+      then:
+        - lambda: id(prompts).close(id);
+
+    - action: ask
+      supports_response: only
+      variables:
+        id: string
+        layout: string
+        title: string
+        body: string
+        options: string[]
+        marks: string[]
+        style: string
+        timeout: int
+        state: string
+        sound: string
+        dismissable: bool
+      then:
+        - lambda: |-
+            id(prompts).ask(call_id, id, layout, title, body, options, marks, style, timeout, state, sound,
+                            dismissable);
+        # The prompt ends itself within 25 s; this is only a backstop.
+        - wait_until:
+            condition:
+              lambda: return id(prompts).ask_done(call_id);
+            timeout: 28s
+        - api.respond:
+            success: !lambda return id(prompts).ask_error(call_id).empty();
+            error_message: !lambda return id(prompts).ask_error(call_id);
+            data: !lambda |-
+              const auto reply = id(prompts).take_ask(call_id);
+              root["id"] = reply.id;
+              root["choice"] = reply.choice;
+              root["index"] = reply.index;
+              root["reason"] = reply.reason;

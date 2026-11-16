@@ -1,0 +1,146 @@
+blueprint:
+  name: "Daruma: task list from a sensor"
+  domain: script
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/script/task_list.yaml
+  description: >-
+    Reads a list of tasks from a sensor's attribute and returns it, trimmed,
+    as the script's response. A Daruma device's Tasks app shows it: set
+    the app's source to "Script" and its entity to this script.
+
+
+    The attribute holds a list of objects, one per task. The inputs name the
+    fields to read, so any sensor shaped like that works. The defaults fit
+    tasks with an id in external_id, a title, a flag, and a due time as
+    ISO text.
+
+
+    The response is {"open": open tasks in the whole list, "total": tasks
+    in the whole list, "tasks": [{id, title, done, flagged, overdue,
+    due_today}, ...]}: open tasks first, then done ones, at most "Max
+    items", titles cut to "Max title length". A task is overdue when its
+    due time has passed (a due date: before today), and due today when it
+    is due later today.
+  input:
+    sensor:
+      name: Sensor
+      description: The sensor whose attribute holds the tasks.
+      selector:
+        entity:
+          domain: sensor
+    attribute:
+      name: List attribute
+      description: The attribute that holds the list of tasks.
+      default: tasks
+      selector:
+        text: {}
+    id_field:
+      name: ID field
+      description: The field with the task's own ID. Leave it empty to number the tasks.
+      default: external_id
+      selector:
+        text: {}
+    title_field:
+      name: Title field
+      default: title
+      selector:
+        text: {}
+    done_field:
+      name: Done field
+      description: >-
+        The field that tells a done task. It is done when the field is true,
+        or when it equals the "Done value".
+      default: status
+      selector:
+        text: {}
+    done_value:
+      name: Done value
+      default: completed
+      selector:
+        text: {}
+    flagged_field:
+      name: Flagged field
+      description: A true value marks the task flagged. Leave it empty for none.
+      default: flagged
+      selector:
+        text: {}
+    due_field:
+      name: Due field
+      description: >-
+        The due date ("2026-11-19") or time ("2026-11-19T17:00:00Z"). Leave it
+        empty for none.
+      default: due
+      selector:
+        text: {}
+    max_items:
+      name: Max items
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 50
+          mode: box
+    title_chars:
+      name: Max title length
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 200
+          mode: box
+
+mode: parallel
+max: 10
+
+variables:
+  sensor: !input sensor
+  attribute: !input attribute
+  id_field: !input id_field
+  title_field: !input title_field
+  done_field: !input done_field
+  done_value: !input done_value
+  flagged_field: !input flagged_field
+  due_field: !input due_field
+  max_items: !input max_items
+  title_chars: !input title_chars
+
+sequence:
+  - variables:
+      result: >-
+        {%- set raw = state_attr(sensor, attribute) -%}
+        {%- set items = raw if raw is list else [] -%}
+        {%- set today = now().date() | string -%}
+        {%- set ns = namespace(open=[], done=[]) -%}
+        {%- for t in items if t is mapping -%}
+          {%- set d = t.get(done_field) if done_field else none -%}
+          {%- set done = d is sameas true or (d is string and d | lower == done_value | lower) -%}
+          {%- set due = (t.get(due_field) or '') | string if due_field else '' -%}
+          {%- set overdue = false -%}
+          {%- set due_today = false -%}
+          {%- if due | length == 10 -%}
+            {%- set overdue = due < today -%}
+            {%- set due_today = due == today -%}
+          {%- elif due -%}
+            {%- set at = as_datetime(due, none) -%}
+            {%- if at is not none -%}
+              {%- set at = as_local(at) -%}
+              {%- set overdue = at < now() -%}
+              {%- set due_today = not overdue and (at.date() | string) == today -%}
+            {%- endif -%}
+          {%- endif -%}
+          {%- set task = {
+                'id': ((t.get(id_field) if id_field else none) or loop.index) | string,
+                'title': (t.get(title_field) or '') | string | truncate(title_chars | int, true, '…', 0),
+                'done': done,
+                'flagged': (t.get(flagged_field) is sameas true) if flagged_field else false,
+                'overdue': overdue and not done,
+                'due_today': due_today and not done} -%}
+          {%- if done -%}
+            {%- set ns.done = ns.done + [task] -%}
+          {%- else -%}
+            {%- set ns.open = ns.open + [task] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ {'open': ns.open | count, 'total': (ns.open + ns.done) | count,
+            'tasks': (ns.open + ns.done)[:max_items | int]} }}
+  - stop: Task list
+    response_variable: result

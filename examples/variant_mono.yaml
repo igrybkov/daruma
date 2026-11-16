@@ -1,0 +1,57 @@
+# Build check: Daruma as a slow black-and-white screen with buttons only,
+# the way an e-ink alarm clock would run it. The BOX-3 hardware with its
+# two buttons (board_box3_buttons.yaml) and an e-ink display profile.
+# Compile-only: the panel is a color LCD. It reads the keys of
+# secrets.example.yaml from your secrets.yaml:
+#
+#   esphome compile variant_mono.yaml
+
+substitutions:
+  name: daruma-mono
+  friendly_name: Daruma Mono
+  daruma_url: https://github.com/igrybkov/daruma
+  daruma_ref: main
+
+packages:
+  daruma:
+    url: ${daruma_url}
+    ref: ${daruma_ref}
+    files:
+      - packages/board_box3_buttons.yaml
+      - packages/core.yaml
+      - packages/persona_daruma.yaml
+      - packages/persona_pixel_corgi.yaml
+      - packages/persona_eyes.yaml
+      - packages/menu.yaml
+      - packages/pomodoro.yaml
+      - packages/app_tasks.yaml
+      - packages/app_calendar.yaml
+      - packages/prompts.yaml
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret daruma_api_key
+
+daruma:
+  # E-ink: black and white, still frames, a frame every 5 s at most, and a
+  # full refresh after every 20 partial ones.
+  display_profile:
+    colors: mono
+    animate: false
+    min_frame: 5s
+    partial_refresh: true
+    full_refresh_every: 20
+  apps: [tasks, calendar, stats]
+  # Navigation (board_box3_buttons.yaml) uses top.press, top.double,
+  # home.press, home.double and home.hold; on the device's own screen they
+  # run these instead.
+  bindings:
+    home.press: { action: menu.open, when: idle }
+    home.double: { action: pomodoro.stop, when: idle }
+    home.hold: { action: pomodoro.toggle, when: idle }
+    top.press: { action: daruma.pet, when: idle }
+    top.hold: voice.start

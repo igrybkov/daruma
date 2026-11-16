@@ -1,0 +1,146 @@
+# Menu for Daruma. Needs core.yaml. It fits any screen size (the hub's
+# Layout) and takes its font sizes from the board.
+#
+# Menus are named lists of dock buttons (`daruma: menus:` in the device
+# yaml, checked by the build; see ARCHITECTURE.md, "Menus"). A tap on the
+# persona (or a swipe up) opens `main`. Bind `menu.open` with a `menu:` to open
+# another one:
+#
+#   daruma:
+#     menus:
+#       main: [tasks, calendar]                # default: modules without a menu of their own, Tasks, Calendar
+#       quick: [pomodoro.stop, stats, more]
+#     bindings:
+#       top.double: { action: menu.open, menu: quick }
+#
+# An item is a module (its buttons for the moment: pomodoro's Focus, or
+# Pause and Stop), an app (opens it), an action with a button look
+# (pomodoro.break), another menu, `more` (the app board), or
+# `{ label, icon, event }`, which fires the HA event esphome.daruma_menu
+# with data `event: <event>` (and device_id).
+# `main` ends with More unless it lists `more` itself.
+#
+# The dock shows five buttons at most. A longer menu shows four and Next
+# (text_menu_next) for the rest. More opens the app board, four apps per
+# page (six on wide screens); swipe left or right for more pages. Tap an
+# app to open it full screen. The device yaml's `apps:` sets their order;
+# "App: <Name>" switches in HA take one off the board and out of menus.
+#
+# Back one level: the board's `back` input (the red circle), the arrow top
+# left, or a swipe down on the dock. An app opened from a dock button goes
+# back to that dock; another menu back to the one that opened it. The
+# board's `close` input (holding the red circle) closes it. A voice wake,
+# or idle time (10 s on the dock, 60 s elsewhere) closes it too.
+#
+# Actions: menu.open (main, or `menu: <name>` in a binding), menu.back,
+# menu.close. HA action: esphome.<device>_menu_open(name). Default
+# bindings: a tap and an upward swipe on the device's screen open main
+# (without this package, a tap pets the device instead).
+#
+# Boards without touch (board_box3_buttons.yaml) move a focus ring with
+# their `next` and `prev` inputs and open with `select`; bind menu.open to
+# a button there.
+#
+# The look follows the current persona's `theme:` (components/daruma/theme.py).
+
+substitutions:
+  # The button that pages to the rest of a long menu.
+  text_menu_next: "Next"
+
+daruma_menu:
+  id: menu
+  text_font: font_small
+  small_font: font_menu_small
+  icon_font: font_icons
+  timeout: 10s
+  app_timeout: 60s
+  next_label: "${text_menu_next}"
+
+esphome:
+  on_boot:
+    - priority: 600
+      then:
+        - lambda: |-
+            id(daruma_hub).set_event_sender([](const std::string &event) { id(menu_event).execute(event); });
+
+script:
+  # A menu's event button: HA gets esphome.daruma_menu with the
+  # button's `event` name, for automations to act on (the event type is
+  # fixed in ESPHome; the name goes in the data).
+  - id: menu_event
+    mode: queued
+    parameters:
+      event: string
+    then:
+      - homeassistant.event:
+          event: esphome.daruma_menu
+          data:
+            event: !lambda return event;
+
+api:
+  actions:
+    # Opens a named menu, as `menu.open` with `menu:` does in a binding.
+    - action: menu_open
+      # `name`, not `menu`: a `menu` variable would hide id(menu) here.
+      variables:
+        name: string
+      then:
+        - lambda: id(menu).open_menu(name);
+
+font:
+  - file:
+      type: gfonts
+      family: ${font_family}
+      weight: 700
+    id: font_menu_small
+    # Manrope lacks combining accents and U+02BC (bubbles swap in U+2019).
+    ignore_missing_glyphs: true
+    size: ${font_size_small}
+    bpp: 4
+    glyphsets:
+      - GF_Latin_Core
+      - GF_Cyrillic_Core
+
+  # Material Design Icons, the set Home Assistant uses. Only the glyphs listed
+  # here are built in: add a code point when a package, app or theme uses a
+  # new icon (look them up at https://pictogrammers.com/library/mdi/).
+  - file:
+      type: web
+      url: https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/fonts/materialdesignicons-webfont.ttf
+    id: font_icons
+    size: ${font_size_icon}
+    bpp: 4
+    glyphs:
+      - "\U000F0141"  # chevron-left (back)
+      - "\U000F0142"  # chevron-right (Next: the rest of a long menu)
+      - "\U000F035C"  # menu (a button that opens another menu)
+      - "\U000F15FC"  # dots-grid (More)
+      - "\U000F051B"  # timer-outline (Focus)
+      - "\U000F0176"  # coffee (Break)
+      - "\U000F0335"  # lightbulb (an event button in variant_apps.yaml)
+      - "\U000F0FAA"  # coffee-off (End break)
+      - "\U000F03E4"  # pause
+      - "\U000F040A"  # play (Resume)
+      - "\U000F04DB"  # stop
+      - "\U000F04AD"  # skip-next (Skip)
+      - "\U000F0128"  # chart-bar (Stats)
+      - "\U000F0756"  # format-list-checks (Tasks)
+      - "\U000F00ED"  # calendar (Calendar)
+      - "\U000F1AD3"  # timer-edit-outline (Custom focus length)
+      - "\U000F04B9"  # sofa (Long break)
+      # Weather conditions (app_weather.yaml, daruma_weather/weather.h).
+      - "\U000F0599"  # weather-sunny
+      - "\U000F0594"  # weather-night (clear-night)
+      - "\U000F0595"  # weather-partly-cloudy (also the Weather app)
+      - "\U000F0590"  # weather-cloudy
+      - "\U000F0591"  # weather-fog
+      - "\U000F0592"  # weather-hail
+      - "\U000F0593"  # weather-lightning
+      - "\U000F067E"  # weather-lightning-rainy
+      - "\U000F0596"  # weather-pouring
+      - "\U000F0597"  # weather-rainy
+      - "\U000F0598"  # weather-snowy
+      - "\U000F067F"  # weather-snowy-rainy
+      - "\U000F059D"  # weather-windy
+      - "\U000F059E"  # weather-windy-variant
+      - "\U000F05D6"  # alert-circle-outline (exceptional)

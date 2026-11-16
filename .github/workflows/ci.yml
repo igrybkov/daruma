@@ -155,7 +155,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: examples/.esphome/daruma_pixel_art
-          key: pixel-art-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pixel/**/*.py') }}
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Prepare the build
         run: .github/scripts/prepare-build.sh
       # The examples fetch Daruma with git. Point them at this checkout.
@@ -211,7 +211,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: examples/.esphome/daruma_pixel_art
-          key: pixel-art-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pixel/**/*.py') }}
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Prepare the build
         run: .github/scripts/prepare-build.sh
       - name: Compile
@@ -279,6 +279,10 @@ jobs:
       # The harness syncs ESPHome's own environment (.venv-esphome) itself.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
+      # The art cache key names the ESPHome version: it pins the Pillow
+      # that draws the art. Not the whole uv.lock, which changes more often.
+      - name: Read the ESPHome version
+        run: echo "ESPHOME_VERSION=$(sed -n 's/^esphome = \["esphome==\(.*\)"\]$/\1/p' pyproject.toml)" >> "$GITHUB_ENV"
       # Drawing the persona art takes most of a cold desktop build. The build
       # keeps it in .esphome/daruma_pixel_art, one file per persona, named by
       # a hash of the pixel scripts, Pillow and Python. A stale file is
@@ -288,7 +292,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
-          key: pixel-art-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pixel/**/*.py') }}
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       # 4 runs at a time on 3 CPUs: the runs wait on the device much of the
       # time. The golden check took 84 s with 1 run at a time, 47 s with 2,
       # 36 s with 3 and 33 s with 4 (macos-26, median of 3).
@@ -361,12 +365,16 @@ jobs:
       # The harness syncs ESPHome's own environment (.venv-esphome) itself.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
+      # The art cache key names the ESPHome version: it pins the Pillow
+      # that draws the art. Not the whole uv.lock, which changes more often.
+      - name: Read the ESPHome version
+        run: echo "ESPHOME_VERSION=$(sed -n 's/^esphome = \["esphome==\(.*\)"\]$/\1/p' pyproject.toml)" >> "$GITHUB_ENV"
       # The persona art the screen tests save (see there).
       - name: Restore the persona art
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
-          key: pixel-art-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pixel/**/*.py') }}
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Record the GIFs
         run: |
           for variant in $VARIANTS; do

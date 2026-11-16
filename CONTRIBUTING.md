@@ -116,7 +116,7 @@ tests/run_cpp.sh
 uv run demos/record.py --test
 
 # 4. Screen tests in Python on the desktop build
-uv run --with pytest --with aioesphomeapi==46.12.0 --with pillow --with pyyaml pytest demos
+uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos
 ```
 
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while

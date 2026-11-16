@@ -303,13 +303,15 @@ jobs:
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: ${{ steps.art.outputs.cache-primary-key }}
-      # The same build. One worker per CPU; each device listens on a
-      # free port. It runs when the golden check fails too.
+      # The same build; each device listens on a free port. It runs when
+      # the golden check fails too. 4 workers on 3 CPUs: 59 s in one
+      # process, 41 s with 2, 39 s with 3, 37 s with 4 and 42 s with 6
+      # (macos-26, median of 3; 3 to 6 are within the noise).
       - name: Run the screen tests
         if: ${{ !cancelled() }}
         run: |
           mkdir -p "$DARUMA_WORK"
-          uv run --no-sync pytest demos -n auto --basetemp="$DARUMA_WORK/pytest"
+          uv run --no-sync pytest demos -n 4 --basetemp="$DARUMA_WORK/pytest"
       - name: Put expected, actual and diff side by side
         if: failure()
         run: >-

@@ -32,7 +32,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from harness import GOLDEN_DIR, Build, Device, build, free_port, slug  # noqa: E402
+from harness import GOLDEN_DIR, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, frames_of  # noqa: E402
 
 DEFAULT_PERSONA = "Eyes"
@@ -100,11 +100,6 @@ def _shared_build(work: Path, timezone: str, run_id: str) -> Build:
         return b
 
 
-def _worker_port() -> int | None:
-    """Under pytest-xdist, each device takes a free API port; else the build's."""
-    return free_port() if os.environ.get("PYTEST_XDIST_WORKER") else None
-
-
 @pytest.fixture
 def device(request, device_builds, tmp_path):
     marker = request.node.get_closest_marker("persona")
@@ -122,7 +117,6 @@ def device(request, device_builds, tmp_path):
         window=request.config.getoption("--window"),
         golden=GOLDEN_DIR / slug(persona) / request.node.name,
         update_golden=request.config.getoption("--update-golden"),
-        port=_worker_port(),
     )
     b.start()
     b.record_start(tmp_path / "frames")

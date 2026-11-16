@@ -114,9 +114,9 @@ uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
 - **Never flash a scratch build.** A build made with placeholder secrets
   loses its Wi-Fi on the device. Compile to check; flash only with the
   person's real secrets.
-- **Busy ports and folders.** The recorder uses port 6053 and a temp
-  folder. When another run may hold them, pass `--port` and `--out` to
-  record.py, or set `DARUMA_PORT` and `DARUMA_WORK` for pytest.
+- **Busy folders.** Every device listens on a free API port, but the
+  recorder and pytest share a temp folder. When another run may use it,
+  pass `--out` to record.py, or set `DARUMA_WORK` for pytest.
 - **Paths in packages** are relative to the package file
   (`../components`, `../pixel/...`, `../art/...`). The components resolve
   them at validation time.

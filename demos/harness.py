@@ -331,9 +331,9 @@ class Device:
         from demo_data import DemoData
 
         self.build = build
-        # The API port. The build's by default; another one lets several
-        # devices run from one build at once.
-        self.port = port or build.port
+        # The API port. A free one by default, so devices from one build
+        # (and other runners on this machine) never share a port.
+        self.port = port or free_port()
         self.workdir = Path(workdir)
         self.persona = persona
         self.seed = seed

@@ -133,12 +133,11 @@ uv run --with pytest --with pytest-xdist --with aioesphomeapi==46.30.0 --with pi
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
   you work. Run the full set before you finish.
 - Both runners work in parallel: record.py runs up to 4 runs at a time
-  (`--jobs`), and pytest one worker per CPU (`-n auto`). Each parallel
-  run takes a free API port. Pass `--jobs 1`, or leave out `-n auto`, to
-  run one at a time.
-- If another run holds the default port or folder, pass
-  `--port 6062 --out /tmp/mine` to record.py, or set
-  `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
+  (`--jobs`), and pytest one worker per CPU (`-n auto`). Pass `--jobs 1`,
+  or leave out `-n auto`, to run one at a time.
+- Every device listens on a free API port, so runs never clash on ports.
+  If another run uses the same scratch folder, pass `--out /tmp/mine` to
+  record.py, or set `DARUMA_WORK=/tmp/mine` for pytest.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
 ## Lint and format

@@ -40,7 +40,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import scenario as scenarios  # noqa: E402
-from harness import GOLDEN_DIR, HERE, Build, Device, build, free_port, slug  # noqa: E402
+from harness import GOLDEN_DIR, HERE, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, encode_mp4, frames_of, sounds_of, with_captions, with_touches  # noqa: E402
 
 DOCS_DEMOS = HERE.parent / "docs" / "demos"
@@ -68,12 +68,14 @@ def main() -> int:
     ap.add_argument("--window", action="store_true", help="show the window while it runs")
     ap.add_argument("--test", action="store_true", help="check snapshots and expects; no GIFs")
     ap.add_argument("--update-golden", action="store_true", help="write golden pictures from this run")
-    ap.add_argument("--port", type=int, default=6053, help="the API port (another runner may hold 6053)")
+    ap.add_argument(
+        "--port", type=int, default=6053, help="the API port built into the program; runs listen on free ports"
+    )
     ap.add_argument(
         "--jobs",
         type=int,
         default=min(4, os.cpu_count() or 1),
-        help="runs at a time (default: up to 4); each run takes a free API port",
+        help="runs at a time (default: up to 4)",
     )
     args = ap.parse_args()
     test = args.test or args.update_golden
@@ -122,8 +124,8 @@ def main() -> int:
         for job in jobs:
             failures += _run_job(job)
     else:
-        # All runs share one build; each takes a free API port.
-        with ProcessPoolExecutor(min(args.jobs, len(jobs)), initializer=_join_pool) as pool:
+        # All runs share one build.
+        with ProcessPoolExecutor(min(args.jobs, len(jobs))) as pool:
             for failed, text in pool.map(_run_job_captured, jobs):
                 print(text, end="", flush=True)
                 failures += failed
@@ -147,14 +149,6 @@ class Job:
     window: bool
     test: bool
     update_golden: bool
-
-
-_pooled = False  # True in a pool worker: each run takes a free port.
-
-
-def _join_pool() -> None:
-    global _pooled
-    _pooled = True
 
 
 def _run_job_captured(job: Job) -> tuple[int, str]:
@@ -184,7 +178,6 @@ def _run_job(job: Job) -> int:
         window=job.window,
         golden=golden,
         update_golden=job.update_golden,
-        port=free_port() if _pooled else None,
     )
     failed = 0
     try:

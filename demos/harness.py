@@ -540,15 +540,24 @@ class Device:
         return self._status
 
     def _settle(self) -> None:
-        # The device takes a new time at the start of a turn of its main loop.
-        # Wait until it reports that time. Then round trips until two rounds
-        # in a row bring nothing from the device: every component has looped
-        # at the new time, everything sent before is handled, and a call to
-        # "HA" (and the next one it queues after the answer) lands at this
-        # time too, before the runner sends anything else.
+        # The device takes a new time at the start of a turn of its main loop,
+        # but its timers see it only on the next turn (see "turns" in
+        # daruma_desktop). Wait until a whole turn has run at the new time:
+        # its timers, then every component. Wait for two more turns since the
+        # first reply too: a timer that something sent before set to fire at
+        # once ("delay: 0ms") runs on the turn after it was set. Without this,
+        # whether such a timer runs before the clock moves on depends on how
+        # fast the device is, and a frame can come a step late.
+        #
+        # Then round trips until two rounds in a row bring nothing from the
+        # device: everything sent before is handled, and a call to "HA" (and
+        # the next one it queues after the answer) lands at this time too,
+        # before the runner sends anything else.
         want = (self.clock.ns // 1_000_000) & 0xFFFFFFFF
+        first = self._sync()["loops"]
         for _ in range(1000):
-            if self._sync()["millis"] == want:
+            s = self._sync()
+            if s["millis"] == want and s["turns"] >= 2 and s["loops"] - first >= 2:
                 break
         else:
             raise DeviceError("The device does not take the runner's clock (is fakeclock loaded?)")

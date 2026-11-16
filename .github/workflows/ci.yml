@@ -213,8 +213,10 @@ jobs:
           key: ccache-box3-${{ env.ESPHOME_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ccache-box3-${{ env.ESPHOME_VERSION }}-
       # Pull requests read the ESP-IDF and build caches that main saves;
-      # only main writes them.
+      # only main writes the build cache. A pull request saves the ESP-IDF
+      # cache only when main has none for this ESPHome version yet.
       - name: Restore the ESP-IDF cache
+        id: idf
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/esphome
@@ -274,7 +276,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin
       - name: Save the ESP-IDF cache
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || steps.idf.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/esphome

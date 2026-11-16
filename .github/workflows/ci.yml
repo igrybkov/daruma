@@ -289,9 +289,12 @@ jobs:
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pixel/**/*.py') }}
+      # 4 runs at a time on 3 CPUs: the runs wait on the device much of the
+      # time. The golden check took 84 s with 1 run at a time, 47 s with 2,
+      # 36 s with 3 and 33 s with 4 (macos-26, median of 3).
       - name: Check the golden pictures
         id: golden
-        run: uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK"
+        run: uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK" --jobs 4
       # This job saves the art for the previews. Pull requests save it
       # too: the key names the exact scripts, and the folder is a few MB.
       - name: Save the persona art
@@ -304,7 +307,9 @@ jobs:
       # free port. It runs when the golden check fails too.
       - name: Run the screen tests
         if: ${{ !cancelled() }}
-        run: uv run --no-sync pytest demos -n auto --basetemp="$DARUMA_WORK/pytest"
+        run: |
+          mkdir -p "$DARUMA_WORK"
+          uv run --no-sync pytest demos -n auto --basetemp="$DARUMA_WORK/pytest"
       - name: Put expected, actual and diff side by side
         if: failure()
         run: >-
@@ -371,7 +376,7 @@ jobs:
             done
             echo "$variant: $have" >> "$RUNNER_TEMP/scenarios.txt"
             uv run --no-sync python demos/record.py --variant "$variant" --scenario "$have" \
-              --out "$DARUMA_WORK" --docs "$DARUMA_WORK/preview/gifs"
+              --out "$DARUMA_WORK" --docs "$DARUMA_WORK/preview/gifs" --jobs 4
           done
       - name: Make the contact sheets
         run: >-

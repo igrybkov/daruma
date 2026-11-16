@@ -189,8 +189,9 @@ checks the pull request title and every commit message in it.
 | Host tests (C++) | test 2 above |
 | Config | `esphome config` for each file in `examples/` |
 | Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
-| Screen tests (golden) | test 3 above, on Ubuntu with SDL2 |
-| Screen tests (pytest) | test 4 above, on Ubuntu with SDL2 |
+| Screen tests (golden) | test 3 above, on macOS, where the golden pictures were made |
+| Screen tests (pytest) | test 4 above, on macOS |
+| Previews | demo GIFs and contact sheets, uploaded as artifacts |
 | Pull request title | the title is a Conventional Commit |
 | Commit messages | `gitlint` on each commit of the pull request |
 | Lint | complexipy and lizard; ruff and clang-format don't block yet |
@@ -210,7 +211,16 @@ and a random API key. It stops if that file exists already. It also
 points a local branch `ci-head` at your commit. Never flash this build.
 
 When a screen test fails, the job uploads its frames, diffs and logs as
-an artifact. Download it from the run's summary page.
+an artifact, with expected, actual and diff side by side. Download it
+from the run's summary page.
+
+Every run also records preview GIFs: `highlight`, `work`, `emotions`
+and `activities` for every persona, and `highlight` on the wide and
+square screens. Each scenario gets a contact sheet. A pull request gets one comment that links to
+the run's artifacts (`preview-standard`, `preview-wide`,
+`preview-square`). Pull request artifacts stay 14 days, main's stay
+90. The GIFs come from the desktop build of the same packages. So they
+match the device's screens, but they are not recorded on the ESP32.
 
 ## Releases
 

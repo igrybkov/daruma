@@ -84,7 +84,7 @@ module fully before you write one.
    `uv run demos/record.py --update-golden --personas "<Name>" --scenario tour`,
    then look at the new pictures in `tests/golden/<slug>/tour/`.
 9. **Full checks.** `uv run demos/record.py --test` and
-   `uv run --with pytest --with aioesphomeapi==46.12.0 --with pillow --with pyyaml pytest demos`.
+   `uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos`.
 10. **Size.** Compile `examples/box3.yaml` and compare the flash line with
     the build before. A pixel persona's frames take tens of KB, not
     hundreds.

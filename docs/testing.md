@@ -78,7 +78,7 @@ a reaction. `show: ""` goes back to normal.
 ```sh
 uv run demos/record.py --test             # exit 1 on a difference
 uv run demos/record.py --update-golden    # accept the new pictures
-uv run --with pytest --with aioesphomeapi==46.12.0 --with pillow --with pyyaml \
+uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \
     pytest demos                          # tests in Python
 ```
 

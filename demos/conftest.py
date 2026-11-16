@@ -1,6 +1,6 @@
 """pytest fixtures for screen tests of the desktop build.
 
-    uv run --with pytest --with aioesphomeapi==46.12.0 --with pillow --with pyyaml \\
+    uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \\
         pytest demos
 
 The `daruma` fixture starts a fresh desktop device per test, on the runner's

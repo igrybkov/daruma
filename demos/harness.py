@@ -238,6 +238,21 @@ VARIANTS: dict[str, dict[str, str]] = {
 }
 
 
+# The screen is RGB565: 5 bits of red and blue, 6 of green. SDL widens them
+# to 8 bits when it saves a screenshot, and SDL builds do it differently: on
+# Linux some values come out one step off. They all keep the top bits,
+# though. So keep those and widen them again, with the usual formula (copy
+# the top bits into the empty low bits), and every system gives the same
+# picture.
+_WIDEN_5 = [((v >> 3) << 3) | (v >> 5) for v in range(256)]
+_WIDEN_6 = [((v >> 2) << 2) | (v >> 6) for v in range(256)]
+
+
+def rgb565_to_rgb888(img):
+    """`img` (RGB) with each channel cut to RGB565 and widened to 8 bits again."""
+    return img.point(_WIDEN_5 + _WIDEN_6 + _WIDEN_5)
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -791,7 +806,11 @@ class Device:
     # --- pictures ----------------------------------------------------------------------
 
     def screenshot(self, path: Path | None = None):
-        """The screen now, as a PIL image (RGB). Saved as PNG when `path` is given."""
+        """The screen now, as a PIL image (RGB). Saved as PNG when `path` is given.
+
+        The colors are the screen's RGB565 colors, widened to 8 bits the same
+        way everywhere (see rgb565_to_rgb888).
+        """
         from PIL import Image
 
         shots = self.workdir / "shots"
@@ -799,7 +818,7 @@ class Device:
         self._settle()
         bmp = shots / "now.bmp"
         with Image.open(bmp) as im:
-            img = im.convert("RGB")
+            img = rgb565_to_rgb888(im.convert("RGB"))
         if path is not None:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
             img.save(path)
@@ -936,6 +955,13 @@ class DeviceAssertions:
         for x, y, w, h in mask:
             actual.paste((255, 0, 255), (x, y, x + w, y + h))
         if b.update_golden:
+            # Keep a golden that shows the same pixels: PNG files from another
+            # system's zlib differ in their bytes, not in their pixels.
+            if golden.exists():
+                with Image.open(golden) as g:
+                    same = g.size == actual.size and not ImageChops.difference(g.convert("RGB"), actual).getbbox()
+                if same:
+                    return
             golden.parent.mkdir(parents=True, exist_ok=True)
             actual.save(golden, optimize=True)
             return

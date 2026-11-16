@@ -145,7 +145,7 @@ async def persona_to_code(var, hub, char: registry.Persona, config, declared: di
     items = ", ".join(
         f"Daruma::Behavior{{{b.animation}, {cg.safe_exp(b.sound)}, {cg.safe_exp(b.say)}, "
         f"{'true' if b.shown_as == state.name else 'false'}}}"
-        for b, state in zip(behaviors, states)
+        for b, state in zip(behaviors, states, strict=False)
     )
     cg.add(var.set_behaviors(cg.RawExpression(f"std::vector<Daruma::Behavior>{{{items}}}")))
     try:

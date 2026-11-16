@@ -21,7 +21,7 @@ def frames_of(frames_dir: Path, skipped: list[tuple[int, int]]) -> list[tuple[Pa
         return ms - cut
 
     out = []
-    for i, (path, ms) in enumerate(zip(shots, times)):
+    for i, (path, ms) in enumerate(zip(shots, times, strict=False)):
         if i + 1 == len(shots):
             break  # The last one marks the end.
         d = (shown(times[i + 1]) - shown(ms)) / 1000

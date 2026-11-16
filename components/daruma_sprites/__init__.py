@@ -56,7 +56,7 @@ import hashlib
 import importlib.util
 import pickle
 import sys
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import esphome.codegen as cg
@@ -335,7 +335,7 @@ def _script_sources(script: Path) -> list[Path]:
     return sorted(files)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _build(script: Path, name: str):
     """The pixel_art script's persona, built once per build: final validation
     and code generation both need it."""
@@ -570,7 +570,7 @@ def _frames_to_code(var, config, sprite) -> dict[int, int]:
     if CONF_BACKDROP in config and len({img.size for img in images}) == 1:
         stored, index = frame_set(images, sequences, config[CONF_ID].id)
         _image_table(var, config, [(expr, base, x, y) for expr, base, x, y in stored])
-        for picture, i in zip(pictures, index):
+        for picture, i in zip(pictures, index, strict=False):
             out[id(picture)] = i
         return out
     stored_at: dict[int, int] = {}  # id(sprite expression) -> frame index
@@ -627,7 +627,7 @@ async def to_code(config):
         plant = config[CONF_PLANT]
         x, y = plant[CONF_OFFSET]
         cg.add(var.set_plant_offset(x, y))
-        for healthy, wilted in zip(plant[CONF_STAGES], plant[CONF_WILTED]):
+        for healthy, wilted in zip(plant[CONF_STAGES], plant[CONF_WILTED], strict=False):
             cg.add(var.add_plant_stage(sprite(healthy), sprite(wilted)))
 
     frame_of = _frames_to_code(var, config, sprite)

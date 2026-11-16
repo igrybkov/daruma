@@ -43,8 +43,9 @@ Everything is drawn on the 106x80 canvas, with the light from the top left.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Callable, Protocol
+from typing import Protocol
 
 from PIL import Image, ImageDraw
 
@@ -118,7 +119,7 @@ class Rig:
     """Where the parts of one frame sit. Breed hooks get this."""
 
     pose: Pose
-    breed: "Breed"
+    breed: Breed
     cx: int
     floor: int
     hip_y: int
@@ -505,7 +506,7 @@ def _book(c: Canvas, white: Ramp, page: int, cx: int, floor: int) -> None:
         sheet, d = mask((c.w, c.h))
         lean = -1 if page == 1 else 1
         rows = ((5, 3), (5, 2), (4, 1), (4, 1), (3, 0), (3, 0), (2, 0), (1, 0), (1, 0))
-        for dy, (a, b) in zip(range(-6, 3), rows):
+        for dy, (a, b) in zip(range(-6, 3), rows, strict=False):
             d.line((cx + lean * a, top + dy, cx + lean * b, top + dy), fill=1)
         c.paint(sheet, PAGE, shade=False)
 
@@ -586,7 +587,7 @@ def extras(c: Canvas, extras: tuple[str, ...], cx: int, floor: int, tear: tuple[
                             c.dot(hx + col, hy + row, HEART)
                 c.dot(hx + 1, hy + 1, HEART_SHINE)
         elif e == "zzz":
-            for i, (zx, zy, s) in enumerate(((cx + 20, top + 18, 3), (cx + 26, top + 10, 4), (cx + 33, top + 1, 5))):
+            for _i, (zx, zy, s) in enumerate(((cx + 20, top + 18, 3), (cx + 26, top + 10, 4), (cx + 33, top + 1, 5))):
                 col = (200, 210, 255)
                 for k in range(s):
                     c.dot(zx + k, zy, col)

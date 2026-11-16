@@ -54,7 +54,10 @@ def _persona(name: str):
     import importlib
 
     background, layers, source = PERSONAS[name]
-    load = lambda m: importlib.import_module(m, __package__) if isinstance(m, str) else m
+
+    def load(m):
+        return importlib.import_module(m, __package__) if isinstance(m, str) else m
+
     return background, load(layers), load(source)
 
 
@@ -115,7 +118,10 @@ def check_rug(layers, bg: Image.Image) -> None:
     bottom 13 rows; a scene may put its weekday colors anywhere it says.
     """
     box = getattr(layers, "RUG_BOX", (0, bg.height - 13, bg.width, bg.height))
-    q = lambda c: (c[0] >> 3, c[1] >> 2, c[2] >> 3)
+
+    def q(c):
+        return (c[0] >> 3, c[1] >> 2, c[2] >> 3)
+
     keys = {q(c) for c in layers.RUG_COLORS}
     if len(keys) != len(layers.RUG_COLORS):
         raise ValueError("rug colors collide at RGB565")
@@ -180,7 +186,10 @@ def build(name: str) -> Persona:
 
     if hasattr(layers, "RUG_COLORS"):
         check_rug(layers, persona.backdrop)
-        hexc = lambda c: (c[0] << 16) | (c[1] << 8) | c[2]
+
+        def hexc(c):
+            return (c[0] << 16) | (c[1] << 8) | c[2]
+
         persona.recolor_from = [hexc(c) for c in layers.RUG_COLORS]
         persona.recolor_by_weekday = [[hexc(c) for c in day] for day in layers.RUG_BY_WEEKDAY]
     return persona
@@ -191,7 +200,7 @@ def previews(name: str, out: Path) -> None:
     persona = build(name)
     out.mkdir(parents=True, exist_ok=True)
     persona.backdrop.save(out / "bg.png")
-    for i, (healthy, wilted) in enumerate(zip(persona.plant_stages, persona.plant_wilted)):
+    for i, (healthy, wilted) in enumerate(zip(persona.plant_stages, persona.plant_wilted, strict=False)):
         healthy.save(out / f"plant_s{i}.png")
         wilted.save(out / f"plant_w{i}.png")
     unique: dict[int, Image.Image] = {}

@@ -316,7 +316,7 @@ RUG_MAIN = {
 def rug_day(device) -> str:
     """The day whose rug color the screen shows at RUG_SPOT."""
     px = device.screenshot().getpixel(RUG_SPOT)
-    return min(RUG_MAIN, key=lambda day: sum((a - b) ** 2 for a, b in zip(RUG_MAIN[day], px)))
+    return min(RUG_MAIN, key=lambda day: sum((a - b) ** 2 for a, b in zip(RUG_MAIN[day], px, strict=False)))
 
 
 @pytest.mark.persona("Pixel corgi")

@@ -52,7 +52,7 @@ ROWS = [
 
 
 def mix(a, b, k):
-    return tuple(int(x + (y - x) * k) for x, y in zip(a, b))
+    return tuple(int(x + (y - x) * k) for x, y in zip(a, b, strict=False))
 
 
 def outline_frame(s, title):

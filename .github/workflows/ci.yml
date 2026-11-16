@@ -88,16 +88,11 @@ jobs:
         run: |
           uv run --no-sync pre-commit run complexipy --all-files
           uv run --no-sync pre-commit run lizard --all-files
-      # The formatters don't block yet: the existing code isn't formatted.
-      # They block once the code is formatted in its own pull request.
       - name: Python lint (ruff check)
-        continue-on-error: true
         run: uv run --no-sync pre-commit run ruff-check --all-files --show-diff-on-failure
       - name: Python format (ruff format)
-        continue-on-error: true
         run: uv run --no-sync pre-commit run ruff-format --all-files --show-diff-on-failure
       - name: C++ format (clang-format)
-        continue-on-error: true
         run: uv run --no-sync pre-commit run clang-format --all-files --show-diff-on-failure
 
   clang-tidy:

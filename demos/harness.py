@@ -33,6 +33,7 @@ advance the clock a frame at a time until the condition holds.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ctypes
 import json
 import mmap
@@ -43,11 +44,11 @@ import shutil
 import socket
 import struct
 import subprocess
-import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
@@ -334,7 +335,7 @@ class Clock:
     def __init__(self, path: Path, seed: int, epoch: int):
         self.path = path
         path.write_bytes(b"\0" * 4096)
-        self._fh = open(path, "r+b")
+        self._fh = open(path, "r+b")  # noqa: SIM115 - mapped until close()
         self._map = mmap.mmap(self._fh.fileno(), 4096)
         self.ns = START_NS
         struct.pack_into("<QQQ", self._map, 0, self.ns, epoch, seed or 1)
@@ -440,7 +441,7 @@ class Device:
             env["LD_PRELOAD"] = str(self.build.clock_lib)
         if not self.window:
             env["SDL_VIDEODRIVER"] = "dummy"
-        self._log = open(self.workdir / "device.log", "w")
+        self._log = open(self.workdir / "device.log", "w")  # noqa: SIM115 - the program writes it until close()
         self._proc = subprocess.Popen([str(self.build.program)], env=env, stdout=self._log, stderr=subprocess.STDOUT)
         self._run(self._connect())
         # The subscriptions take effect before the clock first moves, so the
@@ -455,10 +456,8 @@ class Device:
 
     def close(self) -> None:
         if self._client is not None:
-            try:
+            with contextlib.suppress(Exception):  # Closing anyway.
                 self._run(self._client.disconnect(), timeout=3)
-            except Exception:  # noqa: BLE001 - closing anyway
-                pass
             self._client = None
         if self._proc is not None:
             self._proc.terminate()
@@ -491,9 +490,9 @@ class Device:
             try:
                 await client.connect(login=True)
                 break
-            except Exception:  # noqa: BLE001 - the program is still starting
+            except Exception as err:  # noqa: BLE001 - the program is still starting
                 if time.monotonic() > deadline or self._proc.poll() is not None:
-                    raise DeviceError(f"Could not reach the program; see {self.workdir / 'device.log'}")
+                    raise DeviceError(f"Could not reach the program; see {self.workdir / 'device.log'}") from err
                 await asyncio.sleep(0.1)
         self._client = client
         entities, services = await client.list_entities_services()

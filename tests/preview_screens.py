@@ -18,6 +18,7 @@ of a board without touch.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -92,10 +93,9 @@ class Screen:
         def font(name, size, weight=None):
             f = ImageFont.truetype(str(font_dir / name), size)
             if weight:
-                try:
+                # A static bold file (ESPHome's own download) has no axes.
+                with contextlib.suppress(OSError):
                     f.set_variation_by_axes([weight])
-                except OSError:
-                    pass  # A static bold file (ESPHome's own download) has no axes.
             return f
 
         self.text = font("Manrope[wght].ttf", fonts[0], 700)
@@ -379,7 +379,7 @@ def main() -> None:
         badge(s, idle)
         shots = [idle, dock(s, idle), board(s), tasks(s)]
         sheet(shots).save(out / f"{size}.png")
-        for name, img in zip(("idle", "dock", "board", "tasks"), shots):
+        for name, img in zip(("idle", "dock", "board", "tasks"), shots, strict=False):
             img.save(out / f"{size}_{name}.png")
         print(f"{size}: {s.l['size_class']}, unit {s.unit:.2f}, scale {min(s.w // 106, s.h // 80)} -> {out / size}.png")
 

@@ -5,7 +5,8 @@
 
 The `daruma` fixture starts a fresh desktop device per test, on the runner's
 clock (see harness.py). The build happens once per session, in
-$DARUMA_WORK (a temp folder by default).
+$DARUMA_WORK (a temp folder by default). With pytest-xdist (`-n 3`), the
+workers share that build, and each runs its devices on a port of its own.
 
     @pytest.mark.persona("Pixel corgi")      # default: Eyes
     def test_pet(device):
@@ -20,7 +21,9 @@ trace.gif of every frame, and the actual and diff pictures.
 
 from __future__ import annotations
 
+import fcntl
 import os
+import pickle
 import sys
 import tempfile
 from pathlib import Path
@@ -29,7 +32,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from harness import GOLDEN_DIR, Device, build, slug  # noqa: E402
+from harness import GOLDEN_DIR, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, frames_of  # noqa: E402
 
 DEFAULT_PERSONA = "Eyes"
@@ -52,20 +55,57 @@ def pytest_runtest_makereport(item, call):
     setattr(item, f"rep_{report.when}", report)
 
 
+def _base_port() -> int:
+    # DARUMA_PORT: another API port, when another runner holds 6053.
+    return int(os.environ.get("DARUMA_PORT", "6053"))
+
+
 @pytest.fixture(scope="session")
-def device_builds():
+def device_builds(request):
     """The desktop build for a time zone, compiled once per session."""
     work = Path(os.environ.get("DARUMA_WORK", Path(tempfile.gettempdir()) / "daruma-demos"))
-    # DARUMA_PORT: another API port, when another runner holds 6053.
-    port = int(os.environ.get("DARUMA_PORT", "6053"))
+    # Set when pytest-xdist runs the tests in several workers.
+    run_id = getattr(request.config, "workerinput", {}).get("testrunuid")
     builds = {}
 
     def get(timezone: str):
         if timezone not in builds:
-            builds[timezone] = build(work / "build", port=port, timezone=timezone)
+            if run_id is None:
+                builds[timezone] = build(work / "build", port=_base_port(), timezone=timezone)
+            else:
+                builds[timezone] = _shared_build(work, timezone, run_id)
         return builds[timezone]
 
     return get
+
+
+def _shared_build(work: Path, timezone: str, run_id: str) -> Build:
+    """The build for a time zone, made by the first worker that needs it.
+
+    The others wait for it on a lock, then take it from a stamp file that
+    names this test run, so a build from an earlier run is never taken.
+    """
+    work.mkdir(parents=True, exist_ok=True)
+    stamp = work / f"build-{slug(timezone)}.pickle"
+    with open(work / "build.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if stamp.exists():
+            with stamp.open("rb") as f:
+                made_in, b = pickle.load(f)
+            if made_in == run_id:
+                return b
+        b = build(work / "build", port=_base_port(), timezone=timezone)
+        with stamp.open("wb") as f:
+            pickle.dump((run_id, b), f)
+        return b
+
+
+def _worker_port() -> int | None:
+    """Under pytest-xdist, worker gw<n> runs its devices on port DARUMA_PORT + 1 + n."""
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "")
+    if not worker.startswith("gw"):
+        return None
+    return _base_port() + 1 + int(worker[2:])
 
 
 @pytest.fixture
@@ -79,7 +119,7 @@ def device(request, device_builds, tmp_path):
     timezone = clock_args.setdefault("timezone", "UTC")
     b = Device(device_builds(timezone), tmp_path, persona=persona, **clock_args, window=request.config.getoption("--window"),
               golden=GOLDEN_DIR / slug(persona) / request.node.name,
-              update_golden=request.config.getoption("--update-golden"))
+              update_golden=request.config.getoption("--update-golden"), port=_worker_port())
     b.start()
     b.record_start(tmp_path / "frames")
     try:

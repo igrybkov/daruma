@@ -257,12 +257,14 @@ jobs:
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: ${{ steps.art.outputs.cache-primary-key }}
+      # One worker per CPU. The workers share one build; each runs its
+      # devices on a port of its own.
       - name: Run the screen tests
         if: matrix.suite == 'pytest'
         run: |
           mkdir -p "$DARUMA_WORK"
-          uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \
-            pytest demos --basetemp="$DARUMA_WORK/pytest"
+          uv run --with pytest --with pytest-xdist==3.8.0 --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \
+            pytest demos -n auto --basetemp="$DARUMA_WORK/pytest"
       - name: Put expected, actual and diff side by side
         if: failure()
         run: >-

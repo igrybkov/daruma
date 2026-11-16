@@ -156,10 +156,10 @@ jobs:
         with:
           path: examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
-      # The example secrets as they are. Their API key is fixed, so the
-      # compiler cache can reuse main.cpp, which holds it.
+      # The public CI secrets. Their API key is fixed, so the compiler
+      # cache can reuse main.cpp, which holds it.
       - name: Write the secrets
-        run: cp examples/secrets.example.yaml examples/secrets.yaml
+        run: make secrets-ci
       # The examples fetch Daruma with git. make points them at this checkout.
       - name: Check the config
         env:
@@ -252,7 +252,7 @@ jobs:
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       # As in the config job: a fixed API key keeps main.cpp in the cache.
       - name: Write the secrets
-        run: cp examples/secrets.example.yaml examples/secrets.yaml
+        run: make secrets-ci
       - name: Compile
         run: |
           set -o pipefail

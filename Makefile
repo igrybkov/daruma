@@ -71,7 +71,7 @@ define run_hooks
 	exit $$status
 endef
 
-.PHONY: help setup esphome-env esphome-version secrets config compile desktop \
+.PHONY: help setup esphome-env esphome-version secrets secrets-ci config compile desktop \
 	test test-py test-cpp screens golden test-screens update-golden gifs \
 	lint format complexity tidy docker-test check clean
 
@@ -109,8 +109,9 @@ esphome-version: ## Print the ESPHome version the builds use
 
 # --- Secrets -------------------------------------------------------------
 
-secrets: examples/secrets.yaml ## Write examples/secrets.yaml with a random API key; never overwrites it
-	@echo "examples/secrets.yaml is in place. Make never overwrites it."
+# The builds depend on secrets, so a fresh checkout needs no manual step.
+secrets: examples/secrets.yaml ## Write examples/secrets.yaml from the example, with a random API key; never overwrites it
+	$(if $(filter secrets,$(MAKECMDGOALS)),@echo "examples/secrets.yaml is in place. Make never overwrites it.",@:)
 
 # No prerequisites on purpose: make never rewrites an existing file.
 examples/secrets.yaml:
@@ -119,12 +120,21 @@ examples/secrets.yaml:
 	  mv $@.tmp $@
 	@echo "Wrote examples/secrets.yaml: placeholder Wi-Fi, a random API key."
 
+# The fixed public secrets of examples/secrets.ci.yaml. It refuses to
+# replace a secrets.yaml with other content.
+secrets-ci: ## CI only: copy examples/secrets.ci.yaml to examples/secrets.yaml
+	@if [ -e examples/secrets.yaml ] && ! cmp -s examples/secrets.ci.yaml examples/secrets.yaml; then \
+	  echo "examples/secrets.yaml exists and differs from secrets.ci.yaml. Move it away first." >&2; \
+	  exit 1; \
+	fi
+	cp examples/secrets.ci.yaml examples/secrets.yaml
+
 # --- ESPHome builds ------------------------------------------------------
 
 # The examples fetch BUILD_REF from this checkout, so commit first: an
 # uncommitted change is not in the build. ESPHome refreshes a git package
 # only once a day, so the old clone goes first.
-config: examples/secrets.yaml esphome-env ## Check the config of every example, or EXAMPLE=box3
+config: secrets esphome-env ## Check the config of every example, or EXAMPLE=box3
 	git branch -f $(BUILD_REF) HEAD
 	rm -rf examples/.esphome/packages
 	@set -e; cd examples; for ex in $(CONFIG_EXAMPLES); do \
@@ -132,12 +142,12 @@ config: examples/secrets.yaml esphome-env ## Check the config of every example, 
 	  $(ESPHOME) $(ESPHOME_SUBS) config $$ex.yaml > /dev/null; \
 	done
 
-compile: examples/secrets.yaml esphome-env ## Compile an example's firmware (default EXAMPLE=box3); commit first
+compile: secrets esphome-env ## Compile an example's firmware (default EXAMPLE=box3); commit first
 	git branch -f $(BUILD_REF) HEAD
 	rm -rf examples/.esphome/packages
 	cd examples && $(ESPHOME) $(ESPHOME_SUBS) compile $(COMPILE_EXAMPLE).yaml
 
-desktop: esphome-env ## Build and run the desktop device in a window (DARUMA_PORT= for the API port)
+desktop: secrets esphome-env ## Build and run the desktop device in a window (DARUMA_PORT= for the API port)
 	cd examples && $(ESPHOME) $(if $(DARUMA_PORT),-s desktop_api_port $(DARUMA_PORT)) run desktop.yaml
 
 # --- Tests ---------------------------------------------------------------
@@ -152,20 +162,20 @@ test-cpp: ## Host tests in C++
 
 screens: golden test-screens ## The golden check, then the screen tests; make -k runs both on a failure
 
-golden: ## Check the screens against the golden pictures (PERSONA=, SCENARIO=, JOBS=)
+golden: secrets ## Check the screens against the golden pictures (PERSONA=, SCENARIO=, JOBS=)
 	$(RECORD) --test
 
-test-screens: ## Screen tests in pytest on the desktop build (PYTEST_ARGS=)
+test-screens: secrets ## Screen tests in pytest on the desktop build (PYTEST_ARGS=)
 	$(UV_RUN) pytest demos $(PYTEST_ARGS)
 
-update-golden: ## Write new golden pictures; needs CONFIRM=1 (PERSONA=, SCENARIO=)
+update-golden: secrets ## Write new golden pictures; needs CONFIRM=1 (PERSONA=, SCENARIO=)
 ifneq ($(CONFIRM),1)
 	@echo "update-golden rewrites tests/golden. Run: make update-golden CONFIRM=1" >&2
 	@exit 1
 endif
 	$(RECORD) --update-golden
 
-gifs: ## Record demo GIFs (PERSONA=, SCENARIO=, VARIANT=, DOCS=, JOBS=)
+gifs: secrets ## Record demo GIFs (PERSONA=, SCENARIO=, VARIANT=, DOCS=, JOBS=)
 	$(RECORD) $(if $(VARIANT),--variant $(VARIANT)) $(if $(DOCS),--docs '$(DOCS)')
 
 docker-test: ## The golden check and screen tests in Ubuntu 24.04, as CI runs them (DOCKER_CMD=)

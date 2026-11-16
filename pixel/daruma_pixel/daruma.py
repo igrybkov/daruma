@@ -41,7 +41,7 @@ from dataclasses import dataclass, replace
 from PIL import Image, ImageDraw
 
 from .bonsai import DEFAULT_STAGE, plant  # noqa: F401  (layers API)
-from .bonsai import STAGES as PLANT_STAGES
+from .bonsai import STAGES as PLANT_STAGES  # noqa: F401  (layers API)
 from .pixelkit import Canvas, Ramp, mask
 
 W, H = 106, 80

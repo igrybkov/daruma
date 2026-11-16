@@ -174,7 +174,7 @@ def _curtains(img: Image.Image, r: LivingRoom) -> None:
     for side in (-1, 1):
         # Measured from the window outward: 0 at its edge, out to 7.
         edge = x0 + 1 if side < 0 else x0 + w - 2
-        at = lambda k: edge + side * k  # noqa: E731
+        at = lambda k, edge=edge, side=side: edge + side * k  # noqa: E731
         m, dm = mask((W, H))
         poly(
             dm,

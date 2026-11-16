@@ -174,7 +174,7 @@ class ReactionsOverActivities(unittest.TestCase):
             behaviors, _ = registry.resolve_persona(char, states)
             swaps = registry.resolve_during(char, states)
             index = {s.name: i for i, s in enumerate(states)}
-            look = {s.name: anims[b.animation] for s, b in zip(states, behaviors)}
+            look = {s.name: anims[b.animation] for s, b in zip(states, behaviors, strict=False)}
             for activity in activities:
                 held = look[activity.name]
                 if not any(has_props(p) for p, _ in source.ANIMATIONS[held]):

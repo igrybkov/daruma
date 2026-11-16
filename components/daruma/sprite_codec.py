@@ -268,7 +268,7 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
         )
 
     def changed(u: int, v: int) -> int:
-        return sum(1 for p, q in zip(pixels[u], pixels[v]) if p != q)
+        return sum(1 for p, q in zip(pixels[u], pixels[v], strict=False) if p != q)
 
     frames: dict[int, SetFrame] = {}
 

@@ -22,7 +22,7 @@ def frames_of(frames_dir: Path, skipped: list[tuple[int, int]]) -> list[tuple[Pa
         return ms - cut
 
     out = []
-    for i, (path, ms) in enumerate(zip(shots, times)):
+    for i, (path, ms) in enumerate(zip(shots, times, strict=False)):
         if i + 1 == len(shots):
             break  # The last one marks the end.
         d = (shown(times[i + 1]) - shown(ms)) / 1000
@@ -179,7 +179,7 @@ def _thumb(path: Path):
 def _changed(a, b) -> float:
     """The share of pixels that differ between two thumbnails."""
     pa, pb = a.tobytes(), b.tobytes()
-    return sum(abs(x - y) > 24 for x, y in zip(pa, pb)) / len(pa)
+    return sum(abs(x - y) > 24 for x, y in zip(pa, pb, strict=False)) / len(pa)
 
 
 def _touch_fade(now: int, at: int, lifted: int) -> tuple[float, float, float]:
@@ -192,6 +192,11 @@ def _touch_fade(now: int, at: int, lifted: int) -> tuple[float, float, float]:
     return 1.0 - f, f, 1.0 - f
 
 
+def _label_fade(now: int, end: int) -> float:
+    """A button label's alpha once the button is down: full, then a fade to `end`."""
+    return 1.0 if now < end - TOUCH_FADE_MS else (end - now) / TOUCH_FADE_MS
+
+
 def _draw_button(draw, font, t: dict[str, Any], now: int, a: float, at: int, end: int) -> None:
     """A pill at the bottom of the screen: a red dot and the button's name."""
     name = t["kind"].split(":", 1)[1]
@@ -199,10 +204,7 @@ def _draw_button(draw, font, t: dict[str, Any], now: int, a: float, at: int, end
     label = _BUTTON.get(name, name) + (": hold" if t["ms_long"] >= 1000 else "")
     w = int(font.getlength(label)) + 34
     x0, y0, x1, y1 = 160 - w // 2, 196, 160 + w // 2, 220
-    if now < at:
-        a = max(a, 0.0)
-    else:
-        a = 1.0 if now < end - TOUCH_FADE_MS else (end - now) / TOUCH_FADE_MS
+    a = max(a, 0.0) if now < at else _label_fade(now, end)
     draw.rounded_rectangle((x0, y0, x1, y1), 12, fill=(*_EDGE, int(215 * a)), outline=(*_RING, int(200 * a)), width=1)
     r = 6 + 2 * (1.0 if at <= now < lifted else 0.0)
     draw.ellipse(
@@ -319,7 +321,7 @@ def with_touches(
         a = starts[i]
         b = a + round(d * 1000)
         edges = [a] + [c for c in cuts if a < c < b] + [b]
-        for k, (p0, p1) in enumerate(zip(edges, edges[1:])):
+        for k, (p0, p1) in enumerate(zip(edges, edges[1:], strict=False)):
             target = out_dir / f"f_{raw0 + (p0 - a)}_{i}_{k}.png"
             _marked_frame(path, p0, windows, font).save(target)
             out.append((target, (p1 - p0) / 1000))

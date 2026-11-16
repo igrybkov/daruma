@@ -759,7 +759,8 @@ def check_device_themes(
     for persona_id, conf in themes.items():
         if persona_id not in persona_ids:
             raise RegistryError(
-                f"daruma: themes: no persona has the id '{persona_id}' (persona ids: {', '.join(persona_ids) or 'none'})"
+                f"daruma: themes: no persona has the id '{persona_id}' "
+                f"(persona ids: {', '.join(persona_ids) or 'none'})"
             )
         check_theme_keys(
             f"daruma: themes: {persona_id}", conf.get("colors", {}), conf.get("words", {}), modules, builtin_words

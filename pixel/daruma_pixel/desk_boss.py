@@ -19,8 +19,8 @@ Everything is drawn on the 106x80 canvas, with the light from the top left.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Callable
 
 from PIL import Image, ImageDraw
 
@@ -60,7 +60,7 @@ class Rig:
     """Where the parts of one frame sit. Hooks in a Look get this."""
 
     pose: Pose
-    look: "Look"
+    look: Look
     cx: int
     top: int  # Shoulder line.
     neck: tuple[int, int]

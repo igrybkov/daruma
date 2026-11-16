@@ -112,7 +112,7 @@ async def to_code(config):
         bg = config[CONF_BACKGROUND]
         cg.add(var.set_background((bg >> 16) & 0xFF, (bg >> 8) & 0xFF, bg & 0xFF))
 
-    for key, frame in config[CONF_FRAMES].items():
+    for _key, frame in config[CONF_FRAMES].items():
         art = config.get(CONF_ART)
         main = sprite_expression(art_path(art, frame[CONF_IMAGE]))
         blink = sprite_expression(art_path(art, frame[CONF_BLINK])) if CONF_BLINK in frame else cg.nullptr

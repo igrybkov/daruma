@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import esphome.codegen as cg
-from esphome.core import CORE, ID
+from esphome.core import CORE
 
 from .sprite_codec import encode_image, encode_set, gray_for, reduce_colors  # noqa: F401  (re-exported)
 
@@ -79,7 +79,8 @@ def _declare(w, h, bits, clear, palette, data, patch: bool = False) -> cg.MockOb
     obj = f"daruma_sprite_{n}"
     cg.add_global(
         cg.RawStatement(
-            f"static constexpr Daruma::Sprite {obj}({w}, {h}, {bits}, {clear}, {len(palette)}, {_palettes[key]}, {raw}, "
+            f"static constexpr Daruma::Sprite {obj}({w}, {h}, {bits}, {clear}, {len(palette)}, {_palettes[key]}, "
+            f"{raw}, "
             f"{'true' if patch else 'false'});"
         )
     )

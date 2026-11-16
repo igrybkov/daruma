@@ -125,12 +125,15 @@ def eye_overlays() -> dict[str, Overlays]:
     out: dict[str, Overlays] = {}
     for key, anim in base.animations.items():
         entry = Overlays(
-            frames=[patches(lambda persona, i=i: persona.animations[key].frames[i][0]) for i in range(len(anim.frames))]
+            frames=[
+                patches(lambda persona, i=i, key=key: persona.animations[key].frames[i][0])
+                for i in range(len(anim.frames))
+            ]
         )
         if anim.blink is not None:
-            entry.blink = patches(lambda persona: persona.animations[key].blink)
+            entry.blink = patches(lambda persona, key=key: persona.animations[key].blink)
         if anim.wink is not None:
-            entry.wink = patches(lambda persona: persona.animations[key].wink)
+            entry.wink = patches(lambda persona, key=key: persona.animations[key].wink)
         out[key] = entry
     return out
 

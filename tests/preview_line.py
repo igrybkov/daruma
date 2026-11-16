@@ -31,6 +31,7 @@ left over three rows of tomatoes (goal 9), the timer under focus. With
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -205,7 +206,7 @@ def after(s: ps.Screen, img, state, dock, font, plaque, mono=False) -> None:
         if mono:
             # The mono board is a slow screen: whole minutes, the pause
             # sign before them.
-            mins = "%dm" % ((left + 59) // 60)
+            mins = f"{(left + 59) // 60}m"
             shift = s.px(5) if paused else 0
             d.text((dx + dw // 2 + shift, base), mins, font=font, fill=c, anchor="ms")
             if paused:
@@ -252,7 +253,7 @@ def before(s: ps.Screen, img, state, dock, font) -> None:
     W, H = s.w, s.h
     if color is not None:
         d.rectangle((0, H - s.px(6), W * 2 // 3, H - 1), fill=color)
-        d.text((W - s.px(6), s.px(6)), "%02d:%02d" % (left // 60, left % 60), font=font, fill=color, anchor="ra")
+        d.text((W - s.px(6), s.px(6)), f"{left // 60:02d}:{left % 60:02d}", font=font, fill=color, anchor="ra")
     info = (s.px(4), H - s.px(10) - s.px(18), W - s.px(60), s.px(18))
     slots, per_row, step, row_h, r, pad = GOAL, 3, s.px(24), s.px(24), s.px(8), s.px(6)
     rows, cols = (slots + per_row - 1) // per_row, min(slots, per_row)
@@ -282,10 +283,8 @@ def main() -> None:
 
     def timer_font(size):
         f = ImageFont.truetype(str(font_dir / "Manrope[wght].ttf"), size)
-        try:
+        with contextlib.suppress(OSError):
             f.set_variation_by_axes([700])
-        except OSError:
-            pass
         return f
 
     def plaque_for(s: ps.Screen, font):
@@ -323,7 +322,9 @@ def main() -> None:
     }
     for name, room in rooms.items():
         base = room()
-        ps.sheet(shots(s, lambda _st: base, DOCKS[name], timer_font(22))).save(out / f"line_{name}{suffix}.png")
+        ps.sheet(shots(s, lambda _st, base=base: base, DOCKS[name], timer_font(22))).save(
+            out / f"line_{name}{suffix}.png"
+        )
         print(f"{name} -> {out / f'line_{name}{suffix}.png'}")
 
     def eye_looks(size):
@@ -366,14 +367,14 @@ def main() -> None:
     for size, fonts, timer in (("480x272", ps.FONTS["480x272"], 25), ("240x240", ps.FONTS["240x240"], 22)):
         s2 = ps.Screen(layouts[size], fonts, font_dir, ps.WOOD, focus=False)
         base = ps.corgi_idle(s2)
-        ps.sheet(shots(s2, lambda _st: base, DOCKS["pixel_corgi"], timer_font(timer))).save(
+        ps.sheet(shots(s2, lambda _st, base=base: base, DOCKS["pixel_corgi"], timer_font(timer))).save(
             out / f"line_corgi_{size}{suffix}.png"
         )
         print(f"corgi {size} -> {out / f'line_corgi_{size}{suffix}.png'}")
 
     # Mono: the derived theme's dock colors, the frame to black and white.
     mono = ps.mono_theme(ps.WOOD)
-    hexes = tuple("%02X%02X%02X" % mono[k] for k in ("dock", "dock_ink", "dock_muted"))
+    hexes = tuple("{:02X}{:02X}{:02X}".format(*mono[k]) for k in ("dock", "dock_ink", "dock_muted"))
     base = ps.corgi_idle(s)
     ps.sheet(shots(s, lambda _st: base, hexes, timer_font(22), mono=True)).save(out / f"line_corgi_mono{suffix}.png")
     print(f"corgi mono -> {out / f'line_corgi_mono{suffix}.png'}")

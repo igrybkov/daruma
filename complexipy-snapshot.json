@@ -365,7 +365,7 @@
     "functions": [
       {
         "name": "main",
-        "complexity": 19
+        "complexity": 17
       },
       {
         "name": "after",

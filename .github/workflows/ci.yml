@@ -44,8 +44,11 @@ jobs:
           if [ "$PYTHON" != pinned ]; then echo "UV_PYTHON=$PYTHON" >> "$GITHUB_ENV"; fi
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
+      # 2 workers: on these 4-CPU runners, 2, 4 and 6 workers all take
+      # about 95 s (the daruma persona tests set the pace), against 177 s
+      # in one process. 2 was a little ahead in every round.
       - name: Run the host tests
-        run: uv run --no-sync pytest tests -n auto
+        run: uv run --no-sync pytest tests -n 2
 
   host-cpp:
     name: Host tests (C++)
@@ -252,10 +255,12 @@ jobs:
   #
   # Few macOS jobs on purpose: macOS runners are scarce, and a run that
   # asks for many of them waits in the queue. The golden check and pytest
-  # share one job and one build.
+  # share one job and one build. macos-26, not macos-15: macos-15 arm64
+  # jobs often waited 10 minutes or were never picked up, while macos-26
+  # ones started at once. The pictures are the same on both.
   screens:
     name: Screen tests
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       DARUMA_WORK: ${{ github.workspace }}/ci-work
@@ -321,7 +326,7 @@ jobs:
   # full showcase; the others record highlight only, so they share a job.
   previews:
     name: Previews (${{ matrix.name }})
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     strategy:
       fail-fast: false

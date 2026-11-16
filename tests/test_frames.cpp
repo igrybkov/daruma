@@ -3,8 +3,8 @@
 // frames_fixture.py.
 //
 //   uv run --with pillow python tests/frames_fixture.py /tmp/frames.txt [--personas]
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
-//       tests/test_frames.cpp -o /tmp/test_frames && /tmp/test_frames /tmp/frames.txt
+//   c++ -std=c++17 -Wall -Wextra -I components/daruma tests/test_frames.cpp -o /tmp/test_frames
+//   /tmp/test_frames /tmp/frames.txt
 //
 // For every set it checks that:
 // - each frame, drawn on its own (from its keyframe), gives exactly the

@@ -50,15 +50,15 @@
     },
     {
       "customType": "regex",
-      "description": "gitlint pins in the workflows and .gitlint (uvx --from gitlint-core==...)",
+      "description": "Python tools pinned with == in the workflows, .gitlint and .pre-commit-config.yaml",
       "managerFilePatterns": [
         "/^\\.github/workflows/.+\\.ya?ml$/",
-        "/^\\.gitlint$/"
+        "/^\\.gitlint$/",
+        "/^\\.pre-commit-config\\.yaml$/"
       ],
       "matchStrings": [
-        "gitlint-core==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "(?<depName>gitlint-core|lizard|clang-tidy|pre-commit)==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
-      "depNameTemplate": "gitlint-core",
       "datasourceTemplate": "pypi"
     }
   ],
@@ -94,6 +94,14 @@
       "schedule": [
         "* 0-6 1 * *"
       ]
+    },
+    {
+      "description": "clang-format (pre-commit mirror) and clang-tidy (CI) move as one LLVM version",
+      "matchDepNames": [
+        "pre-commit/mirrors-clang-format",
+        "clang-tidy"
+      ],
+      "groupName": "LLVM tools"
     }
   ],
   "semanticCommits": "enabled",

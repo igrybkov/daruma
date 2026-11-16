@@ -19,7 +19,8 @@ brew install uv sdl2 ffmpeg
 ```
 
 You don't install ESPHome. The scripts run ESPHome 2026.10.2 through uv.
-`.python-version` pins the Python the tests and builds use (3.14).
+`.python-version` pins the Python the tests and builds use (3.14). The
+floor is 3.12 (`requires-python`), as ESPHome's.
 `uv run` reads it; `uvx` doesn't, so the harness and CI pass it on.
 
 Fork the repository, clone your fork, and make a branch for your change:
@@ -29,8 +30,9 @@ git clone https://github.com/<you>/daruma && cd daruma
 git switch -c my-change
 ```
 
-Install the commit message check once. It runs gitlint on every commit
-you make (see [Commits](#commits)):
+Install the hooks once. On every commit they format and lint what you
+changed, check its complexity, and check the commit message (see
+[Lint and format](#lint-and-format) and [Commits](#commits)):
 
 ```sh
 uvx pre-commit install
@@ -135,6 +137,44 @@ uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml p
   `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
+## Lint and format
+
+The pre-commit hooks run these on the files you change. The versions
+live in [.pre-commit-config.yaml](.pre-commit-config.yaml); CI runs the
+same hooks.
+
+| Tool | Checks | Config |
+|---|---|---|
+| ruff | Python lint and format | `pyproject.toml` |
+| clang-format | C and C++ format, in ESPHome's style | `.clang-format` |
+| complexipy | Python cognitive complexity, at most 15 per function | `pyproject.toml`, `complexipy-snapshot.json` |
+| lizard | C and C++ cyclomatic complexity, at most 15 per function | `whitelizard.txt` |
+| clang-tidy | C++ bugs and slow code, in CI only | `.clang-tidy` |
+
+Before you commit, run `ruff check --fix` and `ruff format`, or let the
+hook do it. To run every hook on every file:
+
+```sh
+uvx pre-commit run --all-files
+```
+
+clang-tidy needs a compile database. It reads the host tests and the
+component headers they include:
+
+```sh
+tests/compile_db.sh
+uvx --from clang-tidy==23.1.4 clang-tidy -p build/clang-tidy tests/test_*.cpp
+```
+
+On macOS, add `--extra-arg=-isysroot --extra-arg="$(xcrun --show-sdk-path)"`.
+
+Keep new functions under the complexity limits. Split a function that
+grows past them. Don't add it to the baseline:
+`complexipy-snapshot.json` and `whitelizard.txt` list only the
+functions that were over the limit when the checks came in. When you
+bring one under the limit, drop its entry (for complexipy, run
+`uvx complexipy --snapshot-create`).
+
 ## CI
 
 GitHub Actions runs [ci.yml](.github/workflows/ci.yml) on every pull
@@ -145,7 +185,7 @@ checks the pull request title and every commit message in it.
 
 | Job | What it runs |
 |---|---|
-| Host tests (Python) | test 1 above |
+| Host tests (Python) | test 1 above, on the pinned Python and on 3.12 |
 | Host tests (C++) | test 2 above |
 | Config | `esphome config` for each file in `examples/` |
 | Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
@@ -153,6 +193,8 @@ checks the pull request title and every commit message in it.
 | Screen tests (pytest) | test 4 above, on Ubuntu with SDL2 |
 | Pull request title | the title is a Conventional Commit |
 | Commit messages | `gitlint` on each commit of the pull request |
+| Lint | complexipy and lizard; ruff and clang-format don't block yet |
+| clang-tidy | the host tests and the headers they include |
 
 The examples fetch Daruma with git. In CI they fetch the checkout under
 test, not main. To do the same on your machine, commit first, then:

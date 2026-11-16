@@ -51,7 +51,12 @@ from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
-ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME", "esphome==2026.10.2")
+# Another ESPHome to build with, for a try ("esphome==2026.11.0"). By
+# default the build runs the version locked in uv.lock (the "esphome" group).
+ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME")
+# That group's environment. It can't share the test environment: ESPHome
+# pins another aioesphomeapi.
+ESPHOME_ENV = REPO_DIR / ".venv-esphome"
 # uvx ignores .python-version, so the build passes it on.
 PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
@@ -175,18 +180,45 @@ def build(
             private.add(_persona_name(pkg))
         yaml_name = f"{name}.yaml"
         (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
-    cmd = ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"]
+    cmd, env = _esphome_command()
     for k, v in subs.items():
         cmd += ["-s", k, v]
     cmd += ["compile", yaml_name]
     log = out / f"compile-{name}.log"
     with open(log, "w") as fh:
-        result = subprocess.run(cmd, cwd=config_dir, stdout=fh if quiet else None, stderr=subprocess.STDOUT)
+        result = subprocess.run(cmd, cwd=config_dir, env=env, stdout=fh if quiet else None, stderr=subprocess.STDOUT)
     if result.returncode != 0:
         tail = "\n".join(log.read_text().splitlines()[-30:]) if quiet else ""
         raise DeviceError(f"Compile failed (log: {log})\n{tail}")
     program = config_dir / ".esphome" / "build" / name / ".pioenvs" / name / "program"
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
+
+
+def _esphome_command() -> tuple[list[str], dict[str, str]]:
+    """The command that runs ESPHome, and its environment.
+
+    By default it brings .venv-esphome in line with uv.lock first: a fast
+    no-op when it already is.
+    """
+    if ESPHOME_SPEC:
+        return ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"], dict(os.environ)
+    env = dict(os.environ, UV_PROJECT_ENVIRONMENT=str(ESPHOME_ENV))
+    env.pop("VIRTUAL_ENV", None)  # The test environment's, when the harness runs under uv run.
+    sync = [
+        "uv",
+        "sync",
+        "--project",
+        str(REPO_DIR),
+        "--frozen",
+        "--only-group",
+        "esphome",
+        "--no-install-project",
+        "--python",
+        PYTHON,
+        "--quiet",
+    ]
+    subprocess.run(sync, env=env, check=True)
+    return [str(ESPHOME_ENV / "bin" / "esphome")], env
 
 
 # Screen sizes, with font sizes to match (as examples/variant_*.yaml).

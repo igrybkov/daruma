@@ -11,10 +11,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "ESPHome pins in scripts, docs and workflows (uvx --from esphome==..., DARUMA_ESPHOME)",
+      "description": "ESPHome pins in user-facing docs and scripts (uvx --from esphome==...). pyproject.toml and uv.lock go through the pep621 manager",
       "managerFilePatterns": [
-        "/\\.(py|md|sh)$/",
-        "/^\\.github/workflows/.+\\.ya?ml$/"
+        "/\\.(py|md|sh)$/"
       ],
       "matchStrings": [
         "esphome==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -37,22 +36,8 @@
     },
     {
       "customType": "regex",
-      "description": "aioesphomeapi pins: uv run --with ..., and record.py's inline script metadata",
+      "description": "Python tools pinned with == in .gitlint and .pre-commit-config.yaml (the rest are in pyproject.toml)",
       "managerFilePatterns": [
-        "/\\.(py|md)$/",
-        "/^\\.github/workflows/.+\\.ya?ml$/"
-      ],
-      "matchStrings": [
-        "aioesphomeapi==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "aioesphomeapi",
-      "datasourceTemplate": "pypi"
-    },
-    {
-      "customType": "regex",
-      "description": "Python tools pinned with == in the workflows, .gitlint and .pre-commit-config.yaml",
-      "managerFilePatterns": [
-        "/^\\.github/workflows/.+\\.ya?ml$/",
         "/^\\.gitlint$/",
         "/^\\.pre-commit-config\\.yaml$/"
       ],
@@ -71,7 +56,7 @@
       "groupName": "ESPHome"
     },
     {
-      "description": "aioesphomeapi follows ESPHome's API; update it with ESPHome",
+      "description": "aioesphomeapi (pyproject.toml) follows ESPHome's API; update it with ESPHome",
       "matchDepNames": [
         "aioesphomeapi"
       ],
@@ -107,5 +92,11 @@
   "semanticCommits": "enabled",
   "pre-commit": {
     "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "* 0-6 * * 1"
+    ]
   }
 }

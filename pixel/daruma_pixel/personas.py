@@ -4,7 +4,7 @@ The device build calls build(name) while it compiles (daruma_sprites with
 `pixel_art:`), so changing a persona or a room only needs a new compile.
 Run it by hand to look at the result:
 
-    cd pixel/daruma_pixel && uv run --with pillow python -I personas.py OUT_DIR [corgi|the_boss|jack_russell|tabby_cat ...]
+    uv run python -m daruma_pixel.personas OUT_DIR [corgi|the_boss|jack_russell|tabby_cat ...]
 
 That writes, per persona, OUT_DIR/<name>/: every layer as a PNG and sheet.png,
 every frame of every animation as the screen would show it.

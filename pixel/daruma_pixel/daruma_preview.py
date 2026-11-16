@@ -1,6 +1,6 @@
 """Preview the daruma: contact sheets, GIFs, a hero still, and its size in flash.
 
-    cd pixel && uv run --with pillow python -m daruma_pixel.daruma_preview OUT_DIR
+    uv run python -m daruma_pixel.daruma_preview OUT_DIR
 
 Writes to OUT_DIR:
   daruma_sheet_eyes{0,1,2}.png  every frame of every animation, one row each, 2x

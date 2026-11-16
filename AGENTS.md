@@ -65,19 +65,19 @@ explains each.
 
 ```sh
 # Host tests: no ESPHome build needed
-uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
+uv run pytest tests
 tests/run_cpp.sh
 
 # Screen tests on the desktop build
 uv run demos/record.py --test
-uv run --with pytest --with pytest-xdist --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos -n auto
+uv run pytest demos
 
 # Record GIFs, accept new golden pictures
 uv run demos/record.py --personas "<Name>" --scenario highlight,emotions,activities
 uv run demos/record.py --update-golden --personas "<Name>" --scenario tour
 
 # Preview a pixel persona: every frame in sheet.png
-cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/p <name>
+uv run python -m daruma_pixel.personas /tmp/p <name>
 
 # Compile the example device
 uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml

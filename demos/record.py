@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["aioesphomeapi==46.30.0", "pillow>=10", "pyyaml>=6"]
-# ///
 """Record demo GIFs of every persona, or check the screens against golden pictures.
 
     uv run demos/record.py                     all personas, all scenarios

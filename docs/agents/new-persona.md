@@ -55,7 +55,7 @@ module fully before you write one.
    (or the names your reactions use) with the prop in place, and name them
    in the package's `during:`. Declare `PROPS = {"focus": [boxes]}`.
 4. **Preview and look.**
-   `cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/p <name>`
+   `uv run python -m daruma_pixel.personas /tmp/p <name>`
    writes `sheet.png`, every frame of every animation. Open it and look at
    every frame up close: limbs attached, nothing floating, the outline
    closed, the prop where it belongs, eyes readable at 1x. Fix and repeat.
@@ -65,7 +65,7 @@ module fully before you write one.
    persona's colors, and a `pet` sound in its voice. Write the header
    comment the way the others do: what it looks like and what it does.
 6. **Host tests.**
-   `uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests`
+   `uv run pytest tests`
    and `tests/run_cpp.sh`. The persona tests build every persona: layers,
    rug colors, props, patch frames.
 7. **Build and record.** Record the showcase on the desktop build and
@@ -84,7 +84,7 @@ module fully before you write one.
    `uv run demos/record.py --update-golden --personas "<Name>" --scenario tour`,
    then look at the new pictures in `tests/golden/<slug>/tour/`.
 9. **Full checks.** `uv run demos/record.py --test` and
-   `uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos`.
+   `uv run pytest demos`.
 10. **Size.** Compile `examples/box3.yaml` and compare the flash line with
     the build before. A pixel persona's frames take tens of KB, not
     hundreds.

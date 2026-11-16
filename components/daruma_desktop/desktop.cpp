@@ -10,6 +10,9 @@
 #include <vector>
 
 #include "esphome/components/daruma/synth.h"
+#ifdef USE_API
+#include "esphome/components/api/api_server.h"
+#endif
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
@@ -30,6 +33,14 @@ static const uint32_t STROKE_LEG_MS = 200;
 
 void Desktop::setup() {
   UiTree::enable(true);
+#ifdef USE_API
+  // A runner may start several programs from one build at once: each one
+  // listens on the port in DARUMA_API_PORT. This runs before the API
+  // server's setup, which opens the port.
+  const char *port = getenv("DARUMA_API_PORT");
+  if (port != nullptr && port[0] != '\0' && esphome::api::global_api_server != nullptr)
+    esphome::api::global_api_server->set_port(static_cast<uint16_t>(atoi(port)));
+#endif
   // Buttons start released. A sensor's first state is not reported as a
   // change, so without this the first scripted press would be lost.
   for (auto &b : this->buttons_)

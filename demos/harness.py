@@ -311,10 +311,14 @@ class Device:
         data: Any = None,
         golden: Path | None = None,
         update_golden: bool = False,
+        port: int | None = None,
     ):
         from demo_data import DemoData
 
         self.build = build
+        # The API port. The build's by default; another one lets several
+        # devices run from one build at once.
+        self.port = port or build.port
         self.workdir = Path(workdir)
         self.persona = persona
         self.seed = seed
@@ -361,11 +365,12 @@ class Device:
         prefs = self.workdir / "prefs"
         shutil.rmtree(prefs, ignore_errors=True)
         prefs.mkdir()
-        _wait_port_free(self.build.port)
+        _wait_port_free(self.port)
         self.clock = Clock(self.workdir / "clock", self.seed, self.epoch)
         env = dict(os.environ)
         env.update(
             DARUMA_CLOCK=str(self.clock.path),
+            DARUMA_API_PORT=str(self.port),
             ESPHOME_PREFDIR=str(prefs),
             ESPHOME_SNAPSHOT_DIR=str(self.workdir),
             TZ=self.timezone,
@@ -423,7 +428,7 @@ class Device:
 
         deadline = time.monotonic() + 20
         while True:
-            client = APIClient("127.0.0.1", self.build.port, None, client_info="daruma-harness",
+            client = APIClient("127.0.0.1", self.port, None, client_info="daruma-harness",
                                timezone=self.timezone)
             try:
                 await client.connect(login=True)

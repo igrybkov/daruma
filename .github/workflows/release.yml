@@ -1,0 +1,74 @@
+name: Release
+
+# Runs only when the owner pushes a version tag, for example v0.2.0.
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DARUMA_ESPHOME: esphome==2026.10.2
+  DARUMA_PYTHON: "3.14"
+
+jobs:
+  release:
+    name: Build and publish box3 firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Restore the PlatformIO cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.platformio
+          key: platformio-esp32-${{ env.DARUMA_ESPHOME }}
+      - name: Prepare the build
+        run: .github/scripts/prepare-build.sh
+      - name: Compile
+        working-directory: examples
+        run: |
+          set -o pipefail
+          uvx --python "$DARUMA_PYTHON" --from "$DARUMA_ESPHOME" esphome \
+            -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
+            compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+      - name: Collect the firmware
+        run: |
+          bin=examples/.esphome/build/daruma/.pioenvs/daruma
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp "$bin/firmware.factory.bin" "$RUNNER_TEMP/dist/daruma-box3-$GITHUB_REF_NAME.factory.bin"
+          cp "$bin/firmware.ota.bin" "$RUNNER_TEMP/dist/daruma-box3-$GITHUB_REF_NAME.ota.bin"
+          (cd "$RUNNER_TEMP/dist" && sha256sum -- *.bin > SHA256SUMS)
+          {
+            echo "### Firmware: examples/box3.yaml at $GITHUB_REF_NAME"
+            .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          The .bin files are a reference build of examples/box3.yaml. They hold
+          placeholder Wi-Fi keys and a random API key, so they can't join your
+          network. Don't flash them. Build your own from box3.yaml with your
+          secrets and `daruma_ref` set to this tag.
+          EOF
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes \
+            "$RUNNER_TEMP"/dist/*

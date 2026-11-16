@@ -1,7 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
   ],
   "ignorePaths": [
     "**/node_modules/**",
@@ -10,9 +11,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "ESPHome pins in scripts and docs (uvx --from esphome==..., DARUMA_ESPHOME)",
+      "description": "ESPHome pins in scripts, docs and workflows (uvx --from esphome==..., DARUMA_ESPHOME)",
       "managerFilePatterns": [
-        "/\\.(py|md|sh)$/"
+        "/\\.(py|md|sh)$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/"
       ],
       "matchStrings": [
         "esphome==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -37,7 +39,8 @@
       "customType": "regex",
       "description": "aioesphomeapi pins: uv run --with ..., and record.py's inline script metadata",
       "managerFilePatterns": [
-        "/\\.(py|md)$/"
+        "/\\.(py|md)$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/"
       ],
       "matchStrings": [
         "aioesphomeapi==(?<currentValue>\\d+\\.\\d+\\.\\d+)"

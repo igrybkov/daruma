@@ -126,6 +126,42 @@ uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml p
   `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
+## CI
+
+GitHub Actions runs [ci.yml](.github/workflows/ci.yml) on every pull
+request and on every push to main. A new push to a pull request cancels
+its old run.
+
+| Job | What it runs |
+|---|---|
+| Host tests (Python) | test 1 above |
+| Host tests (C++) | test 2 above |
+| Config | `esphome config` for each file in `examples/` |
+| Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
+| Screen tests (golden) | test 3 above, on Ubuntu with SDL2 |
+| Screen tests (pytest) | test 4 above, on Ubuntu with SDL2 |
+
+The examples fetch Daruma with git. In CI they fetch the checkout under
+test, not main. To do the same on your machine, commit first, then:
+
+```sh
+.github/scripts/prepare-build.sh
+uvx --from esphome==2026.10.2 esphome -s daruma_url "file://$PWD" \
+    -s daruma_ref ci-head compile examples/box3.yaml
+```
+
+The script writes `examples/secrets.yaml` with placeholder Wi-Fi keys
+and a random API key. It stops if that file exists already. It also
+points a local branch `ci-head` at your commit. Never flash this build.
+
+When a screen test fails, the job uploads its frames, diffs and logs as
+an artifact. Download it from the run's summary page.
+
+[release.yml](.github/workflows/release.yml) runs only when a `v*` tag
+is pushed. It compiles `examples/box3.yaml` and makes a GitHub release
+with the factory and OTA `.bin` files and generated notes. Those files
+are a reference build with placeholder secrets.
+
 ## Golden pictures and frames
 
 Golden pictures live in `tests/golden/<persona>/<scenario or test>/`.

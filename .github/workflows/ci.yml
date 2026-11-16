@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a pull request cancels its old run. Runs on main queue up,
+# so every commit on main gets a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # The ESPHome the builds and the harness use. Renovate keeps it in step
+  # with the docs and scripts.
+  DARUMA_ESPHOME: esphome==2026.10.2
+  DARUMA_PYTHON: "3.14"
+
+jobs:
+  host-python:
+    name: Host tests (Python)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: .github/workflows/ci.yml
+      - name: Run the host tests
+        run: uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
+
+  host-cpp:
+    name: Host tests (C++)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the C++ tests
+        run: tests/run_cpp.sh
+
+  config:
+    name: Config (${{ matrix.example }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [box3, variant_apps, variant_mono, variant_square, variant_wide, desktop]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: .github/workflows/ci.yml
+      - name: Prepare the build
+        run: .github/scripts/prepare-build.sh
+      # The examples fetch Daruma with git. Point them at this checkout.
+      - name: Check the config
+        working-directory: examples
+        run: >-
+          uvx --python "$DARUMA_PYTHON" --from "$DARUMA_ESPHOME" esphome
+          -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head
+          config ${{ matrix.example }}.yaml > /dev/null
+
+  compile:
+    name: Compile (box3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: .github/workflows/ci.yml
+      # Pull requests read the caches that main saves; only main writes them.
+      - name: Restore the PlatformIO cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.platformio
+          key: platformio-esp32-${{ env.DARUMA_ESPHOME }}
+      # Only the build folder: .esphome/packages holds ESPHome's git clones,
+      # and a restored clone would build old code.
+      - name: Restore the build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/build
+          key: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-${{ github.sha }}
+          restore-keys: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-
+      - name: Prepare the build
+        run: .github/scripts/prepare-build.sh
+      - name: Compile
+        working-directory: examples
+        run: |
+          set -o pipefail
+          uvx --python "$DARUMA_PYTHON" --from "$DARUMA_ESPHOME" esphome \
+            -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
+            compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+      - name: Report the flash size
+        run: |
+          {
+            echo "### Firmware: examples/box3.yaml"
+            .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
+          } >> "$GITHUB_STEP_SUMMARY"
+          ls -l examples/.esphome/build/daruma/.pioenvs/daruma/*.bin
+      - name: Save the PlatformIO cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.platformio
+          key: platformio-esp32-${{ env.DARUMA_ESPHOME }}
+      - name: Save the build cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/build
+          key: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-${{ github.sha }}
+
+  screens:
+    name: Screen tests (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [golden, pytest]
+    env:
+      DARUMA_WORK: ${{ github.workspace }}/.ci-work
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: .github/workflows/ci.yml
+      - name: Install SDL2 and ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
+      - name: Restore the PlatformIO cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.platformio
+          key: platformio-host-${{ env.DARUMA_ESPHOME }}
+      - name: Check the golden pictures
+        if: matrix.suite == 'golden'
+        run: uv run demos/record.py --test --out "$DARUMA_WORK"
+      - name: Run the screen tests
+        if: matrix.suite == 'pytest'
+        run: >-
+          uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml
+          pytest demos --basetemp="$DARUMA_WORK/pytest"
+      - name: Upload the frames of a failed run
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screens-${{ matrix.suite }}
+          path: |
+            ${{ env.DARUMA_WORK }}
+            !${{ env.DARUMA_WORK }}/build/src
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Save the PlatformIO cache
+        if: github.event_name == 'push' && matrix.suite == 'golden'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.platformio
+          key: platformio-host-${{ env.DARUMA_ESPHOME }}

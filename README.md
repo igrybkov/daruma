@@ -1,4 +1,5 @@
 # Daruma
+[![CI](https://github.com/igrybkov/daruma/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/igrybkov/daruma/actions/workflows/ci.yml)
 
 A small animated companion for your desk, built on
 [ESPHome](https://esphome.io) and [Home Assistant](https://www.home-assistant.io).

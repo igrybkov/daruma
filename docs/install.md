@@ -57,7 +57,8 @@ them in:
 - `wifi_fallback_password`: the password of the hotspot the device opens
   when it can't join your Wi-Fi.
 - `daruma_api_key`: 32 random bytes, base64. Make one with
-  `openssl rand -base64 32`. ESPHome rejects the all-zeros placeholder.
+  `openssl rand -base64 32`. Never keep the example's key: it is public,
+  for CI and desktop builds only.
 
 ## 3. Compile and flash
 

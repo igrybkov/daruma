@@ -335,7 +335,7 @@
     "functions": [
       {
         "name": "main",
-        "complexity": 49
+        "complexity": 22
       }
     ]
   },

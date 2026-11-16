@@ -70,7 +70,7 @@ tests/run_cpp.sh
 
 # Screen tests on the desktop build
 uv run demos/record.py --test
-uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos
+uv run --with pytest --with pytest-xdist --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos -n auto
 
 # Record GIFs, accept new golden pictures
 uv run demos/record.py --personas "<Name>" --scenario highlight,emotions,activities

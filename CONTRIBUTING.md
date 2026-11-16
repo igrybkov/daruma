@@ -127,14 +127,19 @@ tests/run_cpp.sh
 uv run demos/record.py --test
 
 # 4. Screen tests in Python on the desktop build
-uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos
+uv run --with pytest --with pytest-xdist --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos -n auto
 ```
 
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
   you work. Run the full set before you finish.
+- Both runners work in parallel: record.py runs up to 4 runs at a time
+  (`--jobs`), and pytest one worker per CPU (`-n auto`). Worker n listens
+  on the base port + n. Pass `--jobs 1`, or leave out `-n auto`, to run
+  one at a time.
 - If another run holds the default port or folder, pass
   `--port 6062 --out /tmp/mine` to record.py, or set
-  `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
+  `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest. Keep the next few
+  ports free for the workers.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
 ## Lint and format

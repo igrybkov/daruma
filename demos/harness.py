@@ -88,24 +88,30 @@ class Build:
 def _copy_sources(src: Path) -> None:
     """Copy the sources into `src`, fresh, but keep ESPHome's data folder.
 
-    examples/.esphome holds the compiled objects and the drawn persona art
+    examples/.esphome holds the compiled programs and the drawn persona art
     (see daruma_sprites). Drawing the art takes most of a cold build, and both
     caches check their own inputs, so a build that keeps them only redoes
     what changed. The copy keeps file times, so the compiler sees what changed.
+    The folder stays in place, so programs built before keep running.
     """
     src.mkdir(parents=True, exist_ok=True)
-    data = src / "examples" / ".esphome"
-    kept = src / ".esphome-kept"
-    shutil.rmtree(kept, ignore_errors=True)
-    if data.is_dir():
-        data.rename(kept)
     for name in SOURCES:
         target = src / name
         if target.is_dir():
-            shutil.rmtree(target)
-        shutil.copytree(REPO_DIR / name, target, ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
-    if kept.is_dir():
-        kept.rename(data)
+            _clear_but_esphome(target)
+        shutil.copytree(REPO_DIR / name, target, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
+
+
+def _clear_but_esphome(folder: Path) -> None:
+    """Delete everything in `folder` except its .esphome folder."""
+    for child in folder.iterdir():
+        if child.name == ".esphome":
+            continue
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
 
 def _persona_name(package: Path) -> str:
@@ -157,13 +163,16 @@ def build(
     subs = {"name": name, "desktop_api_port": str(port), "desktop_timezone": timezone, **VARIANTS[variant]}
     yaml_name = DEVICE_YAML
     private: set[str] = set()
-    if private_packages:
+    if name != "daruma-desktop":
+        # ESPHome keeps a record of the last build per config file, and
+        # cleans the build folder when the name in it differs. A config file
+        # per build name keeps each build's objects for the next build.
         lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
-        for i, pkg in enumerate(private_packages):
+        for i, pkg in enumerate(private_packages or []):
             pkg = Path(pkg).resolve()
             lines.append(f"  private_{i}: !include {pkg}")
             private.add(_persona_name(pkg))
-        yaml_name = "desktop-private.yaml"
+        yaml_name = f"{name}.yaml"
         (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
     cmd = ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"]
     for k, v in subs.items():

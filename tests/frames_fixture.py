@@ -1,7 +1,7 @@
 """Frame sets for test_frames.cpp: encoded by sprite_codec.py, with the
 pixels each frame must decode to.
 
-    uv run --with pillow python tests/frames_fixture.py OUT [--personas]
+    uv run python tests/frames_fixture.py OUT [--personas]
 
 Without --personas, only small made-up sets. With it, every pixel persona too
 (corgi, The Boss, Jack Russell, the tabby cat and the daruma's three eye states), in full
@@ -18,8 +18,8 @@ The file is plain text, one record per line:
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,13 +66,25 @@ def synthetic():
 
     sets = []
     # A dot that walks across a see-through field and back.
-    walk = [picture(20, 6, lambda x, y, i=i: (255, 0, 0, 255) if (x == i and y == 2) else (0, 0, 0, 0))
-            for i in range(12)]
+    walk = [
+        picture(20, 6, lambda x, y, i=i: (255, 0, 0, 255) if (x == i and y == 2) else (0, 0, 0, 0)) for i in range(12)
+    ]
     sets.append(("walk", walk, [list(range(12)), list(range(11, -1, -1))]))
     # A body that grows and shrinks over a background, with see-through edges.
-    blob = [picture(30, 30, lambda x, y, r=r: (40 + x // 3 * 18, 200 - y // 3 * 15, 90, 255)
-                    if (x - 15) ** 2 + (y - 15) ** 2 < r * r else (0, 0, 0, 0)) for r in (4, 7, 10, 13, 10, 7)]
+    blob = [
+        picture(
+            30,
+            30,
+            lambda x, y, r=r: (
+                (40 + x // 3 * 18, 200 - y // 3 * 15, 90, 255)
+                if (x - 15) ** 2 + (y - 15) ** 2 < r * r
+                else (0, 0, 0, 0)
+            ),
+        )
+        for r in (4, 7, 10, 13, 10, 7)
+    ]
     sets.append(("blob", blob, [[0, 1, 2, 3, 4, 5]]))
+
     # 250 colors, long rows (two-byte runs at 8 bits).
     def shade(v):
         return v // 32 * 8, v % 32 * 8, 0, 255  # 250 values, all different at RGB565.
@@ -82,24 +94,34 @@ def synthetic():
     return sets
 
 
-def personas_sets():
+def persona_builds() -> list[tuple[str, object]]:
+    """(label, build) for every pixel persona; build() returns its personas."""
     sys.path.insert(0, str(_ROOT / "pixel"))
     from daruma_pixel import daruma_persona, personas
 
-    out = []
-    for label, build in (("corgi", lambda: [personas.build("corgi")]),
-                         ("the_boss", lambda: [personas.build("the_boss")]),
-                         ("jack_russell", lambda: [personas.build("jack_russell")]),
-                         ("tabby_cat", lambda: [personas.build("tabby_cat")]),
-                         ("daruma", lambda: [daruma_persona.build(n) for n in (0, 1, 2)])):
-        try:
-            built = build()
-        except ImportError as err:  # A persona whose art lives elsewhere.
-            print(f"frames_fixture: {label} skipped ({err})")
-            continue
-        images, sequences = persona_pictures(built)
-        out.append((label, images, sequences))
-    return out
+    return [
+        ("corgi", lambda: [personas.build("corgi")]),
+        ("the_boss", lambda: [personas.build("the_boss")]),
+        ("jack_russell", lambda: [personas.build("jack_russell")]),
+        ("tabby_cat", lambda: [personas.build("tabby_cat")]),
+        ("daruma", lambda: [daruma_persona.build(n) for n in (0, 1, 2)]),
+    ]
+
+
+def persona_set(label: str, build):
+    """The frame set of one persona, or None when its art lives elsewhere."""
+    try:
+        built = build()
+    except ImportError as err:
+        print(f"frames_fixture: {label} skipped ({err})")
+        return None
+    images, sequences = persona_pictures(built)
+    return (label, images, sequences)
+
+
+def personas_sets():
+    sets = (persona_set(label, build) for label, build in persona_builds())
+    return [s for s in sets if s is not None]
 
 
 def write(path: Path, sets, modes=("full",)) -> None:
@@ -109,8 +131,27 @@ def write(path: Path, sets, modes=("full",)) -> None:
             fs = codec.encode_set(images, sequences, mode, label)
             lines.append(f"set {label}:{mode} {fs.width} {fs.height} {len(fs.frames)}")
             for f in fs.frames:
-                lines.append(" ".join(map(str, ["frame", f.base, f.x, f.y, f.w, f.h, f.bits, f.clear,
-                                                 len(f.palette), len(f.data), *f.palette, *f.data])))
+                lines.append(
+                    " ".join(
+                        map(
+                            str,
+                            [
+                                "frame",
+                                f.base,
+                                f.x,
+                                f.y,
+                                f.w,
+                                f.h,
+                                f.bits,
+                                f.clear,
+                                len(f.palette),
+                                len(f.data),
+                                *f.palette,
+                                *f.data,
+                            ],
+                        )
+                    )
+                )
             expected: dict[int, list[int]] = {}
             for i, img in enumerate(images):
                 expected.setdefault(fs.index[i], codec.screen_pixels(img, mode))

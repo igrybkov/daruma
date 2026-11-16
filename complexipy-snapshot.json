@@ -410,15 +410,5 @@
         "complexity": 17
       }
     ]
-  },
-  {
-    "path": "tests/test_props.py",
-    "file_name": "test_props.py",
-    "functions": [
-      {
-        "name": "Props::test_reactions_keep_the_activity_props",
-        "complexity": 47
-      }
-    ]
   }
 ]

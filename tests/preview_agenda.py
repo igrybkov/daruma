@@ -2,7 +2,7 @@
 math and the same row sizes as agenda_view.cpp.
 
     c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
-    uv run --with pillow python -I tests/preview_agenda.py /tmp/test_layout OUT_DIR FONT_DIR
+    uv run python -I tests/preview_agenda.py /tmp/test_layout OUT_DIR FONT_DIR
 
 FONT_DIR holds Manrope[wght].ttf and mdi.ttf. Writes OUT_DIR/agenda_<theme>_<size>.png
 for the wood and outline themes at 320x240 and 480x272: the agenda from the

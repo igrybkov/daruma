@@ -1,6 +1,6 @@
 """Host test: an activity's props stay in the picture while a reaction plays.
 
-    uv run --with pillow --with pyyaml python -m unittest discover -s tests -p test_props.py
+    uv run pytest tests/test_props.py
 
 A reaction (petted, startled, ...) shows over the activity under it, which
 stays on. The daruma's incense belongs to focus, so a reaction during a
@@ -23,10 +23,11 @@ DARUMA_SKIP_PERSONAS=1 to skip it, as test_frames.py does.
 
 import importlib.util
 import os
-from pathlib import Path
 import re
 import sys
 import unittest
+from dataclasses import dataclass
+from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
@@ -35,8 +36,8 @@ _LIBRARY = _ROOT / "pixel"
 sys.path.insert(0, str(_LIBRARY))
 
 try:
-    from PIL import Image  # noqa: F401
     import yaml
+    from PIL import Image  # noqa: F401
 except ImportError:  # pragma: no cover
     yaml = None
 
@@ -113,61 +114,122 @@ def prop_pixels(persona, anim: str, box) -> dict:
     return out
 
 
+def _stage_names(conf: dict) -> list:
+    """The persona's name, then its goal stages' ("started", "done"), None where unset."""
+    return [conf["pixel_art"]["persona"]] + [conf["pixel_art"].get("goal", {}).get(k) for k in GOAL_KEYS]
+
+
+def _props(conf: dict):
+    """(PROPS of a persona's layers module, the persona if it had to be drawn).
+
+    Most scripts register their personas on import, so the PROPS come
+    without drawing. One that registers as it builds is drawn here, once.
+    """
+    script = _script(conf)
+    from daruma_pixel import personas  # The script registers its personas with it.
+
+    name = _stage_names(conf)[0]
+    drawn = None if name in personas.PERSONAS else script.build(name)
+    return getattr(personas._persona(name)[1], "PROPS", None), drawn
+
+
 class Props(unittest.TestCase):
+    """One test per pixel persona, so pytest-xdist can spread them."""
+
     @unittest.skipIf(yaml is None, "needs Pillow and PyYAML")
-    @unittest.skipIf(os.environ.get("DARUMA_SKIP_PERSONAS"), "DARUMA_SKIP_PERSONAS is set")
-    def test_reactions_keep_the_activity_props(self):
+    def test_some_persona_declares_props(self):
+        for _, conf in pixel_personas():
+            _script(conf)
+        from daruma_pixel import personas
+
+        layers = [personas._persona(name)[1] for name in personas.PERSONAS]
+        self.assertTrue(any(getattr(m, "PROPS", None) for m in layers), "no persona declares PROPS")
+
+    def check(self, file: str, conf: dict):
+        props, drawn = _props(conf)
+        if not props:
+            self.skipTest(f"{file} declares no PROPS")
         states = registry.collect_states([registry.ModuleSpec("pomodoro", states=module_states())])
         names = [s.name for s in states]
         reactions = [s.name for s in states if s.kind == registry.REACTION and s.module == "core"]
-        checked = 0
-        for file, conf in pixel_personas():
-            script = _script(conf)
-            from daruma_pixel import personas  # The script registers its personas with it.
+        script = _script(conf)
+        stage_names = _stage_names(conf)
+        built = [drawn if i == 0 and drawn else script.build(n) if n else None for i, n in enumerate(stage_names)]
+        anims = _animation_names(built)
+        char = registry.Persona(
+            file,
+            anims,
+            behaviors={k: dict(v) for k, v in (conf.get("behaviors") or {}).items()},
+            during={k: dict(v) for k, v in (conf.get("during") or {}).items()},
+        )
+        behaviors, _ = registry.resolve_persona(char, states)
+        swaps = registry.resolve_during(char, states)
+        for activity, boxes in props.items():
+            act = names.index(activity)
+            own = anims[behaviors[act].animation]
+            for reaction in reactions:
+                shown = behaviors[names.index(reaction)].animation
+                usual = anims[shown]
+                shown = next((d.instead for d in swaps if d.activity == act and d.shown == shown), shown)
+                case = _Case(file, activity, reaction, own, anims[shown], usual)
+                for stage, persona in zip(stage_names, built, strict=True):
+                    self.check_stage(case, stage, persona, boxes)
 
-            stage_names = [conf["pixel_art"]["persona"]] + [conf["pixel_art"].get("goal", {}).get(k) for k in GOAL_KEYS]
-            built = [script.build(n) if n else None for n in stage_names]
-            layers = personas._persona(stage_names[0])[1]
-            props = getattr(layers, "PROPS", None)
-            if not props:
-                continue
-            anims = []
-            for persona in built:
-                for name in persona.animations if persona else ():
-                    if name not in anims:
-                        anims.append(name)
-            char = registry.Persona(
-                file, anims,
-                behaviors={k: dict(v) for k, v in (conf.get("behaviors") or {}).items()},
-                during={k: dict(v) for k, v in (conf.get("during") or {}).items()})
-            behaviors, _ = registry.resolve_persona(char, states)
-            swaps = registry.resolve_during(char, states)
-            for activity, boxes in props.items():
-                act = names.index(activity)
-                own = anims[behaviors[act].animation]
-                for reaction in reactions:
-                    shown = behaviors[names.index(reaction)].animation
-                    usual = anims[shown]
-                    shown = next((d.instead for d in swaps if d.activity == act and d.shown == shown), shown)
-                    played = anims[shown]
-                    for stage, persona in zip(stage_names, built):
-                        if persona is None or played not in persona.animations or own not in persona.animations:
-                            continue
-                        for box in boxes:
-                            want = prop_pixels(persona, own, box)
-                            self.assertTrue(want, f"{file} {stage}: no prop pixels in {box} of {own}")
-                            for i, (img, _) in enumerate(persona.animations[played].frames):
-                                img = img.convert("RGBA")
-                                kept = sum(1 for xy, v in want.items() if img.getpixel(xy) == v)
-                                with self.subTest(persona=stage, activity=activity, reaction=reaction, frame=i):
-                                    self.assertGreaterEqual(
-                                        kept / len(want), KEEP,
-                                        f"{file} {stage}: {reaction} during {activity} plays {played}; frame {i} "
-                                        f"keeps {kept} of {len(want)} prop pixels in {box}. Give the persona a "
-                                        f"`during: {{{activity}: {{{usual}: ...}}}}` "
-                                        "animation with the props")
-                            checked += 1
-        self.assertGreater(checked, 0, "no persona declares PROPS")
+    def check_stage(self, case: "_Case", stage: str, persona, boxes) -> None:
+        """The reaction's animation keeps the prop pixels of every box, in every frame."""
+        if persona is None or case.played not in persona.animations or case.own not in persona.animations:
+            return
+        for box in boxes:
+            want = prop_pixels(persona, case.own, box)
+            self.assertTrue(want, f"{case.file} {stage}: no prop pixels in {box} of {case.own}")
+            for i, (img, _) in enumerate(persona.animations[case.played].frames):
+                img = img.convert("RGBA")
+                kept = sum(1 for xy, v in want.items() if img.getpixel(xy) == v)
+                with self.subTest(persona=stage, activity=case.activity, reaction=case.reaction, frame=i):
+                    self.assertGreaterEqual(
+                        kept / len(want),
+                        KEEP,
+                        f"{case.file} {stage}: {case.reaction} during {case.activity} plays {case.played}; "
+                        f"frame {i} keeps {kept} of {len(want)} prop pixels in {box}. Give the persona a "
+                        f"`during: {{{case.activity}: {{{case.usual}: ...}}}}` "
+                        "animation with the props",
+                    )
+
+
+@dataclass
+class _Case:
+    """A reaction over an activity: the animations it involves."""
+
+    file: str
+    activity: str
+    reaction: str
+    own: str  # The activity's own animation.
+    played: str  # What plays over it.
+    usual: str  # What the reaction plays without `during:`.
+
+
+def _animation_names(built: list) -> list[str]:
+    """Every animation name of the stages' personas, in first-seen order."""
+    anims = []
+    for persona in built:
+        for name in persona.animations if persona else ():
+            if name not in anims:
+                anims.append(name)
+    return anims
+
+
+def _props_test(file: str, conf: dict):
+    @unittest.skipIf(os.environ.get("DARUMA_SKIP_PERSONAS"), "DARUMA_SKIP_PERSONAS is set")
+    def test(self):
+        self.check(file, conf)
+
+    return test
+
+
+if yaml is not None:
+    for _file, _conf in pixel_personas():
+        _name = Path(_file).stem.removeprefix("persona_")
+        setattr(Props, f"test_reactions_keep_the_activity_props_{_name}", _props_test(_file, _conf))
 
 
 if __name__ == "__main__":

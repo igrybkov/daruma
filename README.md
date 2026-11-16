@@ -74,7 +74,8 @@ tap them. Pick per-persona options in Home Assistant.
 **Test it on your computer.** A desktop build runs Daruma in a window. A
 fake clock makes every run draw the same frames, so golden pictures and a
 pytest harness check the screens, and a 25-minute focus block takes a
-second. The GIFs above come from it. See [docs/testing.md](docs/testing.md).
+second. The GIFs above come from it. `make desktop` opens the window,
+and `make` lists every other task. See [docs/testing.md](docs/testing.md).
 
 ## Install
 

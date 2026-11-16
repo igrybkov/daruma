@@ -24,10 +24,15 @@ On Debian or Ubuntu, install uv, then:
 sudo apt-get install build-essential libsdl2-dev ffmpeg
 ```
 
-You don't install ESPHome by hand. `uv sync` installs the test and lint
-tools from `uv.lock` into `.venv`. The screen tests run ESPHome from its
-own locked environment, `.venv-esphome`, which they sync themselves: the
-version lives in `pyproject.toml` (the `esphome` dependency group).
+You don't install ESPHome by hand. `make setup` installs the test and
+lint tools from `uv.lock` into `.venv`, and ESPHome into its own locked
+environment, `.venv-esphome`. The version lives in `pyproject.toml` (the
+`esphome` dependency group). The screen tests sync `.venv-esphome`
+themselves, so you can skip this step too.
+
+Every task has a make goal. `make` alone lists them, with their
+variables. Each goal runs a short command or two; `make -n <goal>`
+prints them, for a machine without make. macOS's own make works.
 `.python-version` pins the Python the tests and builds use (3.14). The
 floor is 3.12 (`requires-python`), as ESPHome's.
 
@@ -125,29 +130,28 @@ Run all four before you open a pull request. Run them from the
 repository root. [docs/testing.md](docs/testing.md) explains each.
 
 ```sh
-# 1. Host tests in Python: registry, build checks, pixel art, layout (minutes)
-uv run pytest tests
-
-# 2. Host tests in C++: gestures, layout, prompts, pomodoro rules, agenda, weather
-tests/run_cpp.sh
-
-# 3. Golden pictures on the desktop build
-uv run demos/record.py --test
-
-# 4. Screen tests in Python on the desktop build
-uv run pytest demos
+make test-py        # 1. Host tests in Python: registry, build checks, pixel art, layout (minutes)
+make test-cpp       # 2. Host tests in C++: gestures, layout, prompts, pomodoro rules, agenda, weather
+make golden         # 3. Golden pictures on the desktop build
+make test-screens   # 4. Screen tests in Python on the desktop build
 ```
+
+`make test` runs 1 and 2. `make screens` runs 3 and 4. `make check`
+runs everything CI blocks on: the four tests, complexity, clang-tidy,
+the config of every example and the box3 compile.
 
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
   you work. Run the full set before you finish.
-- Both runners work in parallel: record.py runs up to 4 runs at a time
-  (`--jobs`), and pytest one worker per CPU (`-n auto`, set in
-  pyproject.toml). Pass `--jobs 1` or `-n 0` to run one at a time.
+- Both runners work in parallel: record.py runs up to 4 runs at a time,
+  and pytest one worker per CPU (`-n auto`, set in pyproject.toml).
+  Pass `JOBS=1` or `PYTEST_ARGS="-n 0"` to run one at a time.
+- `PERSONA=` and `SCENARIO=` narrow the golden check:
+  `make golden PERSONA=Eyes SCENARIO=tour`.
 - Every device listens on a free API port, so runs never clash on ports.
-  If another run uses the same scratch folder, pass `--out /tmp/mine` to
-  record.py, or set `DARUMA_WORK=/tmp/mine` for pytest.
+  If another run uses the same scratch folder, pass
+  `DARUMA_WORK=/tmp/mine` to make. Both runners use it.
 - Steps 3 and 4 give the same pictures on macOS and Linux.
-  `tests/in_docker.sh` runs them in Ubuntu 24.04, as CI does.
+  `make docker-test` runs them in Ubuntu 24.04, as CI does.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
 ## Lint and format
@@ -162,24 +166,16 @@ same hooks.
 | clang-format | C and C++ format, in ESPHome's style | `.clang-format` |
 | complexipy | Python cognitive complexity, at most 15 per function | `pyproject.toml`, `complexipy-snapshot.json` |
 | lizard | C and C++ cyclomatic complexity, at most 15 per function | `whitelizard.txt` |
-| clang-tidy | C++ bugs and slow code, in CI only | `.clang-tidy` |
+| clang-tidy | C++ bugs and slow code, not in the hooks | `.clang-tidy` |
 
-Before you commit, run `ruff check --fix` and `ruff format`, or let the
-hook do it. To run every hook on every file:
-
-```sh
-uvx pre-commit run --all-files
-```
-
-clang-tidy needs a compile database. It reads the host tests and the
-component headers they include:
+To run them on every file:
 
 ```sh
-tests/compile_db.sh
-uvx --from clang-tidy==23.1.4 clang-tidy -p build/clang-tidy tests/test_*.cpp
+make format       # ruff and clang-format; they fix files in place
+make complexity   # complexipy and lizard
+make lint         # both: every hook, as on a commit
+make tidy         # clang-tidy on the host tests and the headers they include
 ```
-
-On macOS, add `--extra-arg=-isysroot --extra-arg="$(xcrun --show-sdk-path)"`.
 
 Keep new functions under the complexity limits. Split a function that
 grows past them. Don't add it to the baseline:
@@ -209,18 +205,23 @@ checks the pull request title and every commit message in it.
 | Lint | complexipy and lizard; ruff and clang-format don't block yet |
 | clang-tidy | the host tests and the headers they include |
 
+Each CI step runs a make goal, so you can run the same step on your
+machine.
+
 The examples fetch Daruma with git. In CI they fetch the checkout under
 test, not main. To do the same on your machine, commit first, then:
 
 ```sh
-.github/scripts/prepare-build.sh
-uvx --from esphome==2026.10.2 esphome -s daruma_url "file://$PWD" \
-    -s daruma_ref ci-head compile examples/box3.yaml
+make config                 # every example; or EXAMPLE=box3
+make compile                # examples/box3.yaml
 ```
 
-The script writes `examples/secrets.yaml` with placeholder Wi-Fi keys
-and a random API key. It stops if that file exists already. It also
-points a local branch `ci-head` at your commit. Never flash this build.
+Both point a local branch `ci-head` at your commit (`BUILD_REF=` picks
+another name) and build from it. An uncommitted change is not in the
+build. Both need `examples/secrets.yaml`. `make secrets` writes it from
+`secrets.example.yaml` with a random API key, and never overwrites it.
+CI copies the example file as it is: its fixed key lets the compiler
+cache reuse `main.cpp`. Never flash a build with these secrets.
 
 When a screen test fails, the job uploads its frames, diffs and logs as
 an artifact, with expected, actual and diff side by side. Download it
@@ -258,8 +259,10 @@ run.
 If the change is on purpose, accept the new pictures:
 
 ```sh
-uv run demos/record.py --update-golden --personas "<Name>" --scenario tour
+make update-golden CONFIRM=1 PERSONA="<Name>" SCENARIO=tour
 ```
+
+Without `CONFIRM=1` it refuses, so a typo can't rewrite every picture.
 
 Then look at every new picture. A passing test only says the picture
 is the same as before. It can't say the picture looks right.
@@ -340,7 +343,7 @@ for a reader who is tired and wants the next step.
 
 ## Pull request checklist
 
-- [ ] The four test commands pass.
+- [ ] The four tests pass (`make test screens`).
 - [ ] I looked at every changed picture and frame up close.
 - [ ] New states have a fallback and a showcase step.
 - [ ] New options have defaults, and docs/customize.md lists them.

@@ -84,8 +84,7 @@ esphome:
               - script.execute: draw_display
     - priority: -100
       then:
-        - script.execute: blink_animation
-        - script.execute: look_animation
+        - script.execute: idle_motion
 
 external_components:
   - source:
@@ -550,6 +549,22 @@ globals:
     type: int
     restore_value: false
     initial_value: ${voice_assist_not_ready_phase_id}
+  # When the idle_motion script next glances, blinks, and blinks again (the
+  # second blink of a double blink, while second_blink_due is set). In
+  # millis().
+  - id: next_look_ms
+    type: uint32_t
+    restore_value: false
+  - id: next_blink_ms
+    type: uint32_t
+    restore_value: false
+  - id: second_blink_ms
+    type: uint32_t
+    restore_value: false
+  - id: second_blink_due
+    type: bool
+    restore_value: false
+    initial_value: "false"
 
 # Frames come from the hub's scheduler (daruma: display_profile:
 # min_frame), not from a polling loop: it draws when something changed, the
@@ -589,43 +604,70 @@ script:
 
   # --- Persona animation timing (what each persona does with it is up to the persona)
 
-  - id: blink_animation
+  # Glances and blinks, each every 3 to 5 s. About one blink in twenty is a
+  # wink, and one in ten is a double blink. One loop drives them all, not a
+  # timer each: it draws its random numbers in a fixed order. Two timers due
+  # at the same moment run in an order that depends on the C++ library, so
+  # the same seed would glance and blink differently on another system.
+  - id: idle_motion
     mode: single
     then:
       - delay: 1s
+      - lambda: |-
+          const uint32_t now = millis();
+          id(next_look_ms) = now + (random_uint32() % 2001) + 3000;
+          id(next_blink_ms) = now + (random_uint32() % 2001) + 3000;
       - while:
           condition:
             lambda: return true;
           then:
-            - delay: !lambda return (random_uint32() % 2001) + 3000;
+            # Until the next motion is due.
+            - delay: !lambda |-
+                uint32_t next = id(next_look_ms);
+                if ((int32_t) (id(next_blink_ms) - next) < 0)
+                  next = id(next_blink_ms);
+                if (id(second_blink_due) && (int32_t) (id(second_blink_ms) - next) < 0)
+                  next = id(second_blink_ms);
+                const int32_t wait = (int32_t) (next - millis());
+                return wait > 0 ? (uint32_t) wait : 0;
+            # Every motion that is due, the earliest first. On a tie: the
+            # glance, then the blink, then the second blink.
             - lambda: |-
-                const uint32_t roll = random_uint32() % 100;
-                if (roll < 5) {
-                  id(daruma_hub).wink();
-                } else {
-                  id(daruma_hub).blink();
+                const uint32_t now = millis();
+                for (;;) {
+                  int which = -1;
+                  uint32_t at = 0;
+                  auto consider = [&](int motion, bool armed, uint32_t when) {
+                    if (armed && (int32_t) (now - when) >= 0 && (which < 0 || (int32_t) (when - at) < 0)) {
+                      which = motion;
+                      at = when;
+                    }
+                  };
+                  consider(0, true, id(next_look_ms));
+                  consider(1, true, id(next_blink_ms));
+                  consider(2, id(second_blink_due), id(second_blink_ms));
+                  if (which == 0) {
+                    id(daruma_hub).look_around();
+                    id(next_look_ms) = now + (random_uint32() % 2001) + 3000;
+                  } else if (which == 1) {
+                    const uint32_t roll = random_uint32() % 100;
+                    if (roll < 5) {
+                      id(daruma_hub).wink();
+                    } else {
+                      id(daruma_hub).blink();
+                    }
+                    if (roll >= 5 && roll < 15) {
+                      id(second_blink_ms) = now + 250;
+                      id(second_blink_due) = true;
+                    }
+                    id(next_blink_ms) = now + (random_uint32() % 2001) + 3000;
+                  } else if (which == 2) {
+                    id(second_blink_due) = false;
+                    id(daruma_hub).blink();
+                  } else {
+                    break;
+                  }
                 }
-                // About one blink in ten is a double blink.
-                if (roll >= 5 && roll < 15) {
-                  id(double_blink).execute();
-                }
-
-  - id: double_blink
-    mode: single
-    then:
-      - delay: 250ms
-      - lambda: id(daruma_hub).blink();
-
-  - id: look_animation
-    mode: single
-    then:
-      - delay: 1s
-      - while:
-          condition:
-            lambda: return true;
-          then:
-            - delay: !lambda return (random_uint32() % 2001) + 3000;
-            - lambda: id(daruma_hub).look_around();
 
   # --- Reactions --------------------------------------------------------------
 

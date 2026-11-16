@@ -205,9 +205,6 @@ checks the pull request title and every commit message in it.
 | Lint | complexipy and lizard; ruff and clang-format don't block yet |
 | clang-tidy | the host tests and the headers they include |
 
-Each CI step runs a make goal, so you can run the same step on your
-machine.
-
 The examples fetch Daruma with git. In CI they fetch the checkout under
 test, not main. To do the same on your machine, commit first, then:
 
@@ -220,9 +217,9 @@ Both point a local branch `ci-head` at your commit (`BUILD_REF=` picks
 another name) and build from it. An uncommitted change is not in the
 build. Both need `examples/secrets.yaml`. They write it with
 `make secrets`: placeholder Wi-Fi keys from `secrets.example.yaml` and a
-random API key. It never overwrites the file. CI runs `make secrets-ci`
-instead, which copies `secrets.ci.yaml`: its fixed public key lets the
-compiler cache reuse `main.cpp`. Never flash a build with either.
+random API key. It never overwrites the file. CI copies
+`secrets.ci.yaml` instead: its fixed public key lets the compiler cache
+reuse `main.cpp`. Never flash a build with either.
 
 When a screen test fails, the job uploads its frames, diffs and logs as
 an artifact, with expected, actual and diff side by side. Download it

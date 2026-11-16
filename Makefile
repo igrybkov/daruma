@@ -1,4 +1,4 @@
-# Every task for working on Daruma, for people and for CI.
+# Every task for working on Daruma, in one place.
 #
 #   make            this help
 #   make test       host tests in Python and C++
@@ -34,8 +34,7 @@ DARUMA_PYTHON ?= $(shell cat .python-version)
 # The ESPHome API port of `make desktop`.
 DARUMA_PORT ?=
 
-# uv run syncs .venv first. CI sets UV_NO_SYNC=1, as each job syncs only
-# the groups it needs.
+# uv run syncs .venv first; UV_NO_SYNC=1 skips that.
 UV_RUN := uv run
 ESPHOME_ENV := .venv-esphome
 ESPHOME := $(CURDIR)/$(ESPHOME_ENV)/bin/esphome
@@ -71,7 +70,7 @@ define run_hooks
 	exit $$status
 endef
 
-.PHONY: help setup esphome-env esphome-version secrets secrets-ci config compile desktop \
+.PHONY: help setup esphome-env esphome-version secrets config compile desktop \
 	test test-py test-cpp screens golden test-screens update-golden gifs \
 	lint format complexity tidy docker-test check clean
 
@@ -119,15 +118,6 @@ examples/secrets.yaml:
 	  sed "s|^daruma_api_key:.*|daruma_api_key: \"$$key\"|" examples/secrets.example.yaml > $@.tmp && \
 	  mv $@.tmp $@
 	@echo "Wrote examples/secrets.yaml: placeholder Wi-Fi, a random API key."
-
-# The fixed public secrets of examples/secrets.ci.yaml. It refuses to
-# replace a secrets.yaml with other content.
-secrets-ci: ## CI only: copy examples/secrets.ci.yaml to examples/secrets.yaml
-	@if [ -e examples/secrets.yaml ] && ! cmp -s examples/secrets.ci.yaml examples/secrets.yaml; then \
-	  echo "examples/secrets.yaml exists and differs from secrets.ci.yaml. Move it away first." >&2; \
-	  exit 1; \
-	fi
-	cp examples/secrets.ci.yaml examples/secrets.yaml
 
 # --- ESPHome builds ------------------------------------------------------
 

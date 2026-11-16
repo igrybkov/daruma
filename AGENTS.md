@@ -68,9 +68,10 @@ explains each.
 uv run pytest tests
 tests/run_cpp.sh
 
-# Screen tests on the desktop build
+# Screen tests on the desktop build (same pictures on macOS and Linux)
 uv run demos/record.py --test
 uv run pytest demos
+tests/in_docker.sh        # both, in Ubuntu 24.04 as CI runs them
 
 # Record GIFs, accept new golden pictures
 uv run demos/record.py --personas "<Name>" --scenario highlight,emotions,activities

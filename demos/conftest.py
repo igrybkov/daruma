@@ -117,9 +117,16 @@ def device(request, device_builds, tmp_path):
     # A time zone builds the desktop program for it (the board's clock), and
     # "HA" sends it with the time.
     timezone = clock_args.setdefault("timezone", "UTC")
-    b = Device(device_builds(timezone), tmp_path, persona=persona, **clock_args, window=request.config.getoption("--window"),
-              golden=GOLDEN_DIR / slug(persona) / request.node.name,
-              update_golden=request.config.getoption("--update-golden"), port=_worker_port())
+    b = Device(
+        device_builds(timezone),
+        tmp_path,
+        persona=persona,
+        **clock_args,
+        window=request.config.getoption("--window"),
+        golden=GOLDEN_DIR / slug(persona) / request.node.name,
+        update_golden=request.config.getoption("--update-golden"),
+        port=_worker_port(),
+    )
     b.start()
     b.record_start(tmp_path / "frames")
     try:

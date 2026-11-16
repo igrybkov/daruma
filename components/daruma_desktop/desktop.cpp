@@ -252,8 +252,8 @@ void Desktop::sound(Hub *hub, const std::string &name) {
     return;
   }
   // The host is little-endian, like WAV.
-  const bool ok = fwrite(header, 1, sizeof(header), f) == sizeof(header) &&
-                  fwrite(pcm.data(), 2, pcm.size(), f) == pcm.size();
+  const bool ok =
+      fwrite(header, 1, sizeof(header), f) == sizeof(header) && fwrite(pcm.data(), 2, pcm.size(), f) == pcm.size();
   fclose(f);
   if (ok)
     this->sounds_++;

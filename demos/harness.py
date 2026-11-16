@@ -99,8 +99,9 @@ def _copy_sources(src: Path) -> None:
         target = src / name
         if target.is_dir():
             _clear_but_esphome(target)
-        shutil.copytree(REPO_DIR / name, target, dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
+        shutil.copytree(
+            REPO_DIR / name, target, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", ".esphome")
+        )
 
 
 def _clear_but_esphome(folder: Path) -> None:
@@ -192,9 +193,14 @@ def build(
 VARIANTS: dict[str, dict[str, str]] = {
     "standard": {},
     "wide": {
-        "desktop_width": "480", "desktop_height": "272",
-        "font_size_text": "19", "font_size_small": "15", "font_size_badge": "19",
-        "font_size_icon": "34", "font_size_timer": "25", "font_size_title": "23",
+        "desktop_width": "480",
+        "desktop_height": "272",
+        "font_size_text": "19",
+        "font_size_small": "15",
+        "font_size_badge": "19",
+        "font_size_icon": "34",
+        "font_size_timer": "25",
+        "font_size_title": "23",
     },
     "square": {"desktop_width": "240", "desktop_height": "240"},
 }
@@ -437,8 +443,7 @@ class Device:
 
         deadline = time.monotonic() + 20
         while True:
-            client = APIClient("127.0.0.1", self.port, None, client_info="daruma-harness",
-                               timezone=self.timezone)
+            client = APIClient("127.0.0.1", self.port, None, client_info="daruma-harness", timezone=self.timezone)
             try:
                 await client.connect(login=True)
                 break
@@ -480,7 +485,8 @@ class Device:
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
             self._client.send_homeassistant_action_response(
-                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body)
+                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body
+            )
             self._answers += 1
 
     # --- time ------------------------------------------------------------------
@@ -582,8 +588,9 @@ class Device:
         return Locator(self, f"text~={text!r}", lambda n: text.lower() in n.name.lower())
 
     def get_by_role(self, role: str, name: str | None = None) -> Locator:
-        return Locator(self, f"role={role} name={name!r}",
-                       lambda n: n.role == role and (name is None or n.name == name))
+        return Locator(
+            self, f"role={role} name={name!r}", lambda n: n.role == role and (name is None or n.name == name)
+        )
 
     # --- input -------------------------------------------------------------------
 
@@ -686,13 +693,35 @@ class Device:
     def show_message(self, text: str, seconds: int = 5) -> None:
         self.action("show_message", message=text, seconds=seconds)
 
-    def show_prompt(self, id: str, title: str = "", body: str = "", options: list[str] | None = None,
-                    layout: str = "message", style: str = "info", timeout: int = 0, state: str = "",
-                    sound: str = "", marks: list[str] | None = None, dismissable: bool = True) -> None:
+    def show_prompt(
+        self,
+        id: str,
+        title: str = "",
+        body: str = "",
+        options: list[str] | None = None,
+        layout: str = "message",
+        style: str = "info",
+        timeout: int = 0,
+        state: str = "",
+        sound: str = "",
+        marks: list[str] | None = None,
+        dismissable: bool = True,
+    ) -> None:
         """prompt_show with HA's "empty means default" values filled in."""
-        self.action("prompt_show", id=id, layout=layout, title=title, body=body, options=options or [],
-                    marks=marks or [], style=style, timeout=timeout, state=state, sound=sound,
-                    dismissable=dismissable)
+        self.action(
+            "prompt_show",
+            id=id,
+            layout=layout,
+            title=title,
+            body=body,
+            options=options or [],
+            marks=marks or [],
+            style=style,
+            timeout=timeout,
+            state=state,
+            sound=sound,
+            dismissable=dismissable,
+        )
 
     def update_prompt(self, id: str, body: str = "", marks: list[str] | None = None, countdown: int = -1) -> None:
         self.action("prompt_update", id=id, body=body, marks=marks or [], countdown=countdown)
@@ -838,8 +867,9 @@ class DeviceAssertions:
         if not self.device.wait_until(ok, timeout):
             raise AssertionError(f"{name} is {self.device.entity_state(name)!r}, not {value!r}")
 
-    def to_match_screenshot(self, name: str, *, mask: list[tuple[int, int, int, int]] = (),
-                            tolerance: int = 0, max_diff_pixels: int = 0) -> None:
+    def to_match_screenshot(
+        self, name: str, *, mask: list[tuple[int, int, int, int]] = (), tolerance: int = 0, max_diff_pixels: int = 0
+    ) -> None:
         """Compare the screen with the golden PNG `name`.
 
         A pixel differs when a channel is off by more than `tolerance`; the
@@ -865,7 +895,9 @@ class DeviceAssertions:
         if not golden.exists():
             out.mkdir(parents=True, exist_ok=True)
             actual.save(out / f"{name}-actual.png")
-            raise AssertionError(f"No golden {golden}; run with --update-golden. Actual: {out / (name + '-actual.png')}")
+            raise AssertionError(
+                f"No golden {golden}; run with --update-golden. Actual: {out / (name + '-actual.png')}"
+            )
         with Image.open(golden) as g:
             expected = g.convert("RGB")
         if expected.size != actual.size:
@@ -878,5 +910,6 @@ class DeviceAssertions:
             mark = diff.point(lambda v: 255 if v > tolerance else 0).convert("L")
             red = Image.new("RGB", actual.size, (255, 0, 0))
             Image.composite(red, Image.blend(expected, Image.new("RGB", actual.size), 0.6), mark).save(
-                out / f"{name}-diff.png")
+                out / f"{name}-diff.png"
+            )
             raise AssertionError(f"{name}: {bad} pixels differ (allowed {max_diff_pixels}); see {out}")

@@ -50,10 +50,17 @@ DEFAULT_WORK = Path(tempfile.gettempdir()) / "daruma-demos"
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--personas", default="all", help="'all' or persona names, comma-separated (as in the Persona select)")
+    ap.add_argument(
+        "--personas", default="all", help="'all' or persona names, comma-separated (as in the Persona select)"
+    )
     ap.add_argument("--scenario", default="all", help="'all' or scenario names, comma-separated")
-    ap.add_argument("--private-persona", action="append", default=[], metavar="PACKAGE",
-                    help="an extra persona package (a path); its demos go to --out only")
+    ap.add_argument(
+        "--private-persona",
+        action="append",
+        default=[],
+        metavar="PACKAGE",
+        help="an extra persona package (a path); its demos go to --out only",
+    )
     ap.add_argument("--variant", default="standard", choices=["standard", "wide", "square"])
     ap.add_argument("--out", type=Path, default=DEFAULT_WORK, help="scratch folder: build, frames, results")
     ap.add_argument("--docs", type=Path, default=DOCS_DEMOS, help="where public GIFs go")
@@ -63,8 +70,12 @@ def main() -> int:
     ap.add_argument("--test", action="store_true", help="check snapshots and expects; no GIFs")
     ap.add_argument("--update-golden", action="store_true", help="write golden pictures from this run")
     ap.add_argument("--port", type=int, default=6053, help="the API port (another runner may hold 6053)")
-    ap.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
-                    help="runs at a time (default: up to 4); worker n listens on port --port + n")
+    ap.add_argument(
+        "--jobs",
+        type=int,
+        default=min(4, os.cpu_count() or 1),
+        help="runs at a time (default: up to 4); worker n listens on port --port + n",
+    )
     args = ap.parse_args()
     test = args.test or args.update_golden
 
@@ -92,8 +103,21 @@ def main() -> int:
     for sc in chosen:
         for persona in personas:
             if sc.runs_on(persona, test):
-                jobs.append(Job(b, sc, persona, args.variant, work, args.docs, args.max_kb, args.mp4,
-                                args.window, test, args.update_golden))
+                jobs.append(
+                    Job(
+                        b,
+                        sc,
+                        persona,
+                        args.variant,
+                        work,
+                        args.docs,
+                        args.max_kb,
+                        args.mp4,
+                        args.window,
+                        test,
+                        args.update_golden,
+                    )
+                )
     failures = 0
     if args.jobs <= 1 or len(jobs) <= 1:
         for job in jobs:
@@ -101,8 +125,7 @@ def main() -> int:
     else:
         # Each worker runs its devices on a port of its own, from one build.
         next_port = multiprocessing.Value("i", args.port + 1)
-        with ProcessPoolExecutor(min(args.jobs, len(jobs)), initializer=_take_port,
-                                 initargs=(next_port,)) as pool:
+        with ProcessPoolExecutor(min(args.jobs, len(jobs)), initializer=_take_port, initargs=(next_port,)) as pool:
             for failed, text in pool.map(_run_job_captured, jobs):
                 print(text, end="", flush=True)
                 failures += failed
@@ -158,8 +181,9 @@ def _run_job(job: Job) -> int:
     # A private persona's pictures stay in the scratch folder.
     golden = (job.work / "golden" if persona in b.private_personas else GOLDEN_DIR) / slug(persona) / f"{sc.name}{size}"
     print(f"{'Test' if test else 'Demo'} {persona} / {sc.name} ...", flush=True)
-    device = Device(b, run_dir, persona=persona, window=job.window, golden=golden,
-                    update_golden=job.update_golden, port=_port)
+    device = Device(
+        b, run_dir, persona=persona, window=job.window, golden=golden, update_golden=job.update_golden, port=_port
+    )
     failed = 0
     try:
         with device:

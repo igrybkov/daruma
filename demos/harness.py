@@ -86,12 +86,26 @@ class Build:
 
 
 def _copy_sources(src: Path) -> None:
+    """Copy the sources into `src`, fresh, but keep ESPHome's data folder.
+
+    examples/.esphome holds the compiled objects and the drawn persona art
+    (see daruma_sprites). Drawing the art takes most of a cold build, and both
+    caches check their own inputs, so a build that keeps them only redoes
+    what changed. The copy keeps file times, so the compiler sees what changed.
+    """
     src.mkdir(parents=True, exist_ok=True)
+    data = src / "examples" / ".esphome"
+    kept = src / ".esphome-kept"
+    shutil.rmtree(kept, ignore_errors=True)
+    if data.is_dir():
+        data.rename(kept)
     for name in SOURCES:
         target = src / name
         if target.is_dir():
             shutil.rmtree(target)
         shutil.copytree(REPO_DIR / name, target, ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
+    if kept.is_dir():
+        kept.rename(data)
 
 
 def _persona_name(package: Path) -> str:

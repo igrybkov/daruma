@@ -6,7 +6,7 @@
 The `daruma` fixture starts a fresh desktop device per test, on the runner's
 clock (see harness.py). The build happens once per session, in
 $DARUMA_WORK (a temp folder by default). With pytest-xdist (`-n 3`), the
-workers share that build, and each runs its devices on a port of its own.
+workers share that build, and each device takes a free API port.
 
     @pytest.mark.persona("Pixel corgi")      # default: Eyes
     def test_pet(device):
@@ -32,7 +32,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from harness import GOLDEN_DIR, Build, Device, build, slug  # noqa: E402
+from harness import GOLDEN_DIR, Build, Device, build, free_port, slug  # noqa: E402
 from media import encode_gif, frames_of  # noqa: E402
 
 DEFAULT_PERSONA = "Eyes"
@@ -101,11 +101,8 @@ def _shared_build(work: Path, timezone: str, run_id: str) -> Build:
 
 
 def _worker_port() -> int | None:
-    """Under pytest-xdist, worker gw<n> runs its devices on port DARUMA_PORT + 1 + n."""
-    worker = os.environ.get("PYTEST_XDIST_WORKER", "")
-    if not worker.startswith("gw"):
-        return None
-    return _base_port() + 1 + int(worker[2:])
+    """Under pytest-xdist, each device takes a free API port; else the build's."""
+    return free_port() if os.environ.get("PYTEST_XDIST_WORKER") else None
 
 
 @pytest.fixture

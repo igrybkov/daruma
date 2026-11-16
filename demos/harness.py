@@ -788,6 +788,13 @@ class Device:
         return out
 
 
+def free_port() -> int:
+    """A TCP port that nothing listens on now, for a device of its own."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def _wait_port_free(port: int, timeout: float = 10) -> None:
     """A program from the last run may still hold the API port for a moment."""
     deadline = time.monotonic() + timeout

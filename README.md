@@ -20,6 +20,11 @@ the voice assistant, a focus block, the menu and apps in its own theme, a
 message and a doorbell card. See them all in the
 [gallery](docs/gallery.md).
 
+Not just a pet: focus sessions, tasks, calendar, weather and questions
+from Home Assistant.
+
+![Daruma at work: a focus block reaches the day's goal, a task is checked off, the calendar, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
+
 ## Why Daruma
 
 **Room to grow.** The example build carries seven personas (five in pixel

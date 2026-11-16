@@ -53,6 +53,7 @@ lists every step.
 | `highlight` | a short loop for the README's grid: idle, a pet, a celebration (`gif_scale: 1`) |
 | `emotions` | every mood and reaction, with captions |
 | `activities` | every activity: the voice assistant, the pomodoro's states, the menu and the Weather app in the persona's theme, a message, a doorbell card |
+| `work` | the device at work, for the README: a focus block to the day's goal, Tasks, Calendar, Weather and a question from Home Assistant (Daruma only) |
 | `tour` | a real day: idle, a pet, two focus blocks, the daily goal |
 | `apps` | the menu, Tasks with a task checked off, Calendar |
 | `prompts` | a doorbell card and a quiz |

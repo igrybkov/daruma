@@ -1,0 +1,76 @@
+name: work
+description: >-
+  The device at work, for the top of the README: the next meeting on the
+  persona's screen, a focus block that reaches the day's goal and starts a
+  break, Tasks with one checked off, the Calendar agenda, Weather, and a
+  yes/no question from Home Assistant with its answer. Made-up data.
+personas: [Daruma]
+test_personas: [Daruma]
+setup:
+  - set: {Outside temperature: 64, Pomodoro daily goal: 1, Pomodoro focus: 25}
+  - wait: 1
+  # Open Weather once before the recording, so the app has its forecast and
+  # the GIF goes straight to it.
+  - tap: [160, 100]
+  - tap: {text: More}
+  - tap: {role: tile, name: Weather}
+  - expect: {visible: {text: Partly cloudy}}
+  - press: {input: home, seconds: 2}
+  - wait: 1
+steps:
+  - caption: Your next meeting, on the screen
+  - wait: 2.5
+  # A focus block from the menu. The plaque counts down.
+  - caption: A tap opens the menu
+  - tap: [160, 100]
+  - expect: {visible: {text: Focus}}
+  - wait: 1
+  - tap: {text: Focus}
+  - expect: {state: focus}
+  - caption: "Focus: 25 minutes"
+  - wait: 3
+  - snapshot: focus
+  - skip: 1495
+  - caption: The day's goal, then a break
+  - expect: {state: [goal, paint], timeout: 8}
+  - wait: 2
+  # The first tap stops the end-of-focus chime.
+  - tap: [160, 100]
+  - wait: 0.8
+  # The apps, from the menu.
+  - caption: The apps
+  - tap: [160, 100]
+  - expect: {visible: {text: More}}
+  - tap: {text: More}
+  - caption: "Tasks: tap one to check it off"
+  - tap: {role: tile, name: Tasks}
+  - expect: {visible: {role: row, name: Send the invoice}}
+  - wait: 1.5
+  - tap: {role: row, name: Send the invoice}
+  - wait: 2
+  - snapshot: tasks
+  - tap: {role: button, name: Back}
+  - caption: "Calendar: the next days"
+  - tap: {role: tile, name: Calendar}
+  - wait: 3
+  - tap: {role: button, name: Back}
+  - caption: Weather
+  - tap: {role: tile, name: Weather}
+  - expect: {visible: {role: app, name: Weather}}
+  - wait: 1.5
+  # A hold on the red circle closes the app. A card waits until it is closed.
+  - press: {input: home, seconds: 2}
+  # Home Assistant asks; the answer goes back as an event.
+  - caption: A question from Home Assistant
+  - prompt:
+      id: lights
+      title: Lights
+      body: Nobody is downstairs. Turn the lights off?
+      options: [Turn off, Leave on]
+  - expect: {visible: {role: button, name: Turn off}}
+  - wait: 1.5
+  - snapshot: question
+  - tap: {role: button, name: Turn off}
+  - expect: {event: {type: esphome.daruma_prompt, id: lights, choice: Turn off}}
+  - message: {text: Lights off downstairs., seconds: 3}
+  - wait: 2

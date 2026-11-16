@@ -261,6 +261,4 @@ int settimeofday(const struct timeval *tv, const struct timezone *tz) { return f
 int select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *tv) { return fake_select(n, r, w, e, tv); }
 int nanosleep(const struct timespec *req, struct timespec *rem) { return fake_nanosleep(req, rem); }
 FILE *fopen(const char *path, const char *mode) { return fake_fopen(path, mode); }
-/* glibc's headers turn fopen into fopen64 when _FILE_OFFSET_BITS is 64. */
-FILE *fopen64(const char *path, const char *mode) { return fake_fopen(path, mode); }
 #endif

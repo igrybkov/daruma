@@ -236,9 +236,27 @@ jobs:
             .python-version
       - name: Install SDL2 and ffmpeg
         run: brew install sdl2 ffmpeg
+      # Drawing the persona art takes most of a cold desktop build. The build
+      # keeps it in .esphome/daruma_pixel_art, one file per persona, named by
+      # a hash of the pixel scripts, Pillow and Python. A stale file is
+      # never read, so a restored folder can't show old art.
+      - name: Restore the persona art
+        id: art
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
+          key: pixel-art-${{ runner.os }}-${{ env.DARUMA_ESPHOME }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Check the golden pictures
         if: matrix.suite == 'golden'
         run: uv run demos/record.py --test --out "$DARUMA_WORK"
+      # One job saves the art for all. Pull requests save it too: the key
+      # names the exact scripts, and the folder is a few MB.
+      - name: Save the persona art
+        if: matrix.suite == 'golden' && steps.art.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
+          key: ${{ steps.art.outputs.cache-primary-key }}
       - name: Run the screen tests
         if: matrix.suite == 'pytest'
         run: |
@@ -287,6 +305,12 @@ jobs:
             .python-version
       - name: Install SDL2 and ffmpeg
         run: brew install sdl2 ffmpeg
+      # The persona art the screen tests save (see there).
+      - name: Restore the persona art
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
+          key: pixel-art-${{ runner.os }}-${{ env.DARUMA_ESPHOME }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Pick the scenarios
         run: |
           want="highlight"

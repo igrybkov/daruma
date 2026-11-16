@@ -21,9 +21,15 @@ env:
 
 jobs:
   host-python:
-    name: Host tests (Python)
+    name: Host tests (Python ${{ matrix.python }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # "pinned" is .python-version. 3.12 is the floor: the components'
+        # Python runs inside the user's ESPHome, which supports 3.12.
+        python: [pinned, "3.12"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +40,11 @@ jobs:
           cache-dependency-glob: |
             .github/workflows/ci.yml
             .python-version
+      - name: Pick the Python
+        env:
+          PYTHON: ${{ matrix.python }}
+        run: |
+          if [ "$PYTHON" != pinned ]; then echo "UV_PYTHON=$PYTHON" >> "$GITHUB_ENV"; fi
       - name: Run the host tests
         run: uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
 

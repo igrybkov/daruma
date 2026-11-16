@@ -5,7 +5,7 @@
 
 The `daruma` fixture starts a fresh desktop device per test, on the runner's
 clock (see harness.py). The build happens once per session, in
-$DARUMA_WORK (a temp folder by default). With pytest-xdist (`-n 3`), the
+$DARUMA_WORK (a temp folder by default). With pytest-xdist (`-n auto`, the default), the
 workers share that build, and each device takes a free API port.
 
     @pytest.mark.persona("Pixel corgi")      # default: Eyes

@@ -249,18 +249,11 @@ jobs:
             examples/.esphome/storage
           key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
 
-  # On macOS, where the golden pictures were made. Linux draws the same
-  # screens with colors one step off in places, and the eyes glance
-  # elsewhere, so the pictures don't match there.
-  #
-  # Few macOS jobs on purpose: macOS runners are scarce, and a run that
-  # asks for many of them waits in the queue. The golden check and pytest
-  # share one job and one build. macos-26, not macos-15: macos-15 arm64
-  # jobs often waited 10 minutes or were never picked up, while macos-26
-  # ones started at once. The pictures are the same on both.
+  # The golden pictures match on Linux and macOS (docs/testing.md), so this
+  # runs on Linux. The golden check and pytest share one job and one build.
   screens:
     name: Screen tests
-    runs-on: macos-26
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       DARUMA_WORK: ${{ github.workspace }}/ci-work
@@ -275,7 +268,9 @@ jobs:
             uv.lock
             .python-version
       - name: Install SDL2 and ffmpeg
-        run: brew install sdl2 ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
       # The harness syncs ESPHome's own environment (.venv-esphome) itself.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
@@ -337,7 +332,7 @@ jobs:
   # full showcase; the others record highlight only, so they share a job.
   previews:
     name: Previews (${{ matrix.name }})
-    runs-on: macos-26
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -361,7 +356,9 @@ jobs:
             uv.lock
             .python-version
       - name: Install SDL2 and ffmpeg
-        run: brew install sdl2 ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
       # The harness syncs ESPHome's own environment (.venv-esphome) itself.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project

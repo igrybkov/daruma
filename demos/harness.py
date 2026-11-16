@@ -51,7 +51,7 @@ from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
-# Another ESPHome to build with, for a try ("esphome==2026.11.0"). By
+# Another ESPHome to build with, for a try (a pip spec such as "esphome==<version>"). By
 # default the build runs the version locked in uv.lock (the "esphome" group).
 ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME")
 # That group's environment. It can't share the test environment: ESPHome

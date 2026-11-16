@@ -56,9 +56,13 @@ dev = [
 esphome = ["esphome==2026.10.2"]
 
 [tool.uv]
-# Linux and Apple Silicon Macs. aioesphomeapi needs a cryptography that
-# no longer ships for Intel Macs.
-environments = ["sys_platform == 'linux'", "sys_platform == 'darwin' and platform_machine == 'arm64'"]
+# Linux, Apple Silicon Macs and Windows. Not Intel Macs: aioesphomeapi
+# needs a cryptography that no longer ships for them.
+environments = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'win32'",
+]
 conflicts = [[{ group = "esphome" }, { group = "test" }]]
 
 [tool.uv.dependency-groups]

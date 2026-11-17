@@ -2,7 +2,7 @@
 # Layout) and takes its font sizes from the board.
 #
 # Menus are named lists of dock buttons (`daruma: menus:` in the device
-# yaml, checked by the build; see ARCHITECTURE.md, "Menus"). A tap on the
+# yaml, checked by the build; see docs/architecture/menus.md). A tap on the
 # persona (or a swipe up) opens `main`. Bind `menu.open` with a `menu:` to open
 # another one:
 #

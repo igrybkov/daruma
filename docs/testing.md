@@ -171,6 +171,22 @@ trip through the patch encoder), gestures, layout, prompts, the
 pomodoro's rules, the calendar's agenda and the weather words.
 `DARUMA_SKIP_PERSONAS=1` skips the tests that build every persona.
 
+## Coverage
+
+CI measures which lines the tests run, in jobs beside the tests. The
+"Coverage report" job puts a table per area in its summary, and the
+`coverage` artifact holds `files.md` (per file) and `coverage.lcov`. It
+never fails the build. On Linux with gcc, the same steps run locally:
+
+- C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
+  the programs and their data, in `tests/run_cpp.sh` and `test_frames.py`.
+- Python host tests: `pytest tests --cov=components --cov=pixel`.
+- Screen tests: `DARUMA_COVERAGE=<folder>` builds the desktop program
+  with `--coverage`, in a build folder of its own, and runs ESPHome's code
+  generation under coverage.py, which writes its data to that folder.
+- [tests/coverage_report.py](../tests/coverage_report.py) reads the
+  `.gcda` files with gcov and joins them with coverage.py's JSON.
+
 ## Preview pixel art
 
 ```sh

@@ -89,7 +89,9 @@ for people too. To contribute the persona, also:
    and `prompts`.
 5. Add its `highlight` GIF to the README grid, and a section to
    [docs/gallery.md](docs/gallery.md).
-6. Add its golden pictures for the `tour` scenario.
+6. Add its golden pictures for the `tour`, `emotions` and `activities`
+   scenarios: `make update-golden CONFIRM=1 PERSONA="<Name>"
+   SCENARIO=tour,emotions,activities`.
 7. Compile `examples/box3.yaml` and put the flash size before and after
    in the pull request.
 

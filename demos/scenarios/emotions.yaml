@@ -5,6 +5,7 @@ description: >-
   Together with activities.yaml it shows every state (see covered_states).
 showcase: true
 personas: all
+test_personas: all
 setup:
   - set: {Outside temperature: 64}
   - wait: 1
@@ -26,7 +27,9 @@ steps:
   - caption: Happy
     steps:
       - show: happy
-      - wait: 2.5
+      - wait: 1.5
+      - snapshot: happy
+      - wait: 1
   - caption: Loved
     steps:
       - show: loved
@@ -34,7 +37,9 @@ steps:
   - caption: Sad
     steps:
       - show: sad
-      - wait: 2.5
+      - wait: 1.5
+      - snapshot: sad
+      - wait: 1
   - caption: Scared
     steps:
       - show: scared
@@ -46,7 +51,9 @@ steps:
   - caption: Sleeping
     steps:
       - show: sleeping
-      - wait: 3
+      - wait: 2
+      - snapshot: sleeping
+      - wait: 1
       - show: ""
       - wait: 0.5
   # Reactions: one-shot animations over whatever shows.
@@ -57,7 +64,9 @@ steps:
   - caption: Celebrate
     steps:
       - show: celebrate
-      - wait: 3.5
+      - wait: 1.5
+      - snapshot: celebrate
+      - wait: 2
   - caption: Paint
     steps:
       - show: paint

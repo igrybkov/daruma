@@ -24,10 +24,10 @@ what the screen showed, without the window or the mouse pointer.
 """
 
 import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.components import binary_sensor
 from esphome.components.daruma import daruma_ns
 from esphome.components.sdl.display import Sdl
-import esphome.config_validation as cv
 from esphome.const import CONF_DISPLAY, CONF_ID, PLATFORM_HOST
 
 DEPENDENCIES = ["daruma", "display"]
@@ -42,9 +42,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(Desktop),
             cv.Required(CONF_DISPLAY): cv.use_id(Sdl),
-            cv.Optional(CONF_BUTTONS, default={}): cv.Schema(
-                {cv.string_strict: cv.use_id(binary_sensor.BinarySensor)}
-            ),
+            cv.Optional(CONF_BUTTONS, default={}): cv.Schema({cv.string_strict: cv.use_id(binary_sensor.BinarySensor)}),
         }
     ).extend(cv.COMPONENT_SCHEMA),
     cv.only_on(PLATFORM_HOST),

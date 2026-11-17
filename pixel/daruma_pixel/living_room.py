@@ -76,9 +76,14 @@ class LivingRoom:
         return img
 
     def layers(self) -> dict:
-        return {"plant": _plant.plant, "PLANT_STAGES": _plant.STAGES, "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
-                "RUG_COLORS": (self.throw_edge, self.throw, self.throw_shadow),
-                "RUG_BY_WEEKDAY": THROW_BY_WEEKDAY, "RUG_BOX": THROW_BOX}
+        return {
+            "plant": _plant.plant,
+            "PLANT_STAGES": _plant.STAGES,
+            "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
+            "RUG_COLORS": (self.throw_edge, self.throw, self.throw_shadow),
+            "RUG_BY_WEEKDAY": THROW_BY_WEEKDAY,
+            "RUG_BOX": THROW_BOX,
+        }
 
 
 # The throw's colors by weekday, Sunday first: the corgi's rug days
@@ -171,8 +176,19 @@ def _curtains(img: Image.Image, r: LivingRoom) -> None:
         edge = x0 + 1 if side < 0 else x0 + w - 2
         at = lambda k: edge + side * k  # noqa: E731
         m, dm = mask((W, H))
-        poly(dm, [(at(7), y0 - 2), (at(0), y0 - 2), (at(1), y0 + 5), (at(4), tie_y - 1), (at(4), tie_y + 1),
-                  (at(1), bottom - 3), (at(0), bottom), (at(7), bottom)])
+        poly(
+            dm,
+            [
+                (at(7), y0 - 2),
+                (at(0), y0 - 2),
+                (at(1), y0 + 5),
+                (at(4), tie_y - 1),
+                (at(4), tie_y + 1),
+                (at(1), bottom - 3),
+                (at(0), bottom),
+                (at(7), bottom),
+            ],
+        )
         c.paint(m, CURTAIN)
         # Folds: shadows a third and two thirds across each row.
         mp = m.load()
@@ -260,8 +276,23 @@ def _throw(img: Image.Image, r: LivingRoom) -> None:
     swap them by weekday."""
     c = Canvas(W, H)
     m, dm = mask((W, H))
-    poly(dm, [(7, 49), (9, 45), (14, 43), (19, 44), (22, 47), (24, 54), (31, 61), (27, 64), (21, 61),
-              (20, 65), (8, 65), (7, 58)])
+    poly(
+        dm,
+        [
+            (7, 49),
+            (9, 45),
+            (14, 43),
+            (19, 44),
+            (22, 47),
+            (24, 54),
+            (31, 61),
+            (27, 64),
+            (21, 61),
+            (20, 65),
+            (8, 65),
+            (7, 58),
+        ],
+    )
     c.paint(m, Ramp(base=r.throw, shadow=r.throw_shadow), shade=True)
     px = c.img.load()
     for y in (58, 61):  # Two woven stripes across the hanging end.
@@ -276,8 +307,10 @@ def _throw(img: Image.Image, r: LivingRoom) -> None:
     edge = []
     for y in range(H):
         for x in range(W):
-            if not px[x, y][3] and any(0 <= x + dx < W and 0 <= y + dy < H and px[x + dx, y + dy][3]
-                                       for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            if not px[x, y][3] and any(
+                0 <= x + dx < W and 0 <= y + dy < H and px[x + dx, y + dy][3]
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+            ):
                 edge.append((x, y))
     for x, y in edge:
         px[x, y] = (*r.throw_shadow, 255)

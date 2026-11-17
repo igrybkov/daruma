@@ -399,8 +399,7 @@ void MenuController::print_icon_(Display &display, int x, int y, const std::stri
   // Material Design Icons sit in Unicode's private area (4-byte UTF-8);
   // anything else is short text such as "25".
   const bool glyph = !icon.empty() && (uint8_t) icon[0] >= 0xF0;
-  display.print(x, y, glyph ? this->icon_font_ : this->text_font_, color, TextAlign::CENTER, icon.c_str(),
-                background);
+  display.print(x, y, glyph ? this->icon_font_ : this->text_font_, color, TextAlign::CENTER, icon.c_str(), background);
 }
 
 // A ring around a card or button, with a gap so it reads apart from the
@@ -409,10 +408,10 @@ void MenuController::draw_focus_(Display &display, const Theme &theme, const Rec
   const Layout &l = this->layout_();
   const int out = l.px(6), gap = l.px(3);
   const Color ring = theme.on(theme.frame, theme.focus_color());
-  Utilities::Draw::roundedRectangle(&display, around.x - out, around.y - out, around.w + 2 * out,
-                                    around.h + 2 * out, radius + out, ring);
-  Utilities::Draw::roundedRectangle(&display, around.x - gap, around.y - gap, around.w + 2 * gap,
-                                    around.h + 2 * gap, radius + gap, theme.frame);
+  Utilities::Draw::roundedRectangle(&display, around.x - out, around.y - out, around.w + 2 * out, around.h + 2 * out,
+                                    radius + out, ring);
+  Utilities::Draw::roundedRectangle(&display, around.x - gap, around.y - gap, around.w + 2 * gap, around.h + 2 * gap,
+                                    radius + gap, theme.frame);
 }
 
 void MenuController::draw_dock_(Display &display, const Theme &theme) {
@@ -422,8 +421,8 @@ void MenuController::draw_dock_(Display &display, const Theme &theme) {
   const int border = l.px(2);
   if (theme.style == ThemeStyle::OUTLINE) {
     Utilities::Draw::roundedRectangle(&display, left, top, width, height, l.px(18), theme.accent);
-    Utilities::Draw::roundedRectangle(&display, left + border, top + border, width - 2 * border,
-                                      height - 2 * border, l.px(16), theme.dock);
+    Utilities::Draw::roundedRectangle(&display, left + border, top + border, width - 2 * border, height - 2 * border,
+                                      l.px(16), theme.dock);
   } else {
     Utilities::Draw::roundedRectangle(&display, left, top, width, height, l.px(18), theme.dock);
   }
@@ -636,7 +635,16 @@ void MenuController::draw_app_(Display &display, const Theme &theme, App &app) {
   }
   UiTree::add("app", this->app_name_(app, theme), c);
   if (app.draw) {
-    AppView view{display,          theme, x, y, w, h, this->text_font_, this->small_font_, this->icon_font_, &l,
+    AppView view{display,
+                 theme,
+                 x,
+                 y,
+                 w,
+                 h,
+                 this->text_font_,
+                 this->small_font_,
+                 this->icon_font_,
+                 &l,
                  this->hub_->uses_focus()};
     app.draw(view);
   }

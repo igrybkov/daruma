@@ -11,8 +11,8 @@ too); button ears are here. The tailless butt wag is pet.py's "butt" tail.
 
 from __future__ import annotations
 
+from .pet import DARK, Breed, H, Rig, Stance, W
 from .pixelkit import Canvas, ellipse, mask, poly, rotate
-from .pet import DARK, H, W, Breed, Rig, Stance
 
 NOSE_SHINE = (120, 96, 92)
 MOUTH = (132, 40, 48)
@@ -123,7 +123,6 @@ def _begging_paws(c: Canvas, r: Rig) -> None:
     for side in (-1, 1):  # Toe lines on the curled paws, pointing down.
         c.dot(cx + side * 5 - 1, y + 1, white.shadow)
         c.dot(cx + side * 5 + 1, y + 1, white.shadow)
-
 
 
 SIT_PRETTY = Stance(rise=8, front=_begging_paws)  # Pose(stance="beg") on a breed with stances={"beg": SIT_PRETTY}.

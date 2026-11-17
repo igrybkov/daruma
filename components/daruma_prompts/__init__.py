@@ -18,14 +18,13 @@ import logging
 
 import esphome.automation as automation
 import esphome.codegen as cg
-from esphome.components import font
-from esphome.components.daruma import CONF_DARUMA_ID, Hub, collect_modules, daruma_ns, state_id
-from esphome.components.daruma import registry
-from esphome.components.daruma.registry import ModuleSpec
 import esphome.config_validation as cv
+import esphome.final_validate as fv
+from esphome.components import font
+from esphome.components.daruma import CONF_DARUMA_ID, Hub, collect_modules, daruma_ns, registry, state_id
+from esphome.components.daruma.registry import ModuleSpec
 from esphome.const import CONF_ID
 from esphome.core import CORE
-import esphome.final_validate as fv
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,10 +42,10 @@ DARUMA_MODULE = ModuleSpec(
     name="prompts",
     actions=["prompts.dismiss"],
     colors={
-        "urgent": 0xE53935,     # Border, title and countdown of urgent prompts.
-        "game": 0x7E57C2,       # Border of game prompts.
+        "urgent": 0xE53935,  # Border, title and countdown of urgent prompts.
+        "game": 0x7E57C2,  # Border of game prompts.
         "countdown": 0xF2A33A,  # The countdown bar.
-        "selected": 0xF2A33A,   # The answer just chosen.
+        "selected": 0xF2A33A,  # The answer just chosen.
         "correct": 0x2E9E44,
         "wrong": 0xD23C3C,
     },
@@ -97,20 +96,23 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
-    cg.add(var.set_fonts(await cg.get_variable(config[CONF_TITLE_FONT]),
-                         await cg.get_variable(config[CONF_TEXT_FONT])))
+    cg.add(var.set_fonts(await cg.get_variable(config[CONF_TITLE_FONT]), await cg.get_variable(config[CONF_TEXT_FONT])))
     states = registry.collect_states(collect_modules(CORE.config))
     for name in _hold_back_states(config, states):
         cg.add(var.add_hold_back(state_id(name)))
     for conf in config.get(CONF_ON_ANSWER, []):
         await automation.build_callback_automation(
-            var, "add_on_answer_callback",
+            var,
+            "add_on_answer_callback",
             [(cg.std_string, "prompt_id"), (cg.std_string, "choice"), (cg.int_, "index"), (cg.std_string, "reason")],
-            conf)
+            conf,
+        )
     for conf in config.get(CONF_ON_SHOWN, []):
         await automation.build_callback_automation(
-            var, "add_on_shown_callback",
+            var,
+            "add_on_shown_callback",
             [(cg.std_string, "prompt_id"), (cg.std_string, "style"), (cg.std_string, "sound")],
-            conf)
+            conf,
+        )
     # The hub sets its modules up before the first draw.
     cg.add((await cg.get_variable(config[CONF_DARUMA_ID])).add_module(var))

@@ -9,10 +9,10 @@ swipe on the screen to menu.open unless the device yaml binds them.
 """
 
 import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.components import font
 from esphome.components.daruma import CONF_DARUMA_ID, Hub, daruma_ns
 from esphome.components.daruma.registry import ModuleSpec
-import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TIMEOUT
 
 DEPENDENCIES = ["daruma", "font"]
@@ -50,9 +50,13 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
-    cg.add(var.set_fonts(await cg.get_variable(config[CONF_TEXT_FONT]),
-                         await cg.get_variable(config[CONF_SMALL_FONT]),
-                         await cg.get_variable(config[CONF_ICON_FONT])))
+    cg.add(
+        var.set_fonts(
+            await cg.get_variable(config[CONF_TEXT_FONT]),
+            await cg.get_variable(config[CONF_SMALL_FONT]),
+            await cg.get_variable(config[CONF_ICON_FONT]),
+        )
+    )
     cg.add(var.set_timeout(config[CONF_TIMEOUT]))
     cg.add(var.set_app_timeout(config[CONF_APP_TIMEOUT]))
     cg.add(var.set_next_label(config[CONF_NEXT_LABEL]))

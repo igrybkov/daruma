@@ -19,13 +19,13 @@ static const int RATE = 48000;  // The speaker's rate: no resampling.
 
 // One step of a sound: a tone, or silence when f0 is 0.
 struct Step {
-  float f0{0};          // Start pitch in Hz.
-  float f1{0};          // End pitch (exponential glide); 0 = no glide.
+  float f0{0};  // Start pitch in Hz.
+  float f1{0};  // End pitch (exponential glide); 0 = no glide.
   float seconds{0};
-  float duty{0.5f};     // Share of each cycle that is high: 0.5 square, less is thinner.
+  float duty{0.5f};  // Share of each cycle that is high: 0.5 square, less is thinner.
   float attack{0.004f};
   float release{0.03f};
-  float vibrato{0};     // Wobble speed in Hz, 3% deep; 0 = none.
+  float vibrato{0};  // Wobble speed in Hz, 3% deep; 0 = none.
 };
 
 // "A4" -> 440 Hz. Sharps as "C#5".

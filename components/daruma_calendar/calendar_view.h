@@ -12,8 +12,8 @@
 namespace Daruma {
 
 struct CalendarViewState {
-  std::string label;  // "Today", "Tomorrow", "Mon 17"
-  std::string date;   // Small text next to the label: "Sun 15"
+  std::string label;                // "Today", "Tomorrow", "Mon 17"
+  std::string date;                 // Small text next to the label: "Sun 15"
   const CalendarDay *day{nullptr};  // Null while nothing is loaded.
   bool loading{false};
   std::string error;  // Shown when there is no day to show.
@@ -52,8 +52,7 @@ class CalendarView {
   void draw_bar_(AppView &v, const CalendarViewState &state);
   void draw_list_(AppView &v, const CalendarViewState &state);
   void draw_message_(AppView &v, const std::string &text, int top);
-  void draw_row_(AppView &v, const CalendarViewState &state, const CalendarEvent &event, bool next, int top,
-                 int right);
+  void draw_row_(AppView &v, const CalendarViewState &state, const CalendarEvent &event, bool next, int top, int right);
 
   // Layout, in app-area pixels, scaled to the screen at each draw. Kept from
   // the last draw for hit().

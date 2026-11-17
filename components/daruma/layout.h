@@ -56,7 +56,9 @@ struct Rect {
   int cx() const { return this->x + this->w / 2; }
   int cy() const { return this->y + this->h / 2; }
   bool empty() const { return this->w <= 0 || this->h <= 0; }
-  bool contains(int px, int py) const { return px >= this->x && px < this->right() && py >= this->y && py < this->bottom(); }
+  bool contains(int px, int py) const {
+    return px >= this->x && px < this->right() && py >= this->y && py < this->bottom();
+  }
   bool operator==(const Rect &o) const { return x == o.x && y == o.y && w == o.w && h == o.h; }
   bool operator!=(const Rect &o) const { return !(*this == o); }
 
@@ -135,12 +137,12 @@ struct Layout {
   Rect info;
   Rect info_top;
   Rect upper;
-  int edge{6};            // Side margin of the bottom corners and the info line.
-  int corner_bottom{0};   // Shared bottom edge of the two bottom corners.
+  int edge{6};           // Side margin of the bottom corners and the info line.
+  int corner_bottom{0};  // Shared bottom edge of the two bottom corners.
   int grid_cols{2};
   int grid_rows{2};
-  int gap{8};      // Between board tiles and other grid cells.
-  int dots_y{0};   // Center line of the board's page dots.
+  int gap{8};     // Between board tiles and other grid cells.
+  int dots_y{0};  // Center line of the board's page dots.
 
   // A design size in screen pixels, rounded.
   int px(float v) const { return (int) std::lround(v * this->unit); }

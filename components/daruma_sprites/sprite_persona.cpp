@@ -83,8 +83,8 @@ SpritePersona::View SpritePersona::view_(esphome::display::Display &display, int
   v.h = v.top + h;
   v.sx = core_x - v.left * s;
   v.sy = core_y - v.top * s;
-  v.covers = v.sx <= v.stage.x && v.sy <= v.stage.y && v.sx + v.w * s >= v.stage.right() &&
-             v.sy + v.h * s >= v.stage.bottom();
+  v.covers =
+      v.sx <= v.stage.x && v.sy <= v.stage.y && v.sx + v.w * s >= v.stage.right() && v.sy + v.h * s >= v.stage.bottom();
   return v;
 }
 

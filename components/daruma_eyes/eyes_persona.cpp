@@ -24,8 +24,8 @@ static const int WINK_DURATION_MS = 450;
 using namespace Eyes;
 
 // Param `color`, in the order of PARAMS in __init__.py.
-static const esphome::Color EYE_COLORS[] = {{0, 255, 255}, {60, 255, 120}, {255, 190, 40}, {255, 120, 200},
-                                            {240, 240, 240}};
+static const esphome::Color EYE_COLORS[] = {
+    {0, 255, 255}, {60, 255, 120}, {255, 190, 40}, {255, 120, 200}, {240, 240, 240}};
 
 EyesPersona::EyesPersona(const std::string &name) : Persona(name) {
   this->states_ = {new States::Neutral(), new States::Happy(),  new States::Sad(),     new States::Loved(),
@@ -65,13 +65,13 @@ struct EyeBox {
   bool moves_x, moves_y;  // The mood follows the glance / the look offset.
 };
 static const EyeBox BOXES[] = {
-    {-84, -48, 84, 48, true, true},   // NEUTRAL
-    {-84, -76, 84, -16, true, true},  // HAPPY: a donut top half; the wink box above it.
-    {-84, 2, 84, 78, true, true},     // SAD
-    {0, 0, 0, 0, false, false},       // LOVED
-    {-65, -18, 65, 18, true, false},  // SCARED: jittering dots.
-    {-84, -34, 84, 54, false, false}, // SLEEPY: drooping lids.
-    {-84, 14, 84, 32, false, false},  // SLEEPING: breathing lines.
+    {-84, -48, 84, 48, true, true},    // NEUTRAL
+    {-84, -76, 84, -16, true, true},   // HAPPY: a donut top half; the wink box above it.
+    {-84, 2, 84, 78, true, true},      // SAD
+    {0, 0, 0, 0, false, false},        // LOVED
+    {-65, -18, 65, 18, true, false},   // SCARED: jittering dots.
+    {-84, -34, 84, 54, false, false},  // SLEEPY: drooping lids.
+    {-84, 14, 84, 32, false, false},   // SLEEPING: breathing lines.
 };
 
 Rect EyesPersona::box_(uint8_t mood, float x, float y) const {

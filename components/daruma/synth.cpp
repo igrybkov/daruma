@@ -8,8 +8,8 @@
 namespace Daruma {
 namespace Synth {
 
-static const float LEVEL = 0.32f;           // Square waves are loud.
-static const float SOFTEN_HZ = 6000.0f;     // Low-pass that takes the fizz off.
+static const float LEVEL = 0.32f;        // Square waves are loud.
+static const float SOFTEN_HZ = 6000.0f;  // Low-pass that takes the fizz off.
 static const float TAIL_SECONDS = 0.03f;
 
 float note(const char *name) {
@@ -55,7 +55,9 @@ std::vector<Step> arp(std::initializer_list<const char *> names, float step, flo
   return out;
 }
 
-static void append(std::vector<Step> &to, const std::vector<Step> &from) { to.insert(to.end(), from.begin(), from.end()); }
+static void append(std::vector<Step> &to, const std::vector<Step> &from) {
+  to.insert(to.end(), from.begin(), from.end());
+}
 
 std::vector<Step> sound(const std::string &name) {
   std::vector<Step> s;
@@ -98,8 +100,8 @@ std::vector<Step> sound(const std::string &name) {
 }
 
 const std::vector<std::string> &sound_names() {
-  static const std::vector<std::string> NAMES = {"start", "pause", "stop",  "focus_done", "goal",
-                                                 "break_over", "pet", "timer", "notify",     "urgent"};
+  static const std::vector<std::string> NAMES = {"start",      "pause", "stop",  "focus_done", "goal",
+                                                 "break_over", "pet",   "timer", "notify",     "urgent"};
   return NAMES;
 }
 

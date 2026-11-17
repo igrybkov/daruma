@@ -232,9 +232,7 @@ bool TaskList::parse_(JsonVariantConst body) {
 
 // Keeps what the font can draw: emoji and other missing glyphs would show as
 // boxes. Line breaks and tabs become spaces; runs of spaces become one.
-std::string TaskList::clean_title_(const char *text) const {
-  return drawable_text(this->font_, text, MAX_TITLE_BYTES);
-}
+std::string TaskList::clean_title_(const char *text) const { return drawable_text(this->font_, text, MAX_TITLE_BYTES); }
 
 void TaskList::set_open_count(float count) {
   this->open_count_ = std::isnan(count) ? -1 : std::max(0, (int) lroundf(count));
@@ -307,9 +305,7 @@ void TaskList::set_done_(const std::string &id, bool done, bool pending) {
   }
 }
 
-bool TaskList::has_glyph(uint32_t code_point) const {
-  return Daruma::has_glyph(this->font_, code_point);
-}
+bool TaskList::has_glyph(uint32_t code_point) const { return Daruma::has_glyph(this->font_, code_point); }
 
 void TaskList::notify_(const char *text) {
   this->notice_ = text;

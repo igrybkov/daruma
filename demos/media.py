@@ -55,10 +55,32 @@ def encode_gif(frames: list[tuple[Path, float]], out: Path, max_kb: int, scale: 
     out.parent.mkdir(parents=True, exist_ok=True)
     for fps, colors in ((None, 256), (12, 128), (8, 96), (6, 64)):
         rate = f"fps={fps}," if fps else ""
-        vf = (f"{rate}scale=iw*{scale}:ih*{scale}:flags=neighbor,split[a][b];"
-              f"[a]palettegen=max_colors={colors}:stats_mode=full[p];[b][p]paletteuse=dither=none")
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
-                        "-vf", vf, "-fps_mode", "vfr", "-loop", "0", str(out)], check=True)
+        vf = (
+            f"{rate}scale=iw*{scale}:ih*{scale}:flags=neighbor,split[a][b];"
+            f"[a]palettegen=max_colors={colors}:stats_mode=full[p];[b][p]paletteuse=dither=none"
+        )
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(listing),
+                "-vf",
+                vf,
+                "-fps_mode",
+                "vfr",
+                "-loop",
+                "0",
+                str(out),
+            ],
+            check=True,
+        )
         size = out.stat().st_size
         if size <= max_kb * 1024:
             break
@@ -89,8 +111,9 @@ def encode_mp4(frames: list[tuple[Path, float]], sounds: list[tuple[Path, float]
 CAPTION_HEIGHT = 22  # Pixels under the screen, before the GIF's 2x scale.
 
 
-def with_captions(frames: list[tuple[Path, float]], captions: list[tuple[int, str]],
-                  out_dir: Path) -> list[tuple[Path, float]]:
+def with_captions(
+    frames: list[tuple[Path, float]], captions: list[tuple[int, str]], out_dir: Path
+) -> list[tuple[Path, float]]:
     """The frames with a caption strip under the screen: each frame shows the
     last caption set at or before its time (Device.caption). Writes PNGs to
     out_dir and returns them with the same durations."""

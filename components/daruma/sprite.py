@@ -77,9 +77,12 @@ def _declare(w, h, bits, clear, palette, data, patch: bool = False) -> cg.MockOb
     raw = f"daruma_sprite_data_{n}"
     cg.add_global(cg.RawStatement(f"static const uint8_t {raw}[] = {{{','.join(map(str, data))}}};"))
     obj = f"daruma_sprite_{n}"
-    cg.add_global(cg.RawStatement(
-        f"static constexpr Daruma::Sprite {obj}({w}, {h}, {bits}, {clear}, {len(palette)}, {_palettes[key]}, {raw}, "
-        f"{'true' if patch else 'false'});"))
+    cg.add_global(
+        cg.RawStatement(
+            f"static constexpr Daruma::Sprite {obj}({w}, {h}, {bits}, {clear}, {len(palette)}, {_palettes[key]}, {raw}, "
+            f"{'true' if patch else 'false'});"
+        )
+    )
     return cg.RawExpression(f"&{obj}")
 
 

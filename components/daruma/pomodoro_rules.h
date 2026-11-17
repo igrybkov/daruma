@@ -27,15 +27,15 @@ namespace Pomodoro {
 enum class Phase : uint8_t { IDLE = 0, FOCUS = 1, SHORT_BREAK = 2, LONG_BREAK = 3 };
 
 enum class Button : uint8_t {
-  FOCUS,       // Start a focus of the default length (ends a break first).
-  CUSTOM,      // Pick the focus length.
+  FOCUS,   // Start a focus of the default length (ends a break first).
+  CUSTOM,  // Pick the focus length.
   PAUSE,
   RESUME,
-  STOP,        // End a focus early.
-  SKIP,        // Jump to the break; the focus does not count.
-  BREAK,       // A short break.
+  STOP,   // End a focus early.
+  SKIP,   // Jump to the break; the focus does not count.
+  BREAK,  // A short break.
   LONG_BREAK,
-  END,         // End a break.
+  END,  // End a break.
 };
 
 struct Now {

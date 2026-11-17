@@ -36,8 +36,7 @@ ROPE = (178, 150, 110)
 ROPE_KNOT = (140, 114, 80)
 
 # Edge, stripe, dark (the underside, as a leaf arches over).
-LEAF = {False: ((70, 146, 70), (226, 232, 178), (46, 104, 52)),
-        True: ((160, 142, 64), (206, 190, 120), (120, 102, 48))}
+LEAF = {False: ((70, 146, 70), (226, 232, 178), (46, 104, 52)), True: ((160, 142, 64), (206, 190, 120), (120, 102, 48))}
 TIP = {False: (96, 170, 84), True: (126, 84, 46)}
 RUNNER = {False: (196, 200, 120), True: (150, 130, 70)}
 FLOWER = (252, 252, 244)
@@ -137,7 +136,9 @@ def _runner(L: Layer, side: int, length: int, wilted: bool) -> None:
     by = RIM_Y + 1 + length
     edge, stripe, _ = LEAF[wilted]
     # The baby: a little star of short leaves.
-    spread = ((-2, -1), (-1, -2), (1, -2), (2, -1), (-2, 1), (2, 1)) if not wilted else ((-2, 1), (2, 1), (-1, 2), (1, 2))
+    spread = (
+        ((-2, -1), (-1, -2), (1, -2), (2, -1), (-2, 1), (2, 1)) if not wilted else ((-2, 1), (2, 1), (-1, 2), (1, 2))
+    )
     for dx, dy in spread:
         L.dot(x + dx, by + dy, edge)
     L.dot(x, by, stripe)

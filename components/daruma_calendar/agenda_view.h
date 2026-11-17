@@ -16,8 +16,8 @@
 namespace Daruma {
 
 struct AgendaViewState {
-  const CalendarDay *span{nullptr};  // Null while nothing is loaded.
-  std::vector<AgendaRow> rows;       // From build_agenda().
+  const CalendarDay *span{nullptr};   // Null while nothing is loaded.
+  std::vector<AgendaRow> rows;        // From build_agenda().
   std::vector<std::string> headings;  // Text per day, by day index.
   bool loading{false};
   std::string error;  // Shown when there is nothing to show.

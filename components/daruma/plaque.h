@@ -53,17 +53,17 @@ struct TomatoPlaque {
 struct TimerPlaque {
   Rect rect;
   int pad{6};
-  int cell{13};      // Width of one digit cell.
-  int sep{8};        // Width of the colon's slot between mm and ss.
-  int cap{16};       // Height of the digits.
-  int digits_x{0};   // Left of the first digit cell.
+  int cell{13};     // Width of one digit cell.
+  int sep{8};       // Width of the colon's slot between mm and ss.
+  int cap{16};      // Height of the digits.
+  int digits_x{0};  // Left of the first digit cell.
   int digits_top{0};
-  int baseline{0};   // The digits' baseline.
+  int baseline{0};  // The digits' baseline.
   int dot_r{3};
   int dot_step{8};
   int per_row{8};
   int rows{1};
-  int dots_top{0};   // Top of the first dot row.
+  int dots_top{0};  // Top of the first dot row.
 
   int digits_w() const { return 4 * this->cell + this->sep; }
   // Center x of digit i (0, 1 minutes; 2, 3 seconds).
@@ -82,7 +82,8 @@ struct TimerPlaque {
   int tab_sink{3};
   int tab_bar{3};
   Rect pause_tab() const {
-    return Rect{this->rect.cx() - this->tab_w / 2, this->rect.y + this->tab_sink - this->tab_h, this->tab_w, this->tab_h};
+    return Rect{this->rect.cx() - this->tab_w / 2, this->rect.y + this->tab_sink - this->tab_h, this->tab_w,
+                this->tab_h};
   }
 
   // Center of dot i: rows top to bottom, each centered under the digits.

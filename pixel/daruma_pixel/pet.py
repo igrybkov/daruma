@@ -165,9 +165,6 @@ def pointed_ears(c: Canvas, r: Rig) -> None:
         c.paint(inner, coat.pink, shade=False)
 
 
-
-
-
 @dataclass(frozen=True, eq=False)
 class Breed:
     """What the pet looks like. The number defaults are the corgi's."""
@@ -243,7 +240,9 @@ def render(b: Breed, p: Pose, cx: int = W // 2, floor: int = H - 5) -> Image.Ima
 
     rear_dx = round(2 * bw)
     rear, d = mask((W, H))
-    ellipse(d, cx - b.haunch_dx, hip_y + 9, b.haunch_r - 1.5 * bw, b.haunch_r)  # Left haunch shrinks as the butt swings right.
+    ellipse(
+        d, cx - b.haunch_dx, hip_y + 9, b.haunch_r - 1.5 * bw, b.haunch_r
+    )  # Left haunch shrinks as the butt swings right.
     ellipse(d, cx + b.haunch_dx, hip_y + 9, b.haunch_r + 1.5 * bw, b.haunch_r)
     rear = shift(shear_rows(rear, hip_y - 4, 0.22 * bw), rear_dx, 0)
     c.paint(rear, coat.deep)
@@ -351,7 +350,9 @@ def _front_legs(c: Canvas, r: Rig, d: ImageDraw.ImageDraw, bib: Image.Image, bib
         poly(d, [(x0 - 3 + sway, leg_top), (x0 + 3 + sway, leg_top), (x0 + 3, floor - 2), (x0 - 3, floor - 2)])
         ellipse(d, x0, floor - 2, 4, 2.5)
     gap = r.breed.leg_gap
-    d.rectangle((cx - 3 + sway, leg_top, cx + 3 + sway, floor - (9 if gap else 2)), fill=1)  # Chest fills the top of the gap.
+    d.rectangle(
+        (cx - 3 + sway, leg_top, cx + 3 + sway, floor - (9 if gap else 2)), fill=1
+    )  # Chest fills the top of the gap.
     c.paint(bib, bib_ramp)
     if gap:  # The legs part below the chest: a soft shadow between them.
         for y in range(floor - 9, floor - 1):
@@ -453,8 +454,24 @@ def _eye(c: Canvas, coat: Coat, kind: str, x: int, y: int, side: int) -> None:
         c.dot(x - 1, y - 1, HEART_SHINE)
 
 
-_RING = [(-1, -3), (0, -3), (1, -3), (-2, -2), (2, -2), (-3, -1), (3, -1), (-3, 0), (3, 0),
-         (-3, 1), (3, 1), (-2, 2), (2, 2), (-1, 3), (0, 3), (1, 3)]
+_RING = [
+    (-1, -3),
+    (0, -3),
+    (1, -3),
+    (-2, -2),
+    (2, -2),
+    (-3, -1),
+    (3, -1),
+    (-3, 0),
+    (3, 0),
+    (-3, 1),
+    (3, 1),
+    (-2, 2),
+    (2, 2),
+    (-1, 3),
+    (0, 3),
+    (1, 3),
+]
 
 
 def _glasses(c: Canvas, eyes: list[tuple[int, int]]) -> None:
@@ -517,7 +534,17 @@ def _book(c: Canvas, white: Ramp, page: int, cx: int, floor: int) -> None:
         c.dot(cx + side * 6 + 1, top + 4, white.shadow)
 
 
-_BALL = ("...XXX...", ".XXXXXXX.", ".XXXXXXX.", "XXXXXXXXX", "XXXXXXXXX", "XXXXXXXXX", ".XXXXXXX.", ".XXXXXXX.", "...XXX...")
+_BALL = (
+    "...XXX...",
+    ".XXXXXXX.",
+    ".XXXXXXX.",
+    "XXXXXXXXX",
+    "XXXXXXXXX",
+    "XXXXXXXXX",
+    ".XXXXXXX.",
+    ".XXXXXXX.",
+    "...XXX...",
+)
 # The seam: two arcs bowing toward each other, ")(", as a tennis ball shows it.
 _BALL_SEAM = ((1, 2), (2, 3), (2, 4), (2, 5), (1, 6), (7, 2), (6, 3), (6, 4), (6, 5), (7, 6))
 
@@ -649,8 +676,13 @@ class Pet:
 
     def layers(self) -> dict:
         """Every persona-module name for the layers (see personas.py)."""
-        return {"background": self.background, "foreground": self.foreground, "scene": self.scene,
-                "WINDOW": self.stage.window, **self.stage.layers()}
+        return {
+            "background": self.background,
+            "foreground": self.foreground,
+            "scene": self.scene,
+            "WINDOW": self.stage.window,
+            **self.stage.layers(),
+        }
 
 
 # --- Moods and animations -------------------------------------------------------

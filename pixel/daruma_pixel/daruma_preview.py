@@ -25,9 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).parent
 
-from . import daruma
-from . import daruma_persona
-from . import daruma_moods
+from . import daruma, daruma_moods, daruma_persona
 from .pixelkit import upscale
 
 GIFS = ["Neutral", "Happy", "Loved", "Sad", "Scared", "Sleepy", "Sleeping", "talking", "Focus"]

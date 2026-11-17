@@ -34,8 +34,8 @@ props of the activity (the daruma's incense) stay in the picture.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
 
 MOOD = "mood"
 ACTIVITY = "activity"
@@ -43,8 +43,7 @@ REACTION = "reaction"
 KINDS = (MOOD, ACTIVITY, REACTION)
 
 # The built-in synth sounds (daruma/synth.cpp). A persona may add more.
-BUILTIN_SOUNDS = ("start", "pause", "stop", "focus_done", "goal", "break_over", "pet", "timer", "notify",
-                  "urgent")
+BUILTIN_SOUNDS = ("start", "pause", "stop", "focus_done", "goal", "break_over", "pet", "timer", "notify", "urgent")
 
 
 class RegistryError(ValueError):
@@ -137,13 +136,15 @@ def collect_states(modules: list[ModuleSpec]) -> list[State]:
             if state.name in seen:
                 raise RegistryError(
                     f"Module '{module.name}' declares state '{state.name}', which "
-                    f"{seen[state.name].module} already declares")
+                    f"{seen[state.name].module} already declares"
+                )
             if state.kind not in KINDS:
                 raise RegistryError(f"State '{state.name}': kind must be one of {', '.join(KINDS)}")
             if state.fallback is None:
                 raise RegistryError(
                     f"Module '{module.name}': state '{state.name}' needs a fallback, so personas "
-                    "that lack it still show something")
+                    "that lack it still show something"
+                )
             seen[state.name] = state
             states.append(state)
     for state in states:
@@ -203,13 +204,14 @@ def resolve_during(char: Persona, states: list[State]) -> list[During]:
         if states[index[activity]].kind != ACTIVITY:
             raise RegistryError(
                 f"{char.id}: during: '{activity}' is a {states[index[activity]].kind}; only an activity "
-                "stays on under a reaction")
+                "stays on under a reaction"
+            )
         for shown, instead in swaps.items():
             for anim in (shown, instead):
                 if anim not in char.animations:
                     raise RegistryError(
-                        f"{char.id}: during: {activity}: no animation '{anim}' "
-                        f"(it has: {', '.join(char.animations)})")
+                        f"{char.id}: during: {activity}: no animation '{anim}' (it has: {', '.join(char.animations)})"
+                    )
             out.append(During(index[activity], char.animations.index(shown), char.animations.index(instead)))
     return out
 
@@ -242,7 +244,8 @@ def resolve_persona(char: Persona, states: list[State]) -> tuple[list[Behavior],
             if anim not in char.animations:
                 raise RegistryError(
                     f"{char.id}: behavior '{name}' uses animation '{anim}', which it does not have "
-                    f"(it has: {', '.join(char.animations)})")
+                    f"(it has: {', '.join(char.animations)})"
+                )
             return char.animations.index(anim)
         return lower.get(name)
 
@@ -257,14 +260,15 @@ def resolve_persona(char: Persona, states: list[State]) -> tuple[list[Behavior],
                 break
         if anim is None:
             raise RegistryError(
-                f"{char.id}: has no look for '{state.name}' and no fallback reaches one "
-                f"(tried {' -> '.join(chain)})")
+                f"{char.id}: has no look for '{state.name}' and no fallback reaches one (tried {' -> '.join(chain)})"
+            )
         behavior = char.behaviors.get(state.name, {})
         sound = behavior.get("sound", state.sound) or ""
         if sound and sound not in known_sounds:
             raise RegistryError(
                 f"{char.id}: state '{state.name}' plays sound '{sound}', which is neither built in "
-                f"({', '.join(BUILTIN_SOUNDS)}) nor in its sounds:")
+                f"({', '.join(BUILTIN_SOUNDS)}) nor in its sounds:"
+            )
         if shown_as != state.name:
             log.append(f"{char.id}: {state.name} -> {shown_as}")
         out.append(Behavior(anim, sound, behavior.get("say", ""), shown_as))
@@ -309,12 +313,11 @@ def split_trigger(trigger: str, inputs: dict[str, Input]) -> tuple[str, str]:
         raise RegistryError(f"'{trigger}': name an input and a gesture, like home.press")
     name, gesture = trigger.split(".", 1)
     if name not in inputs:
-        raise RegistryError(
-            f"'{trigger}': the board has no input '{name}' (it has: {', '.join(inputs) or 'none'})")
+        raise RegistryError(f"'{trigger}': the board has no input '{name}' (it has: {', '.join(inputs) or 'none'})")
     if gesture not in inputs[name].gestures:
         raise RegistryError(
-            f"'{trigger}': input '{name}' has no gesture '{gesture}' "
-            f"(it has: {', '.join(inputs[name].gestures)})")
+            f"'{trigger}': input '{name}' has no gesture '{gesture}' (it has: {', '.join(inputs[name].gestures)})"
+        )
     return name, gesture
 
 
@@ -369,9 +372,14 @@ def _check_action(action: str, actions: set[str], menus) -> str | None:
     return None
 
 
-def resolve_bindings(inputs: dict[str, Input], navigation: dict[str, tuple[str, str]],
-                     device: dict[str, dict], modules: list[ModuleSpec],
-                     actions: set[str], menus=()) -> tuple[list[Binding], list[str]]:
+def resolve_bindings(
+    inputs: dict[str, Input],
+    navigation: dict[str, tuple[str, str]],
+    device: dict[str, dict],
+    modules: list[ModuleSpec],
+    actions: set[str],
+    menus=(),
+) -> tuple[list[Binding], list[str]]:
     """The bindings in force: the device yaml's, then module defaults for
     triggers it leaves free. Returns them and the build log lines.
 
@@ -391,7 +399,8 @@ def resolve_bindings(inputs: dict[str, Input], navigation: dict[str, tuple[str, 
         if (name, gesture) in nav_triggers and not idle and inputs[name].kind != TOUCH:
             raise RegistryError(
                 f"bindings: '{trigger}' is also navigation '{nav_triggers[(name, gesture)]}'; "
-                "add `when: idle` so it runs only on the device's own screen")
+                "add `when: idle` so it runs only on the device's own screen"
+            )
         bindings[(name, gesture)] = Binding(name, gesture, action, idle, "device")
 
     defaults: dict[tuple[str, str], Binding] = {}
@@ -404,8 +413,10 @@ def resolve_bindings(inputs: dict[str, Input], navigation: dict[str, tuple[str, 
                 continue
             owner_module = action.partition(".")[0]
             if action != "none" and owner_module not in {m.name for m in modules}:
-                log.append(f"{module.name}: default binding {trigger} -> {action} skipped; "
-                           f"no module '{owner_module}' is included")
+                log.append(
+                    f"{module.name}: default binding {trigger} -> {action} skipped; "
+                    f"no module '{owner_module}' is included"
+                )
                 continue
             problem = _check_action(action, actions, menus)
             if problem:
@@ -417,7 +428,8 @@ def resolve_bindings(inputs: dict[str, Input], navigation: dict[str, tuple[str, 
             if old is not None and old.source != "daruma" and old.action != action:
                 raise RegistryError(
                     f"Modules '{old.source}' and '{module.name}' both bind {trigger} "
-                    f"({old.action}, {action}); pick one under daruma: bindings:")
+                    f"({old.action}, {action}); pick one under daruma: bindings:"
+                )
             # Screen gestures on a touch input only ever act on the device's own screen.
             idle = key in nav_triggers or inputs[name].kind == TOUCH
             defaults[key] = Binding(name, gesture, action, idle, module.name)
@@ -437,7 +449,8 @@ def check_menu_reachable(inputs: dict[str, Input], bindings: list[Binding], modu
     if not any(b.action.partition(":")[0] == OPEN_MENU for b in bindings):
         raise RegistryError(
             "bindings: this board has no touch, so nothing opens the menu; bind menu.open to a button, "
-            "like `home.press: { action: menu.open, when: idle }`")
+            "like `home.press: { action: menu.open, when: idle }`"
+        )
 
 
 # --- Display profile ------------------------------------------------------------
@@ -467,11 +480,12 @@ def check_profile(profile: Profile) -> None:
         raise RegistryError(f"display_profile: colors must be one of {', '.join(COLOR_MODES)}")
     if profile.animate and profile.min_frame_ms >= 1000:
         raise RegistryError(
-            "display_profile: animate needs min_frame under 1s; a slower screen shows still frames "
-            "(set animate: false)")
+            "display_profile: animate needs min_frame under 1s; a slower screen shows still frames (set animate: false)"
+        )
     if profile.full_refresh_every and not profile.partial_refresh:
         raise RegistryError(
-            "display_profile: full_refresh_every counts partial refreshes; it needs partial_refresh: true")
+            "display_profile: full_refresh_every counts partial refreshes; it needs partial_refresh: true"
+        )
 
 
 def collect_actions(modules: list[ModuleSpec]) -> set[str]:
@@ -495,7 +509,8 @@ def check_modules(modules: list[ModuleSpec]) -> None:
         if module.name in seen:
             raise RegistryError(
                 f"Two modules are named '{module.name}'. An app package included twice needs its own "
-                "app_id in each include's vars")
+                "app_id in each include's vars"
+            )
         seen.add(module.name)
 
 
@@ -508,7 +523,8 @@ def order_apps(order: list[str], modules: list[ModuleSpec]) -> tuple[list[str], 
             if app in owner:
                 raise RegistryError(
                     f"Two modules offer the app '{app}' ({owner[app]} and {module.name}). Give each copy "
-                    "of an app its own app_id")
+                    "of an app its own app_id"
+                )
             owner[app] = module.name
             offered.append(app)
     for app in order:
@@ -530,7 +546,8 @@ def check_progress(weights: dict[str, float], modules: list[ModuleSpec]) -> list
     for name in weights:
         if name not in offered:
             raise RegistryError(
-                f"progress: no included module feeds a source '{name}' (fed: {', '.join(offered) or 'none'})")
+                f"progress: no included module feeds a source '{name}' (fed: {', '.join(offered) or 'none'})"
+            )
     return list(weights) if weights else offered
 
 
@@ -540,7 +557,9 @@ def theme_aliases(modules: list[ModuleSpec]) -> dict[str, str]:
     for m in modules:
         for old, new in m.aliases.items():
             if new not in m.colors and new not in m.words:
-                raise RegistryError(f"Module '{m.name}': theme alias '{old}' points at '{new}', which it does not declare")
+                raise RegistryError(
+                    f"Module '{m.name}': theme alias '{old}' points at '{new}', which it does not declare"
+                )
             out[f"{m.name}.{old}"] = f"{m.name}.{new}"
     return out
 
@@ -550,8 +569,9 @@ def resolve_theme_key(key: str, aliases: dict[str, str]) -> str:
     return aliases.get(key, key)
 
 
-def check_theme_keys(persona_id: str, colors: dict, words: dict, modules: list[ModuleSpec],
-                     builtin_words: tuple[str, ...] = ()) -> None:
+def check_theme_keys(
+    persona_id: str, colors: dict, words: dict, modules: list[ModuleSpec], builtin_words: tuple[str, ...] = ()
+) -> None:
     """A persona's module theme keys (`pomodoro.focus`) must be declared by an
     included module, as a color or a word as used. Old keys a module keeps
     as aliases count as their new ones."""
@@ -625,7 +645,8 @@ def collect_menus(device: dict[str, list] | None, modules: list[ModuleSpec]) -> 
             if name in owner:
                 raise RegistryError(
                     f"Modules '{owner[name]}' and '{module.name}' both offer the menu '{name}'; "
-                    "define it under daruma: menus:")
+                    "define it under daruma: menus:"
+                )
             owner[name] = module.name
             menus[name] = list(items)
     for name, items in device.items():
@@ -633,14 +654,16 @@ def collect_menus(device: dict[str, list] | None, modules: list[ModuleSpec]) -> 
         menus[name] = list(items)
     if MAIN_MENU not in menus:
         apps = [a for m in modules for a in m.apps]
-        menus[MAIN_MENU] = ([m.name for m in modules if m.menu and not m.menus]
-                            + [a for a in DEFAULT_MENU_APPS if a in apps])
+        menus[MAIN_MENU] = [m.name for m in modules if m.menu and not m.menus] + [
+            a for a in DEFAULT_MENU_APPS if a in apps
+        ]
         log.append(f"menus: main is {', '.join(menus[MAIN_MENU]) or 'empty'} (the default)")
     return menus, log
 
 
-def resolve_menus(menus: dict[str, list], modules: list[ModuleSpec],
-                  actions: set[str]) -> dict[str, list[MenuItemSpec]]:
+def resolve_menus(
+    menus: dict[str, list], modules: list[ModuleSpec], actions: set[str]
+) -> dict[str, list[MenuItemSpec]]:
     """Every menu's items, checked. An item is:
 
     - `more`: the app board;
@@ -701,13 +724,15 @@ def _menu_item(menu, item, menus, apps, menu_modules, actions, looks) -> MenuIte
     if "." in item:
         if item not in actions:
             raise RegistryError(
-                f"menus: {menu}: no included module offers the action '{item}' (offered: {', '.join(sorted(actions))})")
+                f"menus: {menu}: no included module offers the action '{item}' (offered: {', '.join(sorted(actions))})"
+            )
         look = looks.get(item)
         if look is None:
             buttons = sorted(looks)
             raise RegistryError(
                 f"menus: {menu}: the action '{item}' has no button look; its module declares them under "
-                f"`buttons:` (actions with one: {', '.join(buttons) or 'none'})")
+                f"`buttons:` (actions with one: {', '.join(buttons) or 'none'})"
+            )
         return MenuItemSpec("action", item, look["label"], look["icon"], look.get("color", ""))
     if item in apps:
         return MenuItemSpec("app", item)
@@ -720,11 +745,13 @@ def _menu_item(menu, item, menus, apps, menu_modules, actions, looks) -> MenuIte
     choices = sorted(apps) + sorted(menu_modules) + sorted(n for n in menus if n != menu) + [MORE]
     raise RegistryError(
         f"menus: {menu}: '{item}' is no app, module with buttons, menu or action "
-        f"(choose from: {', '.join(choices)}, or an action with a button look)")
+        f"(choose from: {', '.join(choices)}, or an action with a button look)"
+    )
 
 
-def check_device_themes(theme: dict, themes: dict, persona_ids: list[str], modules: list[ModuleSpec],
-                        builtin_words: tuple[str, ...] = ()) -> None:
+def check_device_themes(
+    theme: dict, themes: dict, persona_ids: list[str], modules: list[ModuleSpec], builtin_words: tuple[str, ...] = ()
+) -> None:
     """The device yaml's `theme:` (every persona) and `themes:` (one persona each, by
     persona id). Their keys are checked like a persona's own; a persona id must name
     a persona in the build."""
@@ -732,9 +759,11 @@ def check_device_themes(theme: dict, themes: dict, persona_ids: list[str], modul
     for persona_id, conf in themes.items():
         if persona_id not in persona_ids:
             raise RegistryError(
-                f"daruma: themes: no persona has the id '{persona_id}' (persona ids: {', '.join(persona_ids) or 'none'})")
-        check_theme_keys(f"daruma: themes: {persona_id}", conf.get("colors", {}), conf.get("words", {}), modules,
-                         builtin_words)
+                f"daruma: themes: no persona has the id '{persona_id}' (persona ids: {', '.join(persona_ids) or 'none'})"
+            )
+        check_theme_keys(
+            f"daruma: themes: {persona_id}", conf.get("colors", {}), conf.get("words", {}), modules, builtin_words
+        )
 
 
 # --- Tap areas ---------------------------------------------------------------------
@@ -777,8 +806,9 @@ def _target_problem(target, modules: list[ModuleSpec], actions: set[str], menus)
     return f"runs {problem}" if problem else None
 
 
-def resolve_targets(device: dict, modules: list[ModuleSpec], actions: set[str],
-                    menus=()) -> tuple[dict[str, str], list[str]]:
+def resolve_targets(
+    device: dict, modules: list[ModuleSpec], actions: set[str], menus=()
+) -> tuple[dict[str, str], list[str]]:
     """What a tap on each area does: the device yaml's `targets:`, then module
     defaults for areas it leaves out. Returns area -> action (as the hub
     runs it) and build log lines.
@@ -798,7 +828,8 @@ def resolve_targets(device: dict, modules: list[ModuleSpec], actions: set[str],
     for area, target in device.items():
         if area not in areas:
             raise RegistryError(
-                f"targets: no included module draws an area '{area}' (areas: {', '.join(sorted(areas)) or 'none'})")
+                f"targets: no included module draws an area '{area}' (areas: {', '.join(sorted(areas)) or 'none'})"
+            )
         problem = _target_problem(target, modules, actions, menus)
         if problem:
             raise RegistryError(f"targets: '{area}' {problem}")
@@ -818,8 +849,10 @@ def resolve_targets(device: dict, modules: list[ModuleSpec], actions: set[str],
             action = target_action(target)
             if area in chosen:
                 if out[area] != action:
-                    log.append(f"{m.name}: default target for '{area}' ({action}) skipped; "
-                               f"{chosen[area]}'s ({out[area]}) came first")
+                    log.append(
+                        f"{m.name}: default target for '{area}' ({action}) skipped; "
+                        f"{chosen[area]}'s ({out[area]}) came first"
+                    )
                 continue
             chosen[area] = m.name
             out[area] = action

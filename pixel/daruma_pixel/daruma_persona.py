@@ -37,9 +37,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
-
-from . import daruma
-from . import daruma_moods
+from . import daruma, daruma_moods
 
 EYE_STATES = (0, 1, 2)
 
@@ -126,8 +124,9 @@ def eye_overlays() -> dict[str, Overlays]:
 
     out: dict[str, Overlays] = {}
     for key, anim in base.animations.items():
-        entry = Overlays(frames=[patches(lambda persona, i=i: persona.animations[key].frames[i][0])
-                                 for i in range(len(anim.frames))])
+        entry = Overlays(
+            frames=[patches(lambda persona, i=i: persona.animations[key].frames[i][0]) for i in range(len(anim.frames))]
+        )
         if anim.blink is not None:
             entry.blink = patches(lambda persona: persona.animations[key].blink)
         if anim.wink is not None:

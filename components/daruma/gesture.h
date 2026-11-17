@@ -43,8 +43,8 @@ enum class Gesture : uint8_t {
 inline constexpr uint16_t gesture_bit(Gesture g) { return (uint16_t) (1u << static_cast<uint8_t>(g)); }
 
 inline const char *gesture_name(Gesture g) {
-  static const char *const NAMES[] = {"press",      "double",      "hold",     "long_hold",  "tap", "swipe_left",
-                                      "swipe_right", "swipe_up", "swipe_down", "stroke", "none"};
+  static const char *const NAMES[] = {"press",       "double",   "hold",       "long_hold", "tap", "swipe_left",
+                                      "swipe_right", "swipe_up", "swipe_down", "stroke",    "none"};
   return NAMES[static_cast<uint8_t>(g)];
 }
 
@@ -145,11 +145,11 @@ class PressRecognizer {
 
 // Swipe tuning, in screen pixels and milliseconds.
 struct SwipeTuning {
-  int move_slop{20};            // moved less than this: still a tap
-  int swipe_min{60};            // shortest swipe
-  uint32_t swipe_max_ms{700};   // slower than this: a drag, ignored
-  int stroke_step{25};          // back-and-forth leg length
-  int stroke_turns{2};          // direction changes for a stroke
+  int move_slop{20};           // moved less than this: still a tap
+  int swipe_min{60};           // shortest swipe
+  uint32_t swipe_max_ms{700};  // slower than this: a drag, ignored
+  int stroke_step{25};         // back-and-forth leg length
+  int stroke_turns{2};         // direction changes for a stroke
 };
 
 // One finger on a touch screen, from touch-down to lift-off, in screen
@@ -158,7 +158,7 @@ struct TouchTrack {
   static constexpr uint32_t NO_DRAG = UINT32_MAX;
   int x0{0};  // Where the finger came down.
   int y0{0};
-  int x{0};   // Where it is now, or where it lifted.
+  int x{0};  // Where it is now, or where it lifted.
   int y{0};
   int travel_x{0};  // The farthest it went from (x0, y0), per axis.
   int travel_y{0};

@@ -99,8 +99,7 @@ void AgendaView::draw_heading_(AppView &v, const std::string &text, int top, int
   v.display.horizontal_line(left, top + this->row_h_ - v.px(3), right - left, mix(t.panel, t.muted, 0.35f));
 }
 
-void AgendaView::draw_event_(AppView &v, const AgendaViewState &state, const CalendarEvent &event, int top,
-                             int right) {
+void AgendaView::draw_event_(AppView &v, const AgendaViewState &state, const CalendarEvent &event, int top, int right) {
   const Theme &t = v.theme;
   const bool today = event.start < state.today_end;
   const bool now = event.is_now(state.now);

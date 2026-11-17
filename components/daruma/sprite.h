@@ -24,10 +24,16 @@ namespace Daruma {
 // applies it).
 class Sprite {
  public:
-  constexpr Sprite(int width, int height, int bits, int clear, int colors, const uint16_t *palette,
-                   const uint8_t *data, bool patch = false)
-      : width_(width), height_(height), bits_(bits), clear_(clear), colors_(colors), palette_(palette),
-        data_(data), patch_(patch) {}
+  constexpr Sprite(int width, int height, int bits, int clear, int colors, const uint16_t *palette, const uint8_t *data,
+                   bool patch = false)
+      : width_(width),
+        height_(height),
+        bits_(bits),
+        clear_(clear),
+        colors_(colors),
+        palette_(palette),
+        data_(data),
+        patch_(patch) {}
 
   int width() const { return this->width_; }
   int height() const { return this->height_; }
@@ -63,7 +69,7 @@ class Sprite {
         }
         if (x + run > s.width_)
           run = s.width_ - x;  // Bad data; stay inside the row.
-        if (index != copy) {  // Otherwise the row above stays in place.
+        if (index != copy) {   // Otherwise the row above stays in place.
           for (int i = 0; i < run; i++)
             this->row_[x + i] = (uint8_t) index;
         }

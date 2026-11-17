@@ -31,9 +31,7 @@ esphome::ESPTime CalendarApp::now_() const {
   return this->clock_ != nullptr ? this->clock_->now() : esphome::ESPTime{};
 }
 
-std::string CalendarApp::word_(const char *key) const {
-  return this->hub_->theme().word(this->prefix_ + "." + key);
-}
+std::string CalendarApp::word_(const char *key) const { return this->hub_->theme().word(this->prefix_ + "." + key); }
 
 void CalendarApp::show_line(esphome::display::BaseFont *font) {
   this->line_ = true;
@@ -129,8 +127,7 @@ void CalendarApp::loop() {
 }
 
 bool CalendarApp::agenda_covers_(time_t start, time_t end) const {
-  return this->agenda_.has(this->today_start_) && start >= this->agenda_.start &&
-         end <= this->agenda_.complete_until();
+  return this->agenda_.has(this->today_start_) && start >= this->agenda_.start && end <= this->agenda_.complete_until();
 }
 
 void CalendarApp::maybe_fetch_() {
@@ -380,9 +377,8 @@ void CalendarApp::draw_agenda_(AppView &v, const esphome::ESPTime &now) {
     state.span = &this->agenda_;
     this->rows_ = build_agenda(this->agenda_.events, day_starts, this->agenda_.hidden());
     for (int d = 0; d < this->days_ahead_; d++) {
-      const bool used = std::any_of(this->rows_.begin(), this->rows_.end(), [d](const AgendaRow &r) {
-        return r.kind == AgendaRowKind::HEADING && r.day == d;
-      });
+      const bool used = std::any_of(this->rows_.begin(), this->rows_.end(),
+                                    [d](const AgendaRow &r) { return r.kind == AgendaRowKind::HEADING && r.day == d; });
       state.headings.push_back(used ? this->day_label_(d, day_starts[d]) : "");
     }
     state.rows = this->rows_;

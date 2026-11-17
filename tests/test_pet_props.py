@@ -22,10 +22,10 @@ tests/test_props.py checks the prop pixels themselves stay put.
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import re
 import sys
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pixel"))
@@ -35,8 +35,8 @@ registry = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = registry  # Dataclasses look their module up here.
 _SPEC.loader.exec_module(registry)
 
-from daruma_pixel import personas, pet  # noqa: E402
 import yaml  # noqa: E402
+from daruma_pixel import personas, pet  # noqa: E402
 
 # Props, by a color only that prop has.
 PROP_MARKS = {"glasses": pet.LENS_GLINT, "book": pet.BOOK.base, "ball": pet.BALL.base}
@@ -115,8 +115,7 @@ def band_shift(base, frame, rows: range) -> tuple[int, int]:
     best, best_score = (0, 0), -1
     for dy in range(-10, 5):
         for dx in range(-4, 5):
-            score = sum(1 for x, y, c in pixels
-                        if 0 <= x + dx < w and 0 <= y + dy < h and b[x + dx, y + dy] == c)
+            score = sum(1 for x, y, c in pixels if 0 <= x + dx < w and 0 <= y + dy < h and b[x + dx, y + dy] == c)
             # Ties go to the smallest move.
             if score > best_score or (score == best_score and abs(dx) + abs(dy) < abs(best[0]) + abs(best[1])):
                 best, best_score = (dx, dy), score
@@ -152,8 +151,9 @@ class RigTest(unittest.TestCase):
 class ReactionsOverActivities(unittest.TestCase):
     def test_props_stay_and_the_head_moves_with_the_body(self):
         states = registry.collect_states([registry.ModuleSpec("modules", states=module_states())])
-        reactions = [s for s in states if s.kind == registry.REACTION and s.duration_ms > 0
-                     and s.name not in ENDS_THE_FOCUS]
+        reactions = [
+            s for s in states if s.kind == registry.REACTION and s.duration_ms > 0 and s.name not in ENDS_THE_FOCUS
+        ]
         activities = [s for s in states if s.kind == registry.ACTIVITY]
         self.assertIn("petted", [s.name for s in reactions])
         self.assertIn("focus", [s.name for s in activities])
@@ -165,8 +165,12 @@ class ReactionsOverActivities(unittest.TestCase):
             _, layers, source = personas._persona(name)
             anims = list(source.ANIMATIONS)
             conf = persona_config(name)
-            char = registry.Persona(name, anims, {k: dict(v) for k, v in (conf.get("behaviors") or {}).items()},
-                                      during={k: dict(v) for k, v in (conf.get("during") or {}).items()})
+            char = registry.Persona(
+                name,
+                anims,
+                {k: dict(v) for k, v in (conf.get("behaviors") or {}).items()},
+                during={k: dict(v) for k, v in (conf.get("during") or {}).items()},
+            )
             behaviors, _ = registry.resolve_persona(char, states)
             swaps = registry.resolve_during(char, states)
             index = {s.name: i for i, s in enumerate(states)}
@@ -182,16 +186,20 @@ class ReactionsOverActivities(unittest.TestCase):
                 _, ny = nose(base)
                 for reaction in reactions:
                     shown = behaviors[index[reaction.name]].animation
-                    played = anims[next((d.instead for d in swaps
-                                         if d.activity == index[activity.name] and d.shown == shown), shown)]
+                    played = anims[
+                        next(
+                            (d.instead for d in swaps if d.activity == index[activity.name] and d.shown == shown), shown
+                        )
+                    ]
                     for i, (pose, _) in enumerate(source.ANIMATIONS[played]):
                         where = f"{name}: {reaction.name} over {activity.name} plays '{played}', frame {i}"
                         img = layers.foreground(pose)
                         self.assertLessEqual(kept, marks(img), f"{where}: props missing")
                         head = band_shift(base, img, range(0, ny + 3))
                         body = band_shift(base, img, range(ny + 12, ny + 21))
-                        self.assertLessEqual(abs(head[0] - body[0]), 1,
-                                             f"{where}: head moves {head[0]}, body {body[0]}")
+                        self.assertLessEqual(
+                            abs(head[0] - body[0]), 1, f"{where}: head moves {head[0]}, body {body[0]}"
+                        )
                         checked += 1
         self.assertGreater(checked, 0)
 

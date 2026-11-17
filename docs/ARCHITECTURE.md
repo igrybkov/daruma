@@ -53,9 +53,9 @@ Every state is declared once, in a registry
 (`components/daruma/registry.py`):
 
 ```python
-State("focus",     ACTIVITY, fallback="neutral")
+State("focus", ACTIVITY, fallback="neutral")
 State("celebrate", REACTION, fallback="happy")
-State("neutral",   MOOD)                 # no fallback: every persona must have it
+State("neutral", MOOD)  # no fallback: every persona must have it
 ```
 
 At build time, the registry generates a C++ `enum class StateId`. Strings

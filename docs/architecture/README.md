@@ -72,7 +72,7 @@ file to create.
 | Let HA show a card, an alert or a question, and get the answer | [Prompts](prompts.md) |
 | Make something a setting in HA | [Settings in Home Assistant](settings.md) |
 | Read HA's own configuration: language, time zone, first day of the week | HA configuration: TBD (`ha-config.md`) |
-| Share an automation that uses the device | [Blueprints](blueprints.md) |
+| Share an automation that uses the device | [blueprints/README.md](../../blueprints/README.md) |
 
 ### The device
 

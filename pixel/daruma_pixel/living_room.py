@@ -1,12 +1,14 @@
 """The living room: a Scene (scene.py) with a comfy couch for a pet to sit on.
 
 Linen-striped wallpaper, an arched window with curtains (the device draws
-the sky in its glass), a spider plant hanging from the ceiling (the
-progress prop, spider_plant.py), honey oak floor boards, and a bottle-green
-velvet couch with a dusty blue cushion and a knitted throw over its left arm.
-The throw changes color by weekday (THROW_BY_WEEKDAY: the day colors of
-the corgi's rug). The pet sits on the seat: the scene's `pet_floor` is the
-seat's top, where pet.render() puts its feet.
+the sky in its glass), a hook in the ceiling, honey oak floor boards, and a
+bottle-green velvet couch (couch.py) with a dusty blue cushion and a
+knitted throw over its left arm. The throw changes color by weekday
+(THROW_BY_WEEKDAY: the scene.py weekday colors).
+
+Spots: "seat" (the middle of the couch's seat, where a pet sits) and
+"hook" (the ceiling hook, where a hanging plant like spider_plant.py's
+can hang).
 
 Nothing touches the left and right edges (8 px of plain wallpaper and
 floor each side), so a wide screen extends the room by its own wall.
@@ -18,20 +20,22 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from . import room as _room
-from . import spider_plant as _plant
-from .pixelkit import Canvas, Color, Ramp, ellipse, mask, poly
+from . import couch as _couch
+from .couch import CouchColors
+from .pixelkit import Canvas, Color, Ramp, mask, poly
+from .scene import WEEKDAY_COLORS, Spot
 
 W, H = 106, 80
 WINDOW = (74, 7, 20, 23)  # Glass: x, y, width, height. The arch corners and bars stay in the room.
 FLOOR_Y = 73  # The wall meets the floor here.
-SEAT = 66  # The seat cushion's top edge at the front: the pet's floor (pet.render).
-THROW_BOX = (6, 40, 33, 77)  # Where the weekday colors may be: the throw on the left arm.
+COUCH = Spot(W // 2, FLOOR_Y)  # Where the couch stands; the cushion and throw go with it.
+HOOK = Spot(20, 0)  # A hook in the ceiling, left of the window.
+SPOTS = {"seat": _couch.seat(COUCH), "hook": HOOK}
+# Where the weekday colors may be: the throw on the couch's left arm.
+THROW_BOX = (COUCH.x - 47, COUCH.y - 33, COUCH.x - 20, COUCH.y + 4)
 
 FRAME = Ramp(base=(108, 74, 50), shadow=(80, 54, 36), light=(136, 96, 66))
 CURTAIN = Ramp(base=(184, 102, 78), shadow=(150, 78, 58), light=(208, 132, 104), line=(122, 60, 44))
-COUCH = Ramp(base=(50, 100, 76), shadow=(34, 72, 54), light=(76, 132, 100), line=(26, 54, 40))
-COUCH_DARK = Ramp(base=(40, 82, 62), shadow=(28, 60, 44), light=(56, 106, 80), line=(22, 46, 34))
 CUSHION = Ramp(base=(92, 118, 158), shadow=(70, 92, 130), light=(124, 150, 186), line=(52, 68, 100))  # Dusty blue.
 TIE = Ramp(base=(220, 166, 58), shadow=(184, 130, 40))  # The curtains' mustard tie-backs.
 
@@ -49,8 +53,7 @@ class LivingRoom:
     floor: Color = (180, 128, 80)
     floor_line: Color = (152, 104, 64)
     rod: Color = (70, 48, 34)
-    couch_outline: Color = (24, 40, 32)
-    legs: Color = (92, 60, 40)
+    couch: CouchColors = CouchColors()
     # The throw: fringe and stripes, the knit, its folds. Swapped by weekday.
     throw_edge: Color = (236, 210, 164)
     throw: Color = (178, 72, 86)
@@ -59,7 +62,7 @@ class LivingRoom:
 
     # The Scene protocol (scene.py).
     window = WINDOW
-    pet_floor = SEAT  # Not a field: the couch is always where it is. See pet.Pet.
+    spots = SPOTS
 
     def image(self) -> Image.Image:
         img = living_room(self)
@@ -77,21 +80,18 @@ class LivingRoom:
 
     def layers(self) -> dict:
         return {
-            "plant": _plant.plant,
-            "PLANT_STAGES": _plant.STAGES,
-            "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
             "RUG_COLORS": (self.throw_edge, self.throw, self.throw_shadow),
             "RUG_BY_WEEKDAY": THROW_BY_WEEKDAY,
             "RUG_BOX": THROW_BOX,
         }
 
 
-# The throw's colors by weekday, Sunday first: the corgi's rug days
-# (room.py), with Wednesday's green lighter, so it stands out on the couch.
+# The throw's colors by weekday, Sunday first: scene.py's weekday colors,
+# with Wednesday's green lighter, so it stands out on the couch.
 THROW_BY_WEEKDAY = (
-    *_room.RUG_BY_WEEKDAY[:3],
+    *WEEKDAY_COLORS[:3],
     ((236, 222, 170), (150, 196, 108), (114, 158, 80)),  # Wednesday: spring green
-    *_room.RUG_BY_WEEKDAY[4:],
+    *WEEKDAY_COLORS[4:],
 )
 
 
@@ -204,67 +204,17 @@ def _curtains(img: Image.Image, r: LivingRoom) -> None:
     img.alpha_composite(c.img)
 
 
-def _couch(img: Image.Image, r: LivingRoom) -> None:
-    c = Canvas(W, H)
-    left, right = 9, 96  # Outside of the arms.
-    # Back: two plump back cushions, rounded at the top corners.
-    m, dm = mask((W, H))
-    dm.rounded_rectangle((left + 5, 37, right - 5, SEAT - 2), radius=5, fill=1)
-    c.paint(m, COUCH_DARK)
-    for x in (W // 2,):  # The seam between the back cushions, hidden behind the pet.
-        for y in range(39, SEAT - 4):
-            c.dot(x, y, COUCH_DARK.shadow)
-    # Seat: the top of the cushions, lit, and their front face.
-    m, dm = mask((W, H))
-    dm.rectangle((left + 8, SEAT - 4, right - 8, SEAT), fill=1)
-    c.paint(m, COUCH, shade=False)
-    for x in range(left + 8, right - 7):
-        c.dot(x, SEAT - 4, COUCH.light)
-    m, dm = mask((W, H))
-    dm.rectangle((left + 8, SEAT + 1, right - 8, FLOOR_Y - 1), fill=1)
-    c.paint(m, COUCH)
-    for y in range(SEAT + 1, FLOOR_Y - 1):  # Seam between the seat cushions.
-        c.dot(53, y, COUCH.line)
-    for x in range(left + 8, right - 7):  # Piping along the front edge.
-        c.dot(x, SEAT + 1, COUCH.shadow)
-    # Arms: rolled tops over upright sides.
-    for side in (-1, 1):
-        outer = left if side < 0 else right
-        inner = left + 10 if side < 0 else right - 10
-        m, dm = mask((W, H))
-        x_lo, x_hi = min(outer, inner), max(outer, inner)
-        dm.rectangle((x_lo, 49, x_hi, FLOOR_Y - 1), fill=1)
-        ellipse(dm, (x_lo + x_hi) / 2, 49, (x_hi - x_lo) / 2 + 1, 4)
-        c.paint(m, COUCH)
-        # The roll's curl on the front, a dark crescent.
-        cx = (x_lo + x_hi) / 2
-        for dx, dy in ((-2, 0), (-1, 1), (0, 1), (1, 1), (2, 0), (-3, -1), (3, -1)):
-            c.dot(round(cx + dx), 50 + dy, COUCH.shadow)
-    # Base and short wooden legs.
-    c.outline(r.couch_outline)
-    for x in (left + 2, left + 13, right - 13, right - 2):
-        for y in (FLOOR_Y + 1, FLOOR_Y + 2):
-            c.dot(x, y, r.legs)
-            c.dot(x + 1, y, r.legs)
-    img.alpha_composite(c.img)
-    # A soft shadow on the floor under the couch.
-    px = img.load()
-    for x in range(left + 1, right):
-        y = FLOOR_Y + 1
-        if px[x, y][:3] == r.floor:
-            px[x, y] = (*r.floor_line, 255)
-
-
 def _cushion(img: Image.Image, r: LivingRoom) -> None:
     """A plump dusty blue cushion propped in the right corner, leaning on the arm."""
     c = Canvas(W, H)
     m, dm = mask((W, H))
-    dm.rounded_rectangle((76, 44, 89, 58), radius=4, fill=1)
-    for x, y in ((76, 44), (89, 44), (76, 58), (89, 58)):  # Corners poke out.
+    x0, y0, x1, y1 = COUCH.x + 23, COUCH.y - 29, COUCH.x + 36, COUCH.y - 15
+    dm.rounded_rectangle((x0, y0, x1, y1), radius=4, fill=1)
+    for x, y in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)):  # Corners poke out.
         dm.point([(x, y)], fill=1)
     c.paint(m, CUSHION)
-    c.dot(82, 50, CUSHION.line)  # A tufted button.
-    c.dot(83, 51, CUSHION.shadow)
+    c.dot(x0 + 6, y0 + 6, CUSHION.line)  # A tufted button.
+    c.dot(x0 + 7, y0 + 7, CUSHION.shadow)
     c.outline(CUSHION.line)
     img.alpha_composite(c.img)
 
@@ -276,30 +226,18 @@ def _throw(img: Image.Image, r: LivingRoom) -> None:
     swap them by weekday."""
     c = Canvas(W, H)
     m, dm = mask((W, H))
-    poly(
-        dm,
-        [
-            (7, 49),
-            (9, 45),
-            (14, 43),
-            (19, 44),
-            (22, 47),
-            (24, 54),
-            (31, 61),
-            (27, 64),
-            (21, 61),
-            (20, 65),
-            (8, 65),
-            (7, 58),
-        ],
-    )
+    # Drawn around the couch's left arm: x from its middle, y from the floor.
+    ax, ay = COUCH.x, COUCH.y
+    outline = [(-46, -24), (-44, -28), (-39, -30), (-34, -29), (-31, -26), (-29, -19)]
+    outline += [(-22, -12), (-26, -9), (-32, -12), (-33, -8), (-45, -8), (-46, -15)]
+    poly(dm, [(ax + x, ay + y) for x, y in outline])
     c.paint(m, Ramp(base=r.throw, shadow=r.throw_shadow), shade=True)
     px = c.img.load()
-    for y in (58, 61):  # Two woven stripes across the hanging end.
-        for x in range(6, 22):
+    for y in (ay - 15, ay - 12):  # Two woven stripes across the hanging end.
+        for x in range(ax - 47, ax - 31):
             if px[x, y][3]:
                 px[x, y] = (*r.throw_edge, 255)
-    for x, y0, y1 in ((11, 48, 65), (16, 46, 65)):  # Folds down the front.
+    for x, y0, y1 in ((ax - 42, ay - 25, ay - 8), (ax - 37, ay - 27, ay - 8)):  # Folds down the front.
         for y in range(y0, y1):
             if px[x, y][3] and px[x, y][:3] == r.throw:
                 px[x, y] = (*r.throw_shadow, 255)
@@ -314,8 +252,8 @@ def _throw(img: Image.Image, r: LivingRoom) -> None:
                 edge.append((x, y))
     for x, y in edge:
         px[x, y] = (*r.throw_shadow, 255)
-    for x in range(9, 21, 2):  # Tassels below the hem.
-        for y in (67, 68):
+    for x in range(ax - 44, ax - 32, 2):  # Tassels below the hem.
+        for y in (ay - 6, ay - 5):
             px[x, y] = (*r.throw_edge, 255)
     img.alpha_composite(c.img)
 
@@ -325,7 +263,7 @@ def living_room(r: LivingRoom) -> Image.Image:
     _wall(img, r)
     _window(img, r)
     _curtains(img, r)
-    _couch(img, r)
+    _couch.couch(img, COUCH, r.couch, floor=r.floor, shadow=r.floor_line)
     _cushion(img, r)
     _throw(img, r)
     return img

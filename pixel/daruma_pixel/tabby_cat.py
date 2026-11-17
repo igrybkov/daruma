@@ -28,6 +28,7 @@ import math
 
 from . import cat, pet
 from .cat import Cat, CatPose, Look
+from .cat_grass import CAT_GRASS
 from .personas import Spec
 from .pet import Breed, Coat, Rig, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask
@@ -206,14 +207,16 @@ BACKGROUND = 0x281C16  # The backdrop's darkest brown, for any margin round the 
 
 # --- Layers (see personas.Spec) ------------------------------------------------------
 
+SEAT = STUDIO.spots["floor"]  # The cat sits on the drape ...
 WINDOW = STUDIO.window
+_grass = CAT_GRASS.layers(STUDIO.spots["sill"])  # ... with its cat grass on the sill.
+plant, PLANT_STAGES, DEFAULT_STAGE = _grass["plant"], _grass["PLANT_STAGES"], _grass["DEFAULT_STAGE"]
 _extra = STUDIO.layers()
-plant, PLANT_STAGES, DEFAULT_STAGE = _extra["plant"], _extra["PLANT_STAGES"], _extra["DEFAULT_STAGE"]
 RUG_COLORS, RUG_BY_WEEKDAY, RUG_BOX = _extra["RUG_COLORS"], _extra["RUG_BY_WEEKDAY"], _extra["RUG_BOX"]
 
 
 def foreground(pose: CatPose):
-    return CAT.render(pose)
+    return CAT.render(pose, cx=SEAT.x, floor=SEAT.y)
 
 
 def background():
@@ -224,7 +227,7 @@ def scene(pose: CatPose, plant_stage: int | None = None, wilted: bool = False):
     """The full picture: studio, cat grass (at DEFAULT_STAGE unless given), cat."""
     img = STUDIO.image()
     img.alpha_composite(plant(DEFAULT_STAGE if plant_stage is None else plant_stage, wilted))
-    img.alpha_composite(CAT.render(pose))
+    img.alpha_composite(foreground(pose))
     return img
 
 

@@ -214,10 +214,6 @@
         "complexity": 16
       },
       {
-        "name": "_couch",
-        "complexity": 19
-      },
-      {
         "name": "_throw",
         "complexity": 25
       }

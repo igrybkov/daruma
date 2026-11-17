@@ -28,8 +28,8 @@ symmetric.
 Layers for personas.Spec, as corgi_persona.py has for the corgi: background() (the
 room with a hole for the glass), foreground(pose) (the doll and its props),
 scene(pose), WINDOW (the tall window's glass; background() leaves it
-open), plant() with PLANT_STAGES and DEFAULT_STAGE (the bonsai in the
-alcove, bonsai.py), and RUG_COLORS with RUG_BY_WEEKDAY (here
+open), plant() with PLANT_STAGES and DEFAULT_STAGE (bonsai.py's bonsai on
+the alcove's table, the room's "table" spot), and RUG_COLORS with RUG_BY_WEEKDAY (here
 the cushion changes color with the day). Animations are in daruma_moods.py.
 """
 
@@ -40,9 +40,9 @@ from dataclasses import dataclass, replace
 
 from PIL import Image, ImageDraw
 
-from .bonsai import DEFAULT_STAGE, plant  # noqa: F401  (layers API)
-from .bonsai import STAGES as PLANT_STAGES  # noqa: F401  (layers API)
+from .bonsai import BONSAI
 from .pixelkit import Canvas, Ramp, mask
+from .scene import Spot
 
 W, H = 106, 80
 CX = 53  # Doll centre, x.
@@ -794,8 +794,11 @@ PILLAR_X = 82  # The alcove's post: two columns.
 ALCOVE_X = (84, 102)  # The alcove, between its post and the right wall post.
 LINTEL_Y = 6  # Last row of the beam over the alcove.
 TOKO_Y = 50  # Top row of the alcove's raised floor.
-TABLE_Y = 45  # Top row of the bonsai table; the pot stands on it.
+TABLE_Y = 45  # Top row of the low table in the alcove.
 TABLE_X = (87, 101)
+SPOTS = {"table": Spot((TABLE_X[0] + TABLE_X[1]) // 2, TABLE_Y)}  # The middle of the table top.
+_bonsai = BONSAI.layers(SPOTS["table"])
+plant, PLANT_STAGES, DEFAULT_STAGE = _bonsai["plant"], _bonsai["PLANT_STAGES"], _bonsai["DEFAULT_STAGE"]
 
 
 def glass() -> set[tuple[int, int]]:

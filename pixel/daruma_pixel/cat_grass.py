@@ -1,7 +1,9 @@
-"""A pot of cat grass on the studio's window sill, in 7 growth stages,
-healthy or wilted: the progress prop of the tabby's studio (studio.py).
+"""A pot of cat grass for a window sill, in 7 growth stages, healthy or
+wilted.
 
-grass(stage, wilted) returns a 106x80 RGBA layer with only the pot on it:
+grass(stage, wilted, at) returns a 106x80 RGBA layer with only the pot on
+it, the pot's foot on the spot `at` (scene.py). CAT_GRASS is the Grower a
+persona places:
 
   0  fresh soil, two green points just showing
   1  a short row of shoots
@@ -16,13 +18,13 @@ Wilted: the same blades yellowed, shorter, flopped over the rim.
 
 from __future__ import annotations
 
-from PIL import Image
+from .scene import Grower, PropLayer, Spot
 
-W, H = 106, 80
-
-CX = 15  # Pot centre, on the sill (sill top is y=31).
+# The pot's own frame: it centers on CX, its foot is on ANCHOR.
+CX = 15
 RIM_Y = 25
 BASE_Y = 30
+ANCHOR = (CX, BASE_Y)  # The surface it stands on: the pot's bottom row sits in its top row.
 
 POT = (226, 220, 206)  # A plain white ceramic pot.
 POT_SHADE = (190, 182, 166)
@@ -61,18 +63,7 @@ BLADES = [
 ]
 
 
-class Layer:
-    def __init__(self) -> None:
-        self.img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        self.px = self.img.load()
-
-    def dot(self, x: float, y: float, c) -> None:
-        x, y = round(x), round(y)
-        if 0 <= x < W and 0 <= y < H:
-            self.px[x, y] = (*c, 255)
-
-
-def _pot(L: Layer) -> None:
+def _pot(L: PropLayer) -> None:
     for y in range(RIM_Y, BASE_Y + 1):
         half = 5 if y == RIM_Y else (4 if y < BASE_Y - 1 else 3)
         for x in range(CX - half, CX + half + 1):
@@ -91,7 +82,7 @@ def _pot(L: Layer) -> None:
     L.dot(CX + 5, RIM_Y - 1, POT_LINE)
 
 
-def _blades(L: Layer, stage: int, wilted: bool) -> None:
+def _blades(L: PropLayer, stage: int, wilted: bool) -> None:
     dark, mid, light = GREEN[wilted]
     root_y = RIM_Y - 1
     for i, (dx, h, lean) in enumerate(BLADES[stage]):
@@ -110,9 +101,10 @@ def _blades(L: Layer, stage: int, wilted: bool) -> None:
             L.dot(CX + dx + lean, root_y - h - 1, SEED)
 
 
-def grass(stage: int, wilted: bool = False) -> Image.Image:
+def grass(stage: int, wilted: bool, at: Spot):
+    """The cat grass at `stage`, its pot's foot on `at`."""
     stage = max(0, min(6, stage))
-    L = Layer()
+    L = PropLayer(ANCHOR, at)
     _pot(L)
     _blades(L, stage, wilted)
     return L.img
@@ -120,3 +112,4 @@ def grass(stage: int, wilted: bool = False) -> Image.Image:
 
 STAGES = 7
 DEFAULT_STAGE = 3  # What previews and the flat scene show.
+CAT_GRASS = Grower(grass, STAGES, DEFAULT_STAGE)

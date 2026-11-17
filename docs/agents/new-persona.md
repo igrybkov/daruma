@@ -41,7 +41,10 @@ module fully before you write one.
 1. **Design on paper first.** Colors (a few ramps: base, shadow, light,
    line), the silhouette, and how it shows each mood. Decide its scene and
    its focus prop: the corgi reads a book, the Jack Russell holds a ball,
-   the daruma burns incense.
+   the daruma burns incense. Pick the scene's spots it uses: where the
+   actor sits ("floor", "seat") and where its progress prop stands
+   ("shelf", "sill", "hook"). Actors and props draw at the spot you pass
+   in; they never assume a scene.
 2. **Write the art module.** It offers `background()`,
    `foreground(pose)`, `scene(pose)`, `WINDOW`, `ANIMATIONS`, `BLINKS`,
    `WINKS`, `PROPS` when an activity has props, and

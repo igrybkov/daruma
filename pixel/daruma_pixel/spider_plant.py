@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import math
 
-from PIL import Image
+from .scene import Grower, PropLayer, Spot
 
-W, H = 106, 80
-
+# The plant's own frame: the rope hangs from HOOK, the anchor.
 CX = 20  # Pot centre.
 RIM_Y = 15  # The pot's rim.
 HOOK = (CX, 0)
@@ -56,18 +55,7 @@ LEAVES = [
 RUNNERS = [[], [], [], [], [(1, 14)], [(1, 20), (-1, 14)], [(1, 27), (-1, 21), (1, 12)]]
 
 
-class Layer:
-    def __init__(self) -> None:
-        self.img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        self.px = self.img.load()
-
-    def dot(self, x: float, y: float, c) -> None:
-        x, y = round(x), round(y)
-        if 0 <= x < W and 0 <= y < H:
-            self.px[x, y] = (*c, 255)
-
-
-def _hanger(L: Layer) -> None:
+def _hanger(L: PropLayer) -> None:
     """Three ropes from a ring at the ceiling down to the pot, knotted above it."""
     hx, hy = HOOK
     for y in range(hy, hy + 2):
@@ -82,7 +70,7 @@ def _hanger(L: Layer) -> None:
             L.dot(hx + dx * t, y, ROPE)
 
 
-def _pot(L: Layer) -> None:
+def _pot(L: PropLayer) -> None:
     for y in range(RIM_Y, RIM_Y + 7):
         half = 6 if y == RIM_Y else (5 if y < RIM_Y + 4 else 4 - (y - RIM_Y - 4))
         for x in range(CX - half, CX + half + 1):
@@ -103,7 +91,7 @@ def _pot(L: Layer) -> None:
             L.dot(CX + dx * (1 - (y - RIM_Y) / 12), y, ROPE)
 
 
-def _leaf(L: Layer, angle: float, length: int, wilted: bool) -> None:
+def _leaf(L: PropLayer, angle: float, length: int, wilted: bool) -> None:
     """A long leaf from the middle of the rim: up and out, then arching over
     and down. Each pixel along it: edge color, with the stripe every other one."""
     edge, stripe, dark = LEAF[wilted]
@@ -125,7 +113,7 @@ def _leaf(L: Layer, angle: float, length: int, wilted: bool) -> None:
             L.dot(x, y + 1, dark)  # The underside shows as the leaf arches over.
 
 
-def _runner(L: Layer, side: int, length: int, wilted: bool) -> None:
+def _runner(L: PropLayer, side: int, length: int, wilted: bool) -> None:
     """A thin runner arching out of the pot and hanging down, a baby plant at its end."""
     x0 = CX + side * 6
     x = x0
@@ -145,9 +133,10 @@ def _runner(L: Layer, side: int, length: int, wilted: bool) -> None:
     L.dot(x, by - 1 if not wilted else by + 1, edge)
 
 
-def plant(stage: int, wilted: bool = False) -> Image.Image:
+def plant(stage: int, wilted: bool, at: Spot):
+    """The spider plant at `stage`, hanging from the spot `at`."""
     stage = max(0, min(STAGES - 1, stage))
-    L = Layer()
+    L = PropLayer(HOOK, at)
     _hanger(L)
     for side, length in RUNNERS[stage]:
         _runner(L, side, length * 3 // 4 if wilted else length, wilted)
@@ -165,3 +154,4 @@ def plant(stage: int, wilted: bool = False) -> Image.Image:
 
 STAGES = 7
 DEFAULT_STAGE = 3  # What previews and the flat scene show.
+SPIDER_PLANT = Grower(plant, STAGES, DEFAULT_STAGE)

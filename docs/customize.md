@@ -152,15 +152,30 @@ below.
 
 The scene behind a pet is swappable. Three come with Daruma:
 
-- `room.Room`: a cozy room with plank walls, a window, a shelf plant and a
+- `room.Room`: a cozy room with plank walls, a window, a shelf and a
   weekday rug. Its colors are fields, so each pet can have its own.
-- `living_room.LivingRoom`: a couch, an arched window and a hanging plant.
-- `studio.Studio`: an 80s portrait studio with a backdrop and a velvet drape.
+- `living_room.LivingRoom`: a couch (`couch.py`), an arched window and a
+  ceiling hook.
+- `studio.Studio`: an 80s portrait studio with a backdrop, a window sill
+  and a velvet drape.
 
 A scene has a window (the device draws the sky in its glass, from the
-"Window" select), a prop that grows with the `progress` signal (a plant,
-a bonsai, cat grass) and wilts when you fall behind, and colors that
-change by weekday (`RUG_COLORS`, `RUG_BY_WEEKDAY`).
+"Window" select), spots, and colors that change by weekday
+(`RUG_COLORS`, `RUG_BY_WEEKDAY`). A spot is a named place in the scene
+(`scene.Spot`): `Room` has "floor" and "shelf", `LivingRoom` has "seat"
+and "hook", `Studio` has "floor" and "sill".
+
+The persona puts things on the spots. The pet sits on one. A prop that
+grows with the `progress` signal and wilts when you fall behind
+(`scene.Grower`: `plant.POTHOS`, `spider_plant.SPIDER_PLANT`,
+`cat_grass.CAT_GRASS`, `bonsai.BONSAI`) stands on another:
+
+```python
+_pet = Pet(CORGI, Room(), seat="floor", plant=POTHOS, plant_spot="shelf")
+```
+
+Props and actors know no scene, so any prop fits any scene with a spot
+for it.
 
 ### Poses, animations and props
 

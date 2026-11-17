@@ -29,6 +29,7 @@ from .living_room import LivingRoom
 from .personas import Spec
 from .pet import Coat, Pet, Pose, Rig, wag_cycle, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly, rotate
+from .spider_plant import SPIDER_PLANT
 
 OUTLINE = (52, 36, 30)
 TAN = Ramp(base=(228, 164, 98), shadow=(194, 128, 70), light=(242, 192, 134), line=(156, 100, 56))
@@ -120,23 +121,30 @@ def curled(p: Pose) -> Image.Image:
     breath (the body rises a pixel) and extras (zzz above the head).
     """
     c = Canvas(pet.W, pet.H)
-    floor = ROOM.pet_floor
+    seat = ROOM.spots["seat"]
+    sx, floor = seat.x, seat.y  # Drawn round the middle of the seat.
     b = p.breath
     # The body, a long low oval, and the rear haunch on its right end.
     body, d = mask((pet.W, pet.H))
-    ellipse(d, 57, floor - 8.5 - b / 2, 16, 6.5 + b / 2)
+    ellipse(d, sx + 4, floor - 8.5 - b / 2, 16, 6.5 + b / 2)
     c.paint(body, WHITE)
     rear, d = mask((pet.W, pet.H))
-    ellipse(d, 67, floor - 10 - b / 2, 8.5, 7.5)
+    ellipse(d, sx + 14, floor - 10 - b / 2, 8.5, 7.5)
     c.paint(rear, HAUNCH)
     saddle, d = mask((pet.W, pet.H))
-    ellipse(d, 70, floor - 14 - b, 6, 4.5)
+    ellipse(d, sx + 17, floor - 14 - b, 6, 4.5)
     c.paint(intersect(saddle, rear), SADDLE)
     flank, d = mask((pet.W, pet.H))
-    ellipse(d, 57, floor - 8 - b / 2, 4.5, 3)
+    ellipse(d, sx + 4, floor - 8 - b / 2, 4.5, 3)
     c.paint(intersect(flank, body), TAN)
     # The tail: from under the rear, along the front of the body, tip toward the head.
-    pts = [(74, floor - 5), (70, floor - 2.5), (64, floor - 1.5), (57, floor - 1.5), (51, floor - 2.5)]
+    pts = [
+        (sx + 21, floor - 5),
+        (sx + 17, floor - 2.5),
+        (sx + 11, floor - 1.5),
+        (sx + 4, floor - 1.5),
+        (sx - 2, floor - 2.5),
+    ]
     bands = ((SADDLE, 0, 1), (TAN, 1, 3), (CREAM, 3, 4))
     for ramp, lo, hi in bands:
         m, d = mask((pet.W, pet.H))
@@ -152,13 +160,13 @@ def curled(p: Pose) -> Image.Image:
         c.paint(m, ramp)
     # Front paws, side by side under the chin.
     paws, d = mask((pet.W, pet.H))
-    ellipse(d, 35, floor - 3, 3.5, 2.2)
-    ellipse(d, 42, floor - 2.5, 3.5, 2.2)
+    ellipse(d, sx - 18, floor - 3, 3.5, 2.2)
+    ellipse(d, sx - 11, floor - 2.5, 3.5, 2.2)
     c.paint(paws, WHITE)
-    c.dot(34, floor - 3, WHITE.shadow)
-    c.dot(41, floor - 2, WHITE.shadow)
+    c.dot(sx - 19, floor - 3, WHITE.shadow)
+    c.dot(sx - 12, floor - 2, WHITE.shadow)
     # The head, resting on the paws, tipped a little toward the rear.
-    hx, hy, tilt = 39, floor - 10, 8
+    hx, hy, tilt = sx - 14, floor - 10, 8
 
     def hp(x: float, y: float) -> tuple[float, float]:
         return rotate([(hx + x, hy + y)], (hx, hy + 4), tilt)[0]
@@ -187,7 +195,7 @@ def curled(p: Pose) -> Image.Image:
         for dx in (-1, 0, 1):
             c.dot(ex + dx, ey + (1 if kind == "blink" else 0), EYE if kind == "half" or dx == 0 else pet.DARK)
     c.outline(OUTLINE)
-    effects.extras(c, p.extras, 30, floor + 20)
+    effects.extras(c, p.extras, sx - 23, floor + 20)
     return c.img
 
 
@@ -198,12 +206,12 @@ class CouchPet(Pet):
         return curled(pose) if pose.stance == "curl" else super().render(pose)
 
 
-_pet = CouchPet(BREED, ROOM)
+_pet = CouchPet(BREED, ROOM, seat="seat", plant=SPIDER_PLANT, plant_spot="hook")
 # Where focus's prop stands (tests/test_props.py): the ball in its mouth.
 PROPS = {"focus": [(49, 30, 58, 39)]}
 background, foreground, scene = _pet.background, _pet.foreground, _pet.scene
 WINDOW = ROOM.window
-_extra = ROOM.layers()
+_extra = _pet.layers()
 plant, PLANT_STAGES, DEFAULT_STAGE = _extra["plant"], _extra["PLANT_STAGES"], _extra["DEFAULT_STAGE"]
 RUG_COLORS, RUG_BY_WEEKDAY, RUG_BOX = _extra["RUG_COLORS"], _extra["RUG_BY_WEEKDAY"], _extra["RUG_BOX"]
 

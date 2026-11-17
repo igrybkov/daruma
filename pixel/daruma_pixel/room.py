@@ -1,10 +1,12 @@
 """The cozy room: a Scene (scene.py) for pets indoors.
 
-Plank walls, a window with the sky, a shelf with the plant (plant.py, the
-progress prop), floor boards, and a rug that changes color by weekday.
-Colors and a few details (a painted lower wall, a striped rug) vary per
-persona, so two pets need not share one room. The defaults are the
-corgi's room.
+Plank walls, a window with the sky, an empty shelf, floor boards, and a rug
+that changes color by weekday. Colors and a few details (a painted lower
+wall, a striped rug) vary per persona, so two pets need not share one room.
+The defaults are warm browns and a red rug.
+
+Spots: "floor" (the middle of the rug, where a pet sits) and "shelf" (the
+middle of the shelf top, where a progress prop like plant.py's can stand).
 """
 
 from __future__ import annotations
@@ -13,18 +15,19 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from . import plant as _plant
 from .pixelkit import Color
+from .scene import WEEKDAY_COLORS, Spot
 
 W, H = 106, 80
 WINDOW = (8, 8, 24, 21)  # Glass: x, y, width, height. The cross bars stay in the room.
 RUG_BOX = (0, H - 13, W, H)  # Where the weekday colors may be: the rug, on the floor.
+SHELF = (W - 30, W - 8, 22)  # Left end, right end and top row of the shelf.
+SPOTS = {"floor": Spot(W // 2, H - 5), "shelf": Spot((SHELF[0] + SHELF[1]) // 2, SHELF[2])}
 
 
 @dataclass(frozen=True)
 class Room:
-    """A cozy room: plank wall, a window, a shelf for the plant, floor boards
-    and a rug. The defaults are the corgi's room."""
+    """A cozy room: plank wall, a window, a shelf, floor boards and a rug."""
 
     wall: tuple[Color, ...] = ((116, 74, 48), (128, 84, 54), (122, 79, 51))  # Planks, repeating.
     wall_line: Color = (92, 56, 36)
@@ -41,6 +44,7 @@ class Room:
 
     # The Scene protocol (scene.py).
     window = WINDOW  # Not a field: every room has its window in the same place.
+    spots = SPOTS
 
     def image(self) -> Image.Image:
         return room(self)
@@ -56,30 +60,12 @@ class Room:
         return img
 
     def layers(self) -> dict:
+        # The device swaps the rug's three colors (edge, main, shadow) for the day's.
         return {
-            "plant": _plant.plant,
-            "PLANT_STAGES": _plant.STAGES,
-            "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
             "RUG_COLORS": (self.rug_edge, self.rug, self.rug_shadow),
-            "RUG_BY_WEEKDAY": RUG_BY_WEEKDAY,
+            "RUG_BY_WEEKDAY": WEEKDAY_COLORS,
             "RUG_BOX": RUG_BOX,
         }
-
-
-# The rug changes color with the day of the week, in the colors people most
-# often "see" the days in (weekday-color synesthesia, and the meme that
-# Thursday is brown): white Sunday, blue Monday, yellow Tuesday, green
-# Wednesday, brown Thursday, pink Friday, purple Saturday. The device swaps
-# the room's three rug colors for the day's (edge, main, shadow), Sunday first.
-RUG_BY_WEEKDAY = (
-    ((184, 150, 104), (236, 228, 210), (204, 192, 170)),  # Sunday: white
-    ((204, 170, 112), (58, 92, 160), (44, 70, 126)),  # Monday: blue
-    ((236, 214, 160), (222, 182, 48), (180, 144, 32)),  # Tuesday: yellow
-    ((206, 172, 100), (62, 128, 76), (46, 98, 58)),  # Wednesday: green
-    ((206, 164, 110), (100, 62, 40), (78, 46, 30)),  # Thursday: brown, obviously
-    ((228, 190, 144), (214, 104, 146), (172, 78, 114)),  # Friday: pink
-    ((206, 166, 108), (112, 70, 150), (86, 52, 118)),  # Saturday: purple
-)
 
 
 def room(r: Room) -> Image.Image:
@@ -103,8 +89,8 @@ def room(r: Room) -> Image.Image:
     d.rectangle((wx + 6, wy + 4, wx + 9, wy + 4), fill=(255, 255, 255))
     d.line((wx + ww // 2, wy, wx + ww // 2, wy + wh), fill=r.frame)
     d.line((wx, wy + wh // 2, wx + ww, wy + wh // 2), fill=r.frame)
-    # Shelf; the plant on it is its own layer (plant.py).
-    d.rectangle((W - 30, 22, W - 8, 23), fill=r.frame)
+    # Shelf; whatever stands on it is its own layer.
+    d.rectangle((SHELF[0], SHELF[2], SHELF[1], SHELF[2] + 1), fill=r.frame)
     # Floor boards.
     d.rectangle((0, floor_y, W, H), fill=r.floor)
     for y in range(floor_y + 3, H, 4):

@@ -31,14 +31,17 @@ Two ways to wag (Breed.tail):
              carried (1 up and proud, 0 low and tucked). The body keeps
              still.
 
-A persona module builds a Pet from its Breed and a Scene and exposes the
+A persona module builds a Pet from its Breed, a Scene, the spot the pet
+sits on and, if it has one, a progress prop and its spot. It exposes the
 names every persona module has (see personas.Spec):
 
     ROOM = Room(...)
-    _pet = Pet(BREED, ROOM)
+    _pet = Pet(BREED, ROOM, seat="floor", plant=POTHOS, plant_spot="shelf")
     background, foreground, scene = _pet.background, _pet.foreground, _pet.scene
     WINDOW = ROOM.window
-    plant, ... = ROOM.layers()[...]   # the scene's progress prop and weekday colors
+    _extra = _pet.layers()
+    plant, PLANT_STAGES, DEFAULT_STAGE = _extra["plant"], ...   # the progress prop
+    RUG_COLORS, RUG_BY_WEEKDAY, RUG_BOX = _extra["RUG_COLORS"], ...   # weekday colors
     ANIMATIONS, BLINKS, WINKS = ...
     PERSONA = Spec("name", background=0x...)
 
@@ -55,7 +58,7 @@ from PIL import Image, ImageDraw
 
 from .effects import HEART, HEART_SHINE, extras
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, mask, poly, rotate, shear_rows, shift
-from .scene import Scene
+from .scene import Grower, Scene, Spot
 
 W, H = 106, 80  # Logical canvas: 318x240 on screen at 3x.
 
@@ -581,26 +584,43 @@ def _ball(c: Canvas, x: int, y: int) -> None:
 class Pet:
     """A breed in a scene: the layers a persona module takes its names from.
 
-    The device draws the window glass itself (sky, weather), then the scene
-    with a hole where the glass is, then the progress prop, then the pet.
+    The pet sits on the scene's spot `seat`; the progress prop, if any,
+    stands on the spot `plant_spot`. The device draws the window glass
+    itself (sky, weather), then the scene with a hole where the glass is,
+    then the progress prop, then the pet.
     """
 
     breed: Breed
     stage: Scene
+    seat: str = "floor"
+    plant: Grower | None = None
+    plant_spot: str = ""
+
+    @property
+    def spot(self) -> Spot:
+        """Where the pet sits."""
+        return self.stage.spots[self.seat]
+
+    def layers(self) -> dict:
+        """The persona-module names for the progress prop and the weekday
+        colors: plant, PLANT_STAGES, DEFAULT_STAGE, RUG_COLORS, RUG_BY_WEEKDAY
+        and RUG_BOX, the ones this pet's scene and prop have."""
+        found = dict(self.stage.layers())
+        if self.plant is not None:
+            found.update(self.plant.layers(self.stage.spots[self.plant_spot]))
+        return found
 
     def render(self, pose: Pose) -> Image.Image:
-        """The pet alone. It stands on the scene's `pet_floor` (a seat, say),
-        if the scene has one, else on the floor near the bottom."""
-        return render(self.breed, pose, floor=getattr(self.stage, "pet_floor", H - 5))
+        """The pet alone, on its spot."""
+        return render(self.breed, pose, cx=self.spot.x, floor=self.spot.y)
 
     def scene(self, pose: Pose, plant_stage: int | None = None, wilted: bool = False) -> Image.Image:
         """The full picture, with the progress prop (if any) at plant_stage,
-        by default the scene's DEFAULT_STAGE."""
+        by default its DEFAULT_STAGE."""
         img = self.stage.image()
-        extra = self.stage.layers()
-        if "plant" in extra:
-            stage = extra["DEFAULT_STAGE"] if plant_stage is None else plant_stage
-            img.alpha_composite(extra["plant"](stage, wilted))
+        if self.plant is not None:
+            stage = self.plant.default_stage if plant_stage is None else plant_stage
+            img.alpha_composite(self.plant.draw(stage, wilted, self.stage.spots[self.plant_spot]))
         img.alpha_composite(self.render(pose))
         return img
 

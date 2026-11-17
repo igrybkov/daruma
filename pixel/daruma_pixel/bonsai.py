@@ -1,9 +1,9 @@
-"""A bonsai for the daruma's tokonoma, in 7 growth stages, healthy or wilted.
+"""A bonsai on a low table, in 7 growth stages, healthy or wilted.
 
-plant(stage, wilted) returns a 106x80 RGBA layer with only the tree and its
-pot on it. The pot stands on the low table that daruma.py draws in the
-alcove (table top at y=45), so the device can draw it between the room and
-the doll, the same way as the corgi's pothos (plant.py):
+plant(stage, wilted, at) returns a 106x80 RGBA layer with only the tree and
+its pot on it, the pot's feet on the spot `at` (scene.py, a table top), so
+the device can draw it between the room and the actor. BONSAI is the
+Grower a persona places:
 
   0  a seedling in a shallow pot
   1  a sapling with a first tuft
@@ -22,12 +22,12 @@ strands, and a few dead needles on the table.
 
 from __future__ import annotations
 
-from PIL import Image
+from .scene import Grower, PropLayer, Spot
 
-W, H = 106, 80
-
-CX = 94  # Pot centre, on the table.
-TABLE_TOP = 45  # The table's top row; the pot's feet sit just above it.
+# The tree's own frame: the pot centers on CX, its feet are on ANCHOR.
+CX = 94
+TABLE_TOP = 45  # The row under the pot's feet.
+ANCHOR = (CX, TABLE_TOP)
 SOIL_Y = 39
 
 POT = (82, 96, 128)  # A blue glazed pot.
@@ -62,27 +62,13 @@ APEX = ((94.5, 22.5), 3.5, 1.8)
 GROWTH = [0.12, 0.3, 0.45, 0.6, 0.75, 0.88, 1.0]
 
 
-class Layer:
-    def __init__(self) -> None:
-        self.img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        self.px = self.img.load()
-
-    def dot(self, x: float, y: float, c) -> None:
-        x, y = round(x), round(y)
-        if 0 <= x < W and 0 <= y < H:
-            self.px[x, y] = (*c, 255)
-
-    def filled(self, x: int, y: int) -> bool:
-        return 0 <= x < W and 0 <= y < H and self.px[x, y][3] > 0
-
-
 def _grown(pt: tuple[float, float], k: float) -> tuple[float, float]:
     """A point of the full tree, shrunk toward the trunk's base by k."""
     bx, by = TRUNK[0]
     return bx + (pt[0] - bx) * k, by + (pt[1] - by) * k
 
 
-def _pot(L: Layer) -> None:
+def _pot(L: PropLayer) -> None:
     """A shallow rectangular pot with a lip and two feet, on the table."""
     rim, base = SOIL_Y + 1, TABLE_TOP - 2
     for x in range(CX - 6, CX + 7):
@@ -101,7 +87,7 @@ def _pot(L: Layer) -> None:
         L.dot(x, SOIL_Y, SOIL)
 
 
-def _trunk(L: Layer, k: float, stage: int) -> list[tuple[float, float]]:
+def _trunk(L: PropLayer, k: float, stage: int) -> list[tuple[float, float]]:
     """The trunk up to this stage's height, thick at the base. Returns its points."""
     pts = [_grown(p, k) for p in TRUNK]
     base_w = 1 if stage <= 2 else 2 if stage <= 4 else 3
@@ -126,14 +112,14 @@ def _trunk(L: Layer, k: float, stage: int) -> list[tuple[float, float]]:
     return pts
 
 
-def _branch(L: Layer, a: tuple[float, float], b: tuple[float, float]) -> None:
+def _branch(L: PropLayer, a: tuple[float, float], b: tuple[float, float]) -> None:
     n = max(1, round(max(abs(b[0] - a[0]), abs(b[1] - a[1]))))
     for i in range(n + 1):
         t = i / n
         L.dot(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, BARK)
 
 
-def _pad(L: Layer, cx: float, cy: float, rx: float, ry: float, wilted: bool) -> None:
+def _pad(L: PropLayer, cx: float, cy: float, rx: float, ry: float, wilted: bool) -> None:
     """A cloud of foliage: lit on top, dark underneath. Wilted, it thins and hangs."""
     dark, mid, light, high = LEAF[wilted]
     if wilted:
@@ -172,7 +158,7 @@ def _pad(L: Layer, cx: float, cy: float, rx: float, ry: float, wilted: bool) -> 
                 L.dot(x, y + 2, dark)
 
 
-def _seedling(L: Layer, wilted: bool) -> None:
+def _seedling(L: PropLayer, wilted: bool) -> None:
     dark, mid, light, _ = LEAF[wilted]
     stem = LEAF[wilted][0]
     for y in (SOIL_Y - 1, SOIL_Y - 2):
@@ -190,16 +176,17 @@ def _seedling(L: Layer, wilted: bool) -> None:
         L.dot(CX + 2, SOIL_Y - 4, light)
 
 
-def _fallen(L: Layer, stage: int) -> None:
+def _fallen(L: PropLayer, stage: int) -> None:
     """A few dead needles on the table, more on a bigger tree."""
     spots = [(CX - 7, TABLE_TOP - 1), (CX + 7, TABLE_TOP - 1), (CX - 6, TABLE_TOP - 1), (CX + 6, TABLE_TOP - 1)]
     for x, y in spots[: 1 + stage // 2]:
         L.dot(x, y, LEAF[True][1])
 
 
-def plant(stage: int, wilted: bool = False) -> Image.Image:
+def plant(stage: int, wilted: bool, at: Spot):
+    """The bonsai at `stage`, its pot's feet on `at`."""
     stage = max(0, min(STAGES - 1, stage))
-    L = Layer()
+    L = PropLayer(ANCHOR, at)
     if stage == 0:
         _seedling(L, wilted)
         _pot(L)
@@ -226,3 +213,4 @@ def plant(stage: int, wilted: bool = False) -> Image.Image:
 
 STAGES = 7
 DEFAULT_STAGE = 3  # What previews and the flat scene show.
+BONSAI = Grower(plant, STAGES, DEFAULT_STAGE)

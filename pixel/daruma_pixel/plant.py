@@ -1,7 +1,8 @@
-"""A potted pothos for the corgi's shelf, in 7 growth stages, healthy or wilted.
+"""A potted pothos for a shelf, in 7 growth stages, healthy or wilted.
 
-plant(stage, wilted) returns a 106x80 RGBA layer with only the plant on it.
-The device draws one of them between the room and the corgi:
+plant(stage, wilted, at) returns a 106x80 RGBA layer with only the plant on
+it, the pot's foot on the spot `at` (scene.py). POTHOS is the Grower a
+persona places. The device draws one of them between the room and the pet:
 
   0  a sprout in fresh soil
   1  two small leaves
@@ -18,12 +19,12 @@ from __future__ import annotations
 
 import math
 
-from PIL import Image
+from .scene import Grower, PropLayer, Spot
 
-W, H = 106, 80
-
-CX = 87  # Pot centre, on the shelf (shelf top is y=22).
+# The plant's own frame: the pot centers on CX, its foot is on ANCHOR.
+CX = 87
 RIM_Y = 15
+ANCHOR = (CX, 22)  # The row under the pot: what stands on the spot.
 
 POT = (178, 92, 60)
 POT_SHADE = (140, 66, 44)
@@ -61,16 +62,7 @@ VINES = [
 ]
 
 
-class Layer:
-    def __init__(self) -> None:
-        self.img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        self.px = self.img.load()
-
-    def dot(self, x: float, y: float, c) -> None:
-        x, y = round(x), round(y)
-        if 0 <= x < W and 0 <= y < H:
-            self.px[x, y] = (*c, 255)
-
+class Layer(PropLayer):
     def leaf(self, x: int, y: int, side: int, wilted: bool) -> None:
         """A 3-px heart leaf pointing to `side`; wilted ones hang their tip down."""
         dark, mid, light = LEAF[wilted]
@@ -141,9 +133,10 @@ def _vine(L: Layer, side: int, length: int, wilted: bool, phase: float) -> None:
         L.leaf(x, tip - 1, side, wilted)
 
 
-def plant(stage: int, wilted: bool = False) -> Image.Image:
+def plant(stage: int, wilted: bool, at: Spot):
+    """The pothos at `stage`, its pot's foot on `at`."""
     stage = max(0, min(6, stage))
-    L = Layer()
+    L = Layer(ANCHOR, at)
     # Vines first: the pot and its lip sit in front of where they start.
     for n, (side, length) in enumerate(VINES[stage]):
         if wilted:
@@ -161,3 +154,4 @@ def plant(stage: int, wilted: bool = False) -> Image.Image:
 
 STAGES = 7
 DEFAULT_STAGE = 3  # What previews and the flat scene show.
+POTHOS = Grower(plant, STAGES, DEFAULT_STAGE)

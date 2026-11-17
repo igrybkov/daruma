@@ -6,9 +6,12 @@ the edges, as old studio portraits do. A chrome stand holds the roll at its
 left end, and the cloth's edge turns back there and casts a soft shadow on
 the wall. The wall is flat sage paint, lit from the window, so the backdrop
 reads as a thing hung in front of it. In the wall, the studio's window (the
-device draws the sky in its glass) with a pot of cat grass on the sill (the
-progress prop, cat_grass.py). The sitter poses on a velvet drape whose color
-follows the weekday (the cozy room's weekday colors, room.py).
+device draws the sky in its glass) with a wide sill. The sitter poses on a
+velvet drape whose color follows the weekday (scene.py's weekday colors).
+
+Spots: "floor" (the middle of the drape, where the sitter sits) and "sill"
+(the middle of the window sill's top, where a pot like cat_grass.py's can
+stand).
 """
 
 from __future__ import annotations
@@ -18,11 +21,15 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from . import cat_grass, room
 from .pixelkit import Color
+from .scene import WEEKDAY_COLORS, Spot
 
 W, H = 106, 80
 WINDOW = (4, 8, 22, 20)  # Glass: x, y, width, height. The cross bars stay in the scene.
+SPOTS = {
+    "floor": Spot(W // 2, H - 5),
+    "sill": Spot(WINDOW[0] + WINDOW[2] // 2, WINDOW[1] + WINDOW[3] + 2),  # The sill's top row.
+}
 FLOOR_Y = H - 14
 DRAPE_BOX = (0, H - 13, W, H)  # Where the weekday colors may be.
 BACKDROP_X = 30  # The backdrop's left edge; the studio wall is left of it.
@@ -42,7 +49,7 @@ def _mottle(x: int, y: int) -> float:
 
 @dataclass(frozen=True)
 class Studio:
-    """The studio, with its colors. The defaults are the tabby's."""
+    """The studio, with its colors: sage, cream and a maroon drape by default."""
 
     # The studio wall round the window: flat sage paint, lightest by the window.
     wall: tuple[Color, ...] = ((104, 120, 108), (90, 104, 94), (76, 88, 80), (62, 72, 66))
@@ -59,6 +66,7 @@ class Studio:
     light_at: tuple[int, int] = (55, 34)  # The spotlight's centre: behind the sitter's head.
 
     window = WINDOW
+    spots = SPOTS
 
     def image(self) -> Image.Image:
         return studio(self)
@@ -75,11 +83,8 @@ class Studio:
 
     def layers(self) -> dict:
         return {
-            "plant": cat_grass.grass,
-            "PLANT_STAGES": cat_grass.STAGES,
-            "DEFAULT_STAGE": cat_grass.DEFAULT_STAGE,
             "RUG_COLORS": (self.drape_edge, self.drape, self.drape_shadow),
-            "RUG_BY_WEEKDAY": room.RUG_BY_WEEKDAY,
+            "RUG_BY_WEEKDAY": WEEKDAY_COLORS,
             "RUG_BOX": DRAPE_BOX,
         }
 
@@ -126,7 +131,7 @@ def studio(s: Studio) -> Image.Image:
         for x in range(x0, x0 + w):
             if _is_bar(x, y):
                 px[x, y] = (*s.frame, 255)
-    # The sill, wider than the frame, the pot stands on it.
+    # The sill, wider than the frame.
     d.rectangle((x0 - 4, y0 + h + 2, x0 + w + 3, y0 + h + 3), fill=s.frame)
     d.line((x0 - 4, y0 + h + 4, x0 + w + 3, y0 + h + 4), fill=s.frame_shade)
     # The backdrop: mottled browns, bright in the spotlight, dark at the edges,

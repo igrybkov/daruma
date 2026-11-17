@@ -14,7 +14,7 @@ gif_scale; nearest neighbour; kept under --max-kb), and with --mp4 an MP4
 with the sounds. Test mode runs the scenarios' snapshot and expect steps; on a failure it writes the actual
 picture, a diff and a GIF of the run to --out.
 
-Needs: uv, a C compiler, SDL2 (brew install sdl2) and ffmpeg.
+Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
 """
 
 from __future__ import annotations

@@ -206,6 +206,13 @@ jobs:
       # The compiled objects, by the hash of what went in. Every run saves
       # them, pull requests too, so the next push to a pull request starts
       # warm. A pull request's first run starts from main's.
+      #
+      # The key has the run id because a saved cache can't be overwritten:
+      # a fixed key (per pull request, say) would keep the first run's
+      # ccache forever. The exact key never matches on restore. The
+      # restore-keys prefix then picks the newest saved ccache: the pull
+      # request's own first, else its base branch's or main's. Old entries
+      # age out of the repository's 10 GB cache by least recent use.
       - name: Restore the ccache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -252,6 +259,7 @@ jobs:
           uv run --no-sync esphome \
             -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
             compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+      # A new key every run, so this run's objects are kept (see the restore).
       - name: Save the ccache
         if: ${{ !cancelled() }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

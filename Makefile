@@ -74,7 +74,7 @@ define run_hooks
 endef
 
 .PHONY: help setup esphome-env esphome-version secrets config compile desktop \
-	test test-py test-cpp mutate mutate-diff screens golden test-screens update-golden gifs \
+	test test-py test-cpp mutate mutate-diff screens golden test-screens update-golden update-frames gifs \
 	lint format complexity tidy docker-test check clean
 
 # --- Help ----------------------------------------------------------------
@@ -181,12 +181,20 @@ golden: secrets ## Check the scenarios against the golden pictures (PERSONA=, SC
 test-screens: secrets ## The screen tests in Python, without the scenarios (PYTEST_ARGS=)
 	$(UV_RUN) pytest demos -m "not scenario" $(PYTEST_ARGS)
 
-update-golden: secrets ## Write new golden pictures; needs CONFIRM=1 (PERSONA=, SCENARIO=)
+update-golden: secrets ## Write new golden pictures, screens and persona frames; needs CONFIRM=1 (PERSONA=, SCENARIO=)
 ifneq ($(CONFIRM),1)
 	@echo "update-golden rewrites tests/golden. Run: make update-golden CONFIRM=1" >&2
 	@exit 1
 endif
+	$(UV_RUN) python tests/persona_frames.py update
 	$(SCREENS) -m scenario --update-golden $(PYTEST_ARGS)
+
+update-frames: ## Write new golden pictures of the persona frames only; needs CONFIRM=1
+ifneq ($(CONFIRM),1)
+	@echo "update-frames rewrites tests/golden/frames. Run: make update-frames CONFIRM=1" >&2
+	@exit 1
+endif
+	$(UV_RUN) python tests/persona_frames.py update
 
 gifs: secrets ## Record demo GIFs (PERSONA=, SCENARIO=, VARIANT=, DOCS=, JOBS=)
 	$(RECORD) $(if $(VARIANT),--variant $(VARIANT)) $(if $(DOCS),--docs '$(DOCS)')

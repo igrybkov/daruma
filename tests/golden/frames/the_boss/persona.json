@@ -1,0 +1,21 @@
+{
+ "background": "DED2BE",
+ "sprite_offset": [0, 0],
+ "window": null,
+ "plant_offset": [0, 0],
+ "recolor_from": [],
+ "recolor_by_weekday": [],
+ "animations": {
+  "Neutral": [1800, 1400, 1200, 1500, 1400, 1400, 1600, 1400],
+  "Happy": [450, 450, 450, 450, 2000],
+  "Loved": [600, 600],
+  "Sad": [1400, 1400, 1400],
+  "Scared": [120, 120, 120, 120],
+  "Sleepy": [1200, 900, 1500],
+  "Sleeping": [1400, 1400],
+  "listening": [1000],
+  "thinking": [1000],
+  "talking": [1000],
+  "Focus": [2600, 2000, 1800, 1400, 1600, 1400]
+ }
+}

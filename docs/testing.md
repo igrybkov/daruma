@@ -199,6 +199,28 @@ uv run pytest tests/test_layout.cpp    # one C++ test
 uv run pytest tests -m cpp             # every C++ test
 ```
 
+### Persona frames
+
+`tests/test_persona_frames.py` pins every picture each pixel persona
+gives the device. It checks the room, every frame of every animation,
+blinks and winks, and the plant in each stage, healthy and wilted. It
+also checks the numbers in `persona.json`: offsets, the window, the
+weekday colors and the frame times. It compares pixels, not file bytes.
+
+The goldens live in `tests/golden/frames/<persona>/`, one PNG per
+frame. A refactor of the pixel art must leave them all equal. A failed
+check names each file that differs. It writes the actual and the
+expected pictures to `$DARUMA_WORK/frames`, or to a temp folder.
+
+```sh
+make update-frames CONFIRM=1   # accept new persona frames
+make update-golden CONFIRM=1   # persona frames and screens
+```
+
+The update keeps a golden whose pixels did not change. It removes the
+goldens of frames a persona no longer draws. Open the changed pictures
+before you commit them.
+
 ## Coverage
 
 CI measures which lines the tests run, in jobs beside the tests. The

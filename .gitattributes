@@ -1,0 +1,3 @@
+# Golden pictures are written by make update-golden. GitHub folds them in
+# pull request diffs and leaves them out of the language stats.
+tests/golden/** linguist-generated=true

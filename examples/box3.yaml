@@ -32,7 +32,7 @@
 #   pomodoro.yaml          pomodoro timer, daily goal and tomatoes
 #   app_tasks.yaml         Tasks app: today's tasks from an HA to-do list
 #                          or script (needs menu.yaml; include per list)
-#   app_calendar.yaml      Calendar app: the next days' HA calendar events
+#   app_calendar.yaml      Calendar app: the Agenda of coming HA calendar events
 #                          (include per set of calendars)
 #   app_weather.yaml       Weather app: today's report from an HA weather
 #                          entity (a tap on the temperature badge opens it)

@@ -117,11 +117,7 @@ The same page has the other settings: the Persona select, the pomodoro
 lengths and daily goal, one "App:" switch per app, the button bindings,
 the window's sky, and each persona's own options.
 
-<!-- TODO(screenshot): the device's page in Home Assistant, the
-Configuration section, on a demo device. Crop out anything personal. Save
-as docs/images/ha-device-settings.png and show it here. -->
-
-> **Screenshot to come:** the device's settings page in Home Assistant.
+![Part of the device's Configuration card in Home Assistant: app switches, the calendars, persona options and button bindings](images/ha-device-settings.png)
 
 ## 7. Try it
 

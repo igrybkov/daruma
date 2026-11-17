@@ -25,6 +25,7 @@ Needs: uv, a C compiler, SDL2 (brew install sdl2) and ffmpeg.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 import tempfile
@@ -35,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import scenario as scenarios  # noqa: E402
 from harness import GOLDEN_DIR, HERE, Device, build, slug  # noqa: E402
-from media import encode_gif, encode_mp4, frames_of, sounds_of, with_captions  # noqa: E402
+from media import encode_gif, encode_mp4, frames_of, sounds_of, with_captions, with_touches  # noqa: E402
 
 DOCS_DEMOS = HERE.parent / "docs" / "demos"
 DEFAULT_WORK = Path(tempfile.gettempdir()) / "daruma-demos"
@@ -108,6 +109,7 @@ def main() -> int:
                     device.record_stop()
                     skipped = device.skipped
                     captions = device.captions
+                    touches = device.touches
             except Exception:  # noqa: BLE001 - report and go on with the next run
                 failures += 1
                 traceback.print_exc()
@@ -125,6 +127,10 @@ def main() -> int:
                 else:
                     print("  ok", flush=True)
                 continue
+            (run_dir / "marks.json").write_text(json.dumps({"captions": captions, "touches": touches,
+                                                            "skipped": skipped}, indent=1))
+            # Touch marks, and frames split where a caption starts, for the GIF only.
+            frames = with_touches(frames, touches, skipped, run_dir / "touched", split_at=[ms for ms, _ in captions])
             if captions:
                 frames = with_captions(frames, captions, run_dir / "captioned")
             target = (work / "demos" if private else args.docs) / f"{label}.gif"

@@ -55,8 +55,9 @@ daruma:
   apps: [tasks, calendar, weather, stats]
   progress:
     pomodoro: 1
+  # A tap on the persona opens the default main menu (Tasks, Calendar,
+  # More), as on the BOX-3.
   menus:
-    main: [pomodoro, tasks, calendar]
     quick: [pomodoro.skip, pomodoro.stop, stats, more]
   # As on the BOX-3, but the top button changes the persona: there is no voice
   # assistant here. The red circle's press opens the pomodoro menu

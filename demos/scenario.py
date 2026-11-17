@@ -36,7 +36,10 @@ Steps:
     voice: {phase: thinking, text: What's the weather?}
                                     the voice assistant's screen: listening,
                                     thinking, replying, error, timer or idle
-    caption: Sad                    a caption under the screen in the GIF
+    caption: Start a focus block    a caption under the screen in the GIF,
+    steps:                          shown while the steps it holds run (the
+      - tap: {text: Focus}          same keys; blocks may nest)
+      - wait: 2
     message: {text: Hi, seconds: 5}
     prompt: {id: door, title: ..., options: [...], style: urgent}
     update_prompt: {id: quiz, marks: [correct]}
@@ -83,6 +86,24 @@ class Scenario:
         return wanted == "all" or persona in (wanted or [])
 
 
+def flatten(steps: list[dict[str, Any]], outer: str = "") -> list[dict[str, Any]]:
+    """The steps as the runner takes them: each `caption` + `steps:` block
+    becomes a caption step, the steps it holds, and a step back to the
+    caption around it ("" at the top) where the block ends."""
+    out: list[dict[str, Any]] = []
+    for step in steps:
+        if "caption" not in step:
+            out.append(step)
+            continue
+        if set(step) != {"caption", "steps"} or not isinstance(step["steps"], list):
+            raise DeviceError(f"A caption holds its steps: `caption: ...` and a `steps:` list. Got: {step}")
+        text = str(step["caption"])
+        out.append({"caption": text})
+        out += flatten(step["steps"], text)
+        out.append({"caption": outer})
+    return out
+
+
 def load(name_or_path: str) -> Scenario:
     path = Path(name_or_path)
     if not path.exists():
@@ -91,8 +112,8 @@ def load(name_or_path: str) -> Scenario:
     return Scenario(
         name=raw.get("name", path.stem),
         path=path,
-        steps=raw["steps"],
-        setup=raw.get("setup", []),
+        steps=flatten(raw["steps"]),
+        setup=flatten(raw.get("setup", [])),
         personas=raw.get("personas", "all"),
         test_personas=raw.get("test_personas", []),
         description=raw.get("description", ""),

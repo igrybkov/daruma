@@ -3,7 +3,7 @@ persona: the tomato plaque or the pomodoro timer bottom left, the
 temperature badge bottom right, and the info line under both.
 
     c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
-    uv run --with pillow python -I tests/preview_line.py /tmp/test_layout OUT_DIR FONT_DIR [--before]
+    uv run python -I tests/preview_line.py /tmp/test_layout OUT_DIR FONT_DIR [--before]
 
 FONT_DIR as for preview_screens.py. The regions come from layout.h
 (test_layout --json), and both plaques from plaque.h (test_layout

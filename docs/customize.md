@@ -194,7 +194,7 @@ Preview it without a device. This writes every layer and a sheet of every
 frame:
 
 ```sh
-cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/personas fox
+uv run python -m daruma_pixel.personas /tmp/personas fox
 ```
 
 [agents/new-persona.md](agents/new-persona.md) walks through a new persona end to end.

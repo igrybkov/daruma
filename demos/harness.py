@@ -51,7 +51,12 @@ from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
-ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME", "esphome==2026.10.2")
+# Another ESPHome to build with, for a try (a pip spec such as "esphome==<version>"). By
+# default the build runs the version locked in uv.lock (the "esphome" group).
+ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME")
+# That group's environment. It can't share the test environment: ESPHome
+# pins another aioesphomeapi.
+ESPHOME_ENV = REPO_DIR / ".venv-esphome"
 # uvx ignores .python-version, so the build passes it on.
 PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
@@ -86,12 +91,33 @@ class Build:
 
 
 def _copy_sources(src: Path) -> None:
+    """Copy the sources into `src`, fresh, but keep ESPHome's data folder.
+
+    examples/.esphome holds the compiled programs and the drawn persona art
+    (see daruma_sprites). Drawing the art takes most of a cold build, and both
+    caches check their own inputs, so a build that keeps them only redoes
+    what changed. The copy keeps file times, so the compiler sees what changed.
+    The folder stays in place, so programs built before keep running.
+    """
     src.mkdir(parents=True, exist_ok=True)
     for name in SOURCES:
         target = src / name
         if target.is_dir():
-            shutil.rmtree(target)
-        shutil.copytree(REPO_DIR / name, target, ignore=shutil.ignore_patterns("__pycache__", ".esphome"))
+            _clear_but_esphome(target)
+        shutil.copytree(
+            REPO_DIR / name, target, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", ".esphome")
+        )
+
+
+def _clear_but_esphome(folder: Path) -> None:
+    """Delete everything in `folder` except its .esphome folder."""
+    for child in folder.iterdir():
+        if child.name == ".esphome":
+            continue
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
 
 def _persona_name(package: Path) -> str:
@@ -143,21 +169,24 @@ def build(
     subs = {"name": name, "desktop_api_port": str(port), "desktop_timezone": timezone, **VARIANTS[variant]}
     yaml_name = DEVICE_YAML
     private: set[str] = set()
-    if private_packages:
+    if name != "daruma-desktop":
+        # ESPHome keeps a record of the last build per config file, and
+        # cleans the build folder when the name in it differs. A config file
+        # per build name keeps each build's objects for the next build.
         lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
-        for i, pkg in enumerate(private_packages):
+        for i, pkg in enumerate(private_packages or []):
             pkg = Path(pkg).resolve()
             lines.append(f"  private_{i}: !include {pkg}")
             private.add(_persona_name(pkg))
-        yaml_name = "desktop-private.yaml"
+        yaml_name = f"{name}.yaml"
         (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
-    cmd = ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"]
+    cmd, env = _esphome_command()
     for k, v in subs.items():
         cmd += ["-s", k, v]
     cmd += ["compile", yaml_name]
     log = out / f"compile-{name}.log"
     with open(log, "w") as fh:
-        result = subprocess.run(cmd, cwd=config_dir, stdout=fh if quiet else None, stderr=subprocess.STDOUT)
+        result = subprocess.run(cmd, cwd=config_dir, env=env, stdout=fh if quiet else None, stderr=subprocess.STDOUT)
     if result.returncode != 0:
         tail = "\n".join(log.read_text().splitlines()[-30:]) if quiet else ""
         raise DeviceError(f"Compile failed (log: {log})\n{tail}")
@@ -165,13 +194,45 @@ def build(
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
 
 
+def _esphome_command() -> tuple[list[str], dict[str, str]]:
+    """The command that runs ESPHome, and its environment.
+
+    By default it brings .venv-esphome in line with uv.lock first: a fast
+    no-op when it already is.
+    """
+    if ESPHOME_SPEC:
+        return ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"], dict(os.environ)
+    env = dict(os.environ, UV_PROJECT_ENVIRONMENT=str(ESPHOME_ENV))
+    env.pop("VIRTUAL_ENV", None)  # The test environment's, when the harness runs under uv run.
+    sync = [
+        "uv",
+        "sync",
+        "--project",
+        str(REPO_DIR),
+        "--frozen",
+        "--only-group",
+        "esphome",
+        "--no-install-project",
+        "--python",
+        PYTHON,
+        "--quiet",
+    ]
+    subprocess.run(sync, env=env, check=True)
+    return [str(ESPHOME_ENV / "bin" / "esphome")], env
+
+
 # Screen sizes, with font sizes to match (as examples/variant_*.yaml).
 VARIANTS: dict[str, dict[str, str]] = {
     "standard": {},
     "wide": {
-        "desktop_width": "480", "desktop_height": "272",
-        "font_size_text": "19", "font_size_small": "15", "font_size_badge": "19",
-        "font_size_icon": "34", "font_size_timer": "25", "font_size_title": "23",
+        "desktop_width": "480",
+        "desktop_height": "272",
+        "font_size_text": "19",
+        "font_size_small": "15",
+        "font_size_badge": "19",
+        "font_size_icon": "34",
+        "font_size_timer": "25",
+        "font_size_title": "23",
     },
     "square": {"desktop_width": "240", "desktop_height": "240"},
 }
@@ -297,10 +358,14 @@ class Device:
         data: Any = None,
         golden: Path | None = None,
         update_golden: bool = False,
+        port: int | None = None,
     ):
         from demo_data import DemoData
 
         self.build = build
+        # The API port. A free one by default, so devices from one build
+        # (and other runners on this machine) never share a port.
+        self.port = port or free_port()
         self.workdir = Path(workdir)
         self.persona = persona
         self.seed = seed
@@ -347,11 +412,12 @@ class Device:
         prefs = self.workdir / "prefs"
         shutil.rmtree(prefs, ignore_errors=True)
         prefs.mkdir()
-        _wait_port_free(self.build.port)
+        _wait_port_free(self.port)
         self.clock = Clock(self.workdir / "clock", self.seed, self.epoch)
         env = dict(os.environ)
         env.update(
             DARUMA_CLOCK=str(self.clock.path),
+            DARUMA_API_PORT=str(self.port),
             ESPHOME_PREFDIR=str(prefs),
             ESPHOME_SNAPSHOT_DIR=str(self.workdir),
             TZ=self.timezone,
@@ -409,8 +475,7 @@ class Device:
 
         deadline = time.monotonic() + 20
         while True:
-            client = APIClient("127.0.0.1", self.build.port, None, client_info="daruma-harness",
-                               timezone=self.timezone)
+            client = APIClient("127.0.0.1", self.port, None, client_info="daruma-harness", timezone=self.timezone)
             try:
                 await client.connect(login=True)
                 break
@@ -452,7 +517,8 @@ class Device:
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
             self._client.send_homeassistant_action_response(
-                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body)
+                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body
+            )
             self._answers += 1
 
     # --- time ------------------------------------------------------------------
@@ -554,8 +620,9 @@ class Device:
         return Locator(self, f"text~={text!r}", lambda n: text.lower() in n.name.lower())
 
     def get_by_role(self, role: str, name: str | None = None) -> Locator:
-        return Locator(self, f"role={role} name={name!r}",
-                       lambda n: n.role == role and (name is None or n.name == name))
+        return Locator(
+            self, f"role={role} name={name!r}", lambda n: n.role == role and (name is None or n.name == name)
+        )
 
     # --- input -------------------------------------------------------------------
 
@@ -658,13 +725,35 @@ class Device:
     def show_message(self, text: str, seconds: int = 5) -> None:
         self.action("show_message", message=text, seconds=seconds)
 
-    def show_prompt(self, id: str, title: str = "", body: str = "", options: list[str] | None = None,
-                    layout: str = "message", style: str = "info", timeout: int = 0, state: str = "",
-                    sound: str = "", marks: list[str] | None = None, dismissable: bool = True) -> None:
+    def show_prompt(
+        self,
+        id: str,
+        title: str = "",
+        body: str = "",
+        options: list[str] | None = None,
+        layout: str = "message",
+        style: str = "info",
+        timeout: int = 0,
+        state: str = "",
+        sound: str = "",
+        marks: list[str] | None = None,
+        dismissable: bool = True,
+    ) -> None:
         """prompt_show with HA's "empty means default" values filled in."""
-        self.action("prompt_show", id=id, layout=layout, title=title, body=body, options=options or [],
-                    marks=marks or [], style=style, timeout=timeout, state=state, sound=sound,
-                    dismissable=dismissable)
+        self.action(
+            "prompt_show",
+            id=id,
+            layout=layout,
+            title=title,
+            body=body,
+            options=options or [],
+            marks=marks or [],
+            style=style,
+            timeout=timeout,
+            state=state,
+            sound=sound,
+            dismissable=dismissable,
+        )
 
     def update_prompt(self, id: str, body: str = "", marks: list[str] | None = None, countdown: int = -1) -> None:
         self.action("prompt_update", id=id, body=body, marks=marks or [], countdown=countdown)
@@ -729,6 +818,13 @@ class Device:
         self._settle()
         out, self.frames_dir = self.frames_dir, None
         return out
+
+
+def free_port() -> int:
+    """A TCP port that nothing listens on now, for a device of its own."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def _wait_port_free(port: int, timeout: float = 10) -> None:
@@ -810,8 +906,9 @@ class DeviceAssertions:
         if not self.device.wait_until(ok, timeout):
             raise AssertionError(f"{name} is {self.device.entity_state(name)!r}, not {value!r}")
 
-    def to_match_screenshot(self, name: str, *, mask: list[tuple[int, int, int, int]] = (),
-                            tolerance: int = 0, max_diff_pixels: int = 0) -> None:
+    def to_match_screenshot(
+        self, name: str, *, mask: list[tuple[int, int, int, int]] = (), tolerance: int = 0, max_diff_pixels: int = 0
+    ) -> None:
         """Compare the screen with the golden PNG `name`.
 
         A pixel differs when a channel is off by more than `tolerance`; the
@@ -837,7 +934,9 @@ class DeviceAssertions:
         if not golden.exists():
             out.mkdir(parents=True, exist_ok=True)
             actual.save(out / f"{name}-actual.png")
-            raise AssertionError(f"No golden {golden}; run with --update-golden. Actual: {out / (name + '-actual.png')}")
+            raise AssertionError(
+                f"No golden {golden}; run with --update-golden. Actual: {out / (name + '-actual.png')}"
+            )
         with Image.open(golden) as g:
             expected = g.convert("RGB")
         if expected.size != actual.size:
@@ -850,5 +949,6 @@ class DeviceAssertions:
             mark = diff.point(lambda v: 255 if v > tolerance else 0).convert("L")
             red = Image.new("RGB", actual.size, (255, 0, 0))
             Image.composite(red, Image.blend(expected, Image.new("RGB", actual.size), 0.6), mark).save(
-                out / f"{name}-diff.png")
+                out / f"{name}-diff.png"
+            )
             raise AssertionError(f"{name}: {bad} pixels differ (allowed {max_diff_pixels}); see {out}")

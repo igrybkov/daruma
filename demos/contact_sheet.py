@@ -1,7 +1,7 @@
 """Contact sheets of recorded demo GIFs, and side-by-side pictures of failed checks.
 
-    uv run --no-project --with pillow python demos/contact_sheet.py gifs <gif folder> <out folder>
-    uv run --no-project --with pillow python demos/contact_sheet.py diffs <results root> <out folder>
+    uv run python demos/contact_sheet.py gifs <gif folder> <out folder>
+    uv run python demos/contact_sheet.py diffs <results root> <out folder>
 
 `gifs` writes one <scenario>-sheet.png per scenario: a row per persona, with
 frames taken at even steps through its GIF. `diffs` finds every

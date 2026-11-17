@@ -2,7 +2,7 @@
 own layout math.
 
     c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
-    uv run --with pillow python -I tests/preview_screens.py /tmp/test_layout OUT_DIR FONT_DIR
+    uv run python -I tests/preview_screens.py /tmp/test_layout OUT_DIR FONT_DIR
 
 The layout (regions, tiles, unit) comes from test_layout --json, which runs
 layout.h itself. The pixel corgi's room is extended with the same edge

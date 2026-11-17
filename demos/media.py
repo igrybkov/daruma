@@ -159,50 +159,104 @@ def _changed(a, b) -> float:
     return sum(abs(x - y) > 24 for x, y in zip(pa, pb)) / len(pa)
 
 
-def _draw_touch(draw, font, t: dict[str, Any], now: int, start: int, at: int, end: int) -> None:
-    """One touch's mark at `now` (shown ms), onto an RGBA overlay."""
-    lifted = at + t["ms_long"]
+def _touch_fade(now: int, at: int, lifted: int) -> tuple[float, float, float]:
+    """(alpha, grow, fill) of a finger's mark at `now`."""
     if now < at:  # Coming in: a ring that firms up.
-        a = (now - start) / TOUCH_LEAD_MS
-        grow, fill = 0.0, 0.0
-    elif now < lifted:  # Down: a filled dot.
-        a, grow, fill = 1.0, 0.0, 1.0
-    else:  # Lifted: the ring widens and fades.
-        f = (now - lifted) / TOUCH_FADE_MS
-        a, grow, fill = 1.0 - f, f, 1.0 - f
-    kind = t["kind"]
-    if kind.startswith("press:"):
-        # A pill at the bottom of the screen: a red dot and the button's name.
-        name = kind.split(":", 1)[1]
-        label = _BUTTON.get(name, name) + (": hold" if t["ms_long"] >= 1000 else "")
-        w = int(font.getlength(label)) + 34
-        x0, y0, x1, y1 = 160 - w // 2, 196, 160 + w // 2, 220
-        a = max(a, 0.0) if now < at else (1.0 if now < end - TOUCH_FADE_MS else (end - now) / TOUCH_FADE_MS)
-        draw.rounded_rectangle((x0, y0, x1, y1), 12, fill=(*_EDGE, int(215 * a)),
-                               outline=(*_RING, int(200 * a)), width=1)
-        r = 6 + 2 * (1.0 if at <= now < lifted else 0.0)
-        draw.ellipse((x0 + 14 - r, 208 - r, x0 + 14 + r, 208 + r), fill=(220, 40, 40, int(255 * a)),
-                     outline=(*_RING, int(255 * a)), width=1)
-        draw.text((x0 + 26, 208), label, font=font, anchor="lm", fill=(*_RING, int(255 * a)))
-        return
-    points = t["points"]
+        return (now - (at - TOUCH_LEAD_MS)) / TOUCH_LEAD_MS, 0.0, 0.0
+    if now < lifted:  # Down: a filled dot.
+        return 1.0, 0.0, 1.0
+    f = (now - lifted) / TOUCH_FADE_MS  # Lifted: the ring widens and fades.
+    return 1.0 - f, f, 1.0 - f
+
+
+def _draw_button(draw, font, t: dict[str, Any], now: int, a: float, at: int, end: int) -> None:
+    """A pill at the bottom of the screen: a red dot and the button's name."""
+    name = t["kind"].split(":", 1)[1]
+    lifted = at + t["ms_long"]
+    label = _BUTTON.get(name, name) + (": hold" if t["ms_long"] >= 1000 else "")
+    w = int(font.getlength(label)) + 34
+    x0, y0, x1, y1 = 160 - w // 2, 196, 160 + w // 2, 220
+    if now < at:
+        a = max(a, 0.0)
+    else:
+        a = 1.0 if now < end - TOUCH_FADE_MS else (end - now) / TOUCH_FADE_MS
+    draw.rounded_rectangle((x0, y0, x1, y1), 12, fill=(*_EDGE, int(215 * a)),
+                           outline=(*_RING, int(200 * a)), width=1)
+    r = 6 + 2 * (1.0 if at <= now < lifted else 0.0)
+    draw.ellipse((x0 + 14 - r, 208 - r, x0 + 14 + r, 208 + r), fill=(220, 40, 40, int(255 * a)),
+                 outline=(*_RING, int(255 * a)), width=1)
+    draw.text((x0 + 26, 208), label, font=font, anchor="lm", fill=(*_RING, int(255 * a)))
+
+
+def _finger_at(draw, t: dict[str, Any], now: int, a: float, at: int) -> tuple[float, float]:
+    """Where the finger is at `now`; a swipe or a stroke also draws its trail."""
+    kind, points = t["kind"], t["points"]
     if kind == "swipe" and now >= at:
         (x1, y1), (x2, y2) = points
         k = min(1.0, (now - at) / max(1, t["ms_long"]))
         x, y = x1 + (x2 - x1) * k, y1 + (y2 - y1) * k
         draw.line((x1, y1, x, y), fill=(*_FILL, int(170 * a)), width=5)
-    elif kind == "stroke" and now >= at:
+        return x, y
+    if kind == "stroke" and now >= at:
         x0, y0 = points[0]
         leg = min(5.0, (now - at) / 200)  # desktop.cpp: 5 legs of 200 ms, 60 px wide.
         k = leg % 1 if int(leg) % 2 == 0 else 1 - leg % 1
-        x, y = x0 - 30 + 60 * k, y0
         draw.line((x0 - 30, y0, x0 + 30, y0), fill=(*_FILL, int(120 * a)), width=5)
-    else:
-        x, y = points[0]
+        return x0 - 30 + 60 * k, y0
+    return points[0]
+
+
+def _draw_touch(draw, font, t: dict[str, Any], now: int, start: int, at: int, end: int) -> None:
+    """One touch's mark at `now` (shown ms), onto an RGBA overlay."""
+    a, grow, fill = _touch_fade(now, at, at + t["ms_long"])
+    if t["kind"].startswith("press:"):
+        _draw_button(draw, font, t, now, a, at, end)
+        return
+    x, y = _finger_at(draw, t, now, a, at)
     r = 11 + 7 * grow
     draw.ellipse((x - r - 2, y - r - 2, x + r + 2, y + r + 2), outline=(*_EDGE, int(170 * a)), width=2)
     draw.ellipse((x - r, y - r, x + r, y + r), fill=(*_FILL, int(150 * fill * a)),
                  outline=(*_RING, int(255 * a)), width=2)
+
+
+def _end_on_screen_change(windows: list, frames: list[tuple[Path, float]], starts: list[int]) -> None:
+    """End each finger's mark where the screen changes (a menu opens, an app
+    shows), so it never lands on the new screen. A button's label stays."""
+    thumbs: dict[int, Any] = {}
+
+    def thumb(i: int):
+        if i not in thumbs:
+            thumbs[i] = _thumb(frames[i][0])
+        return thumbs[i]
+
+    for n, (t, start, at, end) in enumerate(windows):
+        shown = [i for i, s in enumerate(starts) if s <= at]
+        if t["kind"].startswith("press:") or not shown:
+            continue
+        lifted = at + t["ms_long"]
+        base = shown[-1]
+        for i in range(base + 1, len(frames)):
+            if starts[i] >= end:
+                break
+            if starts[i] > lifted and _changed(thumb(base), thumb(i)) > SCREEN_CHANGE:
+                windows[n] = (t, start, at, starts[i])
+                break
+
+
+def _marked_frame(path: Path, now: int, windows: list, font):
+    """The frame at `path` with every mark live at `now` drawn on it, as RGB."""
+    from PIL import Image, ImageDraw
+
+    with Image.open(path) as im:
+        frame = im.convert("RGBA")
+    live = [w for w in windows if w[1] <= now < w[3]]
+    if live:
+        layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+        for t, start, at, end in live:
+            _draw_touch(draw, font, t, now, start, at, end)
+        frame = Image.alpha_composite(frame, layer)
+    return frame.convert("RGB")
 
 
 def with_touches(frames: list[tuple[Path, float]], touches: list[dict[str, Any]],
@@ -215,37 +269,15 @@ def with_touches(frames: list[tuple[Path, float]], touches: list[dict[str, Any]]
     come from screenshots and never see it. Frames are split where a mark
     changes, and at `split_at` (recording ms, such as caption times), so each
     piece is named after the recording time it starts at."""
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import ImageFont
 
     if not touches and not split_at:
         return frames
     out_dir.mkdir(parents=True, exist_ok=True)
     font = ImageFont.load_default(size=14)
     windows = [(t, *_touch_window(t, skipped)) for t in touches]
-    # A finger's mark ends where the screen changes (a menu opens, an app
-    # shows), so it never lands on the new screen. A button's label stays.
     starts = [_shown(int(p.stem.split("_")[1]), skipped) for p, _ in frames]
-    thumbs: dict[int, Any] = {}
-
-    def thumb(i: int):
-        if i not in thumbs:
-            thumbs[i] = _thumb(frames[i][0])
-        return thumbs[i]
-
-    for n, (t, start, at, end) in enumerate(windows):
-        if t["kind"].startswith("press:"):
-            continue
-        lifted = at + t["ms_long"]
-        shown = [i for i, s in enumerate(starts) if s <= at]
-        if not shown:
-            continue
-        base = shown[-1]
-        for i in range(base + 1, len(frames)):
-            if starts[i] >= end:
-                break
-            if starts[i] > lifted and _changed(thumb(base), thumb(i)) > SCREEN_CHANGE:
-                windows[n] = (t, start, at, starts[i])
-                break
+    _end_on_screen_change(windows, frames, starts)
     cuts = {_shown(ms, skipped) for ms in split_at}
     for _, start, _, end in windows:
         cuts.update(range(start, end + 1, TOUCH_STEP_MS))
@@ -253,20 +285,11 @@ def with_touches(frames: list[tuple[Path, float]], touches: list[dict[str, Any]]
     out = []
     for i, (path, d) in enumerate(frames):
         raw0 = int(path.stem.split("_")[1])
-        a = _shown(raw0, skipped)
+        a = starts[i]
         b = a + round(d * 1000)
         edges = [a] + [c for c in cuts if a < c < b] + [b]
         for k, (p0, p1) in enumerate(zip(edges, edges[1:])):
-            live = [w for w in windows if w[1] <= p0 < w[3]]
-            with Image.open(path) as im:
-                frame = im.convert("RGBA")
-            if live:
-                layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-                draw = ImageDraw.Draw(layer)
-                for t, start, at, end in live:
-                    _draw_touch(draw, font, t, p0, start, at, end)
-                frame = Image.alpha_composite(frame, layer)
             target = out_dir / f"f_{raw0 + (p0 - a)}_{i}_{k}.png"
-            frame.convert("RGB").save(target)
+            _marked_frame(path, p0, windows, font).save(target)
             out.append((target, (p1 - p0) / 1000))
     return out

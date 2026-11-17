@@ -1,6 +1,6 @@
 """Host test: a reaction over an activity keeps the pet whole (pixel/daruma_pixel/pet.py personas).
 
-    uv run --with pillow --with pyyaml python -m unittest discover -s tests -p test_pet_props.py
+    uv run pytest tests/test_pet_props.py
 
 While a pet holds an activity with props (focus: glasses and a book, or a
 ball), a reaction can play over it: petted, startled, celebrate, a task

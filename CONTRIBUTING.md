@@ -18,10 +18,12 @@ and ffmpeg. On macOS:
 brew install uv sdl2 ffmpeg
 ```
 
-You don't install ESPHome. The scripts run ESPHome 2026.10.2 through uv.
+You don't install ESPHome by hand. `uv sync` installs the test and lint
+tools from `uv.lock` into `.venv`. The screen tests run ESPHome from its
+own locked environment, `.venv-esphome`, which they sync themselves: the
+version lives in `pyproject.toml` (the `esphome` dependency group).
 `.python-version` pins the Python the tests and builds use (3.14). The
 floor is 3.12 (`requires-python`), as ESPHome's.
-`uv run` reads it; `uvx` doesn't, so the harness and CI pass it on.
 
 Fork the repository, clone your fork, and make a branch for your change:
 
@@ -118,7 +120,7 @@ repository root. [docs/testing.md](docs/testing.md) explains each.
 
 ```sh
 # 1. Host tests in Python: registry, build checks, pixel art, layout (minutes)
-uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
+uv run pytest tests
 
 # 2. Host tests in C++: gestures, layout, prompts, pomodoro rules, agenda, weather
 tests/run_cpp.sh
@@ -127,14 +129,17 @@ tests/run_cpp.sh
 uv run demos/record.py --test
 
 # 4. Screen tests in Python on the desktop build
-uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos
+uv run pytest demos
 ```
 
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
   you work. Run the full set before you finish.
-- If another run holds the default port or folder, pass
-  `--port 6062 --out /tmp/mine` to record.py, or set
-  `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
+- Both runners work in parallel: record.py runs up to 4 runs at a time
+  (`--jobs`), and pytest one worker per CPU (`-n auto`, set in
+  pyproject.toml). Pass `--jobs 1` or `-n 0` to run one at a time.
+- Every device listens on a free API port, so runs never clash on ports.
+  If another run uses the same scratch folder, pass `--out /tmp/mine` to
+  record.py, or set `DARUMA_WORK=/tmp/mine` for pytest.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
 ## Lint and format
@@ -217,8 +222,8 @@ from the run's summary page.
 Every run also records preview GIFs: `highlight`, `work`, `emotions`
 and `activities` for every persona, and `highlight` on the wide and
 square screens. Each scenario gets a contact sheet. A pull request gets one comment that links to
-the run's artifacts (`preview-standard`, `preview-wide`,
-`preview-square`). Pull request artifacts stay 14 days, main's stay
+the run's artifacts (`preview-standard`, `preview-wide-square`). Pull
+request artifacts stay 14 days, main's stay
 90. The GIFs come from the desktop build of the same packages. So they
 match the device's screens, but they are not recorded on the ESP32.
 
@@ -258,7 +263,7 @@ is the same as before. It can't say the picture looks right.
 - Check: limbs attached, nothing floating, the outline closed, props in
   place, text inside its box, eyes readable at 1x.
 - For pixel art, also look at `sheet.png` from the preview:
-  `cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/p <name>`.
+  `uv run python -m daruma_pixel.personas /tmp/p <name>`.
 
 Commit the GIFs and golden pictures with the change that made them.
 

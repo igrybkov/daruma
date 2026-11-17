@@ -335,7 +335,7 @@
     "functions": [
       {
         "name": "main",
-        "complexity": 49
+        "complexity": 22
       }
     ]
   },
@@ -408,16 +408,6 @@
       {
         "name": "ReactionsOverActivities::test_props_stay_and_the_head_moves_with_the_body",
         "complexity": 17
-      }
-    ]
-  },
-  {
-    "path": "tests/test_props.py",
-    "file_name": "test_props.py",
-    "functions": [
-      {
-        "name": "Props::test_reactions_keep_the_activity_props",
-        "complexity": 47
       }
     ]
   }

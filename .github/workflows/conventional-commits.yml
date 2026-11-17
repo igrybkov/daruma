@@ -61,4 +61,6 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: uvx --python "$(cat .python-version)" --from gitlint-core==0.19.1 gitlint --commits "$BASE..$HEAD"
+        run: |
+          uv sync --locked --only-group lint --no-install-project
+          uv run --no-sync gitlint --commits "$BASE..$HEAD"

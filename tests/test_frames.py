@@ -1,6 +1,6 @@
 """Host tests of animation frames stored as keyframes and patches.
 
-    uv run --with pillow python -m unittest discover -s tests
+    uv run pytest tests/test_frames.py
 
 - The encoder (components/daruma/sprite_codec.py) round trips through
   its own Python decoder, on small made-up frames.
@@ -14,12 +14,12 @@ Skipped without Pillow, and the C++ part without a c++ compiler.
 """
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
@@ -100,23 +100,65 @@ class EncoderTest(unittest.TestCase):
             codec.encode_set([_picture(["r"], COLORS), _picture(["rr"], COLORS)])
 
 
+MODES = ("full", "gray4", "mono")
+
+
 @unittest.skipIf(Image is None or shutil.which("c++") is None, "needs Pillow and a c++ compiler")
 class DeviceDecoderTest(unittest.TestCase):
-    def test_device_decodes_every_frame(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fixture = Path(tmp) / "frames.txt"
-            sets = frames_fixture.synthetic()
-            modes = ("full", "gray4", "mono")
-            if not os.environ.get("DARUMA_SKIP_PERSONAS"):
-                sets += frames_fixture.personas_sets()
-            frames_fixture.write(fixture, sets, modes)
-            binary = Path(tmp) / "test_frames"
-            include = _HERE.parents[0] / "components" / "daruma"
-            subprocess.run(["c++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-O1", f"-I{include}",
-                            str(_HERE / "test_frames.cpp"), "-o", str(binary)], check=True)
-            run = subprocess.run([str(binary), str(fixture)], capture_output=True, text=True)
-            print(run.stdout.strip().splitlines()[-1] if run.stdout.strip() else run.stderr)
-            self.assertEqual(run.returncode, 0, run.stdout[-2000:])
+    """One test per frame set, so pytest-xdist can spread the personas."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.binary = Path(cls._tmp.name) / "test_frames"
+        include = _HERE.parents[0] / "components" / "daruma"
+        subprocess.run(
+            [
+                "c++",
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-O1",
+                f"-I{include}",
+                str(_HERE / "test_frames.cpp"),
+                "-o",
+                str(cls.binary),
+            ],
+            check=True,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def decode(self, sets):
+        fixture = Path(self._tmp.name) / f"frames-{self.id()}.txt"
+        frames_fixture.write(fixture, sets, MODES)
+        run = subprocess.run([str(self.binary), str(fixture)], capture_output=True, text=True)
+        print(run.stdout.strip().splitlines()[-1] if run.stdout.strip() else run.stderr)
+        self.assertEqual(run.returncode, 0, run.stdout[-2000:])
+
+    def test_device_decodes_made_up_frames(self):
+        self.decode(frames_fixture.synthetic())
+
+
+def _persona_test(label: str):
+    @unittest.skipIf(os.environ.get("DARUMA_SKIP_PERSONAS"), "DARUMA_SKIP_PERSONAS is set")
+    def test(self):
+        build = dict(frames_fixture.persona_builds())[label]
+        found = frames_fixture.persona_set(label, build)
+        if found is None:
+            self.skipTest(f"{label}: its art lives elsewhere")
+        self.decode([found])
+
+    return test
+
+
+# The device decodes every frame of each pixel persona.
+if Image is not None:
+    for _label, _ in frames_fixture.persona_builds():
+        setattr(DeviceDecoderTest, f"test_device_decodes_{_label}", _persona_test(_label))
 
 
 if __name__ == "__main__":

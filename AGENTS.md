@@ -65,19 +65,19 @@ explains each.
 
 ```sh
 # Host tests: no ESPHome build needed
-uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
+uv run pytest tests
 tests/run_cpp.sh
 
 # Screen tests on the desktop build
 uv run demos/record.py --test
-uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml pytest demos
+uv run pytest demos
 
 # Record GIFs, accept new golden pictures
 uv run demos/record.py --personas "<Name>" --scenario highlight,emotions,activities
 uv run demos/record.py --update-golden --personas "<Name>" --scenario tour
 
 # Preview a pixel persona: every frame in sheet.png
-cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/p <name>
+uv run python -m daruma_pixel.personas /tmp/p <name>
 
 # Compile the example device
 uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
@@ -114,9 +114,9 @@ uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
 - **Never flash a scratch build.** A build made with placeholder secrets
   loses its Wi-Fi on the device. Compile to check; flash only with the
   person's real secrets.
-- **Busy ports and folders.** The recorder uses port 6053 and a temp
-  folder. When another run may hold them, pass `--port` and `--out` to
-  record.py, or set `DARUMA_PORT` and `DARUMA_WORK` for pytest.
+- **Busy folders.** Every device listens on a free API port, but the
+  recorder and pytest share a temp folder. When another run may use it,
+  pass `--out` to record.py, or set `DARUMA_WORK` for pytest.
 - **Paths in packages** are relative to the package file
   (`../components`, `../pixel/...`, `../art/...`). The components resolve
   them at validation time.

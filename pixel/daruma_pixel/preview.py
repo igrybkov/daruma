@@ -1,6 +1,6 @@
 """Preview the pixel corgi: mood grid, UI mock, and a wag GIF.
 
-    cd pixel && uv run --with pillow python -m daruma_pixel.preview OUT_DIR [PIXEL_FONT.ttf]
+    uv run python -m daruma_pixel.preview OUT_DIR [PIXEL_FONT.ttf]
 """
 
 from __future__ import annotations

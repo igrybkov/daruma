@@ -78,8 +78,7 @@ a reaction. `show: ""` goes back to normal.
 ```sh
 uv run demos/record.py --test             # exit 1 on a difference
 uv run demos/record.py --update-golden    # accept the new pictures
-uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \
-    pytest demos                          # tests in Python
+uv run pytest demos                       # tests in Python
 ```
 
 - **Time is fake.** A small library ([demos/fakeclock.c](../demos/fakeclock.c))
@@ -119,8 +118,8 @@ and pictures stay in the temp folder.
 These need no ESPHome build:
 
 ```sh
-uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests   # Python
-tests/run_cpp.sh                                                                     # C++
+uv run pytest tests   # Python
+tests/run_cpp.sh      # C++
 ```
 
 They cover the registry and the build checks, the pixel art (every
@@ -132,7 +131,7 @@ pomodoro's rules, the calendar's agenda and the weather words.
 ## Preview pixel art
 
 ```sh
-cd pixel && uv run --with pillow python -m daruma_pixel.personas /tmp/personas jack_russell
+uv run python -m daruma_pixel.personas /tmp/personas jack_russell
 ```
 
 This writes every layer and `sheet.png`: every frame of every animation,

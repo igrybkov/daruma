@@ -11,5 +11,4 @@ __pycache__/
 # Python package builds
 build/
 *.egg-info/
-uv.lock
 .complexipy_cache/

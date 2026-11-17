@@ -1,18 +1,16 @@
-"""Record demo GIFs of every persona, or check the screens against golden pictures.
+"""Record demo GIFs of every persona.
 
     uv run demos/record.py                     all personas, all scenarios
     uv run demos/record.py --personas Eyes --scenario tour
-    uv run demos/record.py --test              check, exit 1 on a difference
-    uv run demos/record.py --update-golden     write new golden pictures
 
 It builds the desktop firmware once (examples/desktop.yaml, in a scratch
 folder), then runs each persona through each scenario (scenarios/*.yaml) on a
 clock it controls, so every run draws the same frames.
 
-Demo mode writes docs/demos/<persona>-<scenario>.gif (2x, or the scenario's
+It writes docs/demos/<persona>-<scenario>.gif (2x, or the scenario's
 gif_scale; nearest neighbour; kept under --max-kb), and with --mp4 an MP4
-with the sounds. Test mode runs the scenarios' snapshot and expect steps; on a failure it writes the actual
-picture, a diff and a GIF of the run to --out.
+with the sounds. The same scenarios run as tests in pytest (conftest.py):
+their snapshot and expect steps check the screens there.
 
 Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
 """
@@ -35,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import scenario as scenarios  # noqa: E402
-from harness import GOLDEN_DIR, HERE, Build, Device, build, slug  # noqa: E402
+from harness import HERE, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, encode_mp4, frames_of, sounds_of, with_captions, with_touches  # noqa: E402
 
 DOCS_DEMOS = HERE.parent / "docs" / "demos"
@@ -61,8 +59,6 @@ def main() -> int:
     ap.add_argument("--max-kb", type=int, default=2000)
     ap.add_argument("--mp4", action="store_true", help="also write an MP4 with sound")
     ap.add_argument("--window", action="store_true", help="show the window while it runs")
-    ap.add_argument("--test", action="store_true", help="check snapshots and expects; no GIFs")
-    ap.add_argument("--update-golden", action="store_true", help="write golden pictures from this run")
     ap.add_argument(
         "--port", type=int, default=6053, help="the API port built into the program; runs listen on free ports"
     )
@@ -73,7 +69,6 @@ def main() -> int:
         help="runs at a time (default: up to 4)",
     )
     args = ap.parse_args()
-    test = args.test or args.update_golden
 
     work = args.out
     print(f"Building in {work} ...", flush=True)
@@ -98,7 +93,7 @@ def main() -> int:
     jobs = []
     for sc in chosen:
         for persona in personas:
-            if sc.runs_on(persona, test):
+            if sc.runs_on(persona, test=False):
                 jobs.append(
                     Job(
                         b,
@@ -110,8 +105,6 @@ def main() -> int:
                         args.max_kb,
                         args.mp4,
                         args.window,
-                        test,
-                        args.update_golden,
                     )
                 )
     failures = 0
@@ -142,8 +135,6 @@ class Job:
     max_kb: int
     mp4: bool
     window: bool
-    test: bool
-    update_golden: bool
 
 
 def _run_job_captured(job: Job) -> tuple[int, str]:
@@ -157,33 +148,22 @@ def _run_job_captured(job: Job) -> tuple[int, str]:
 
 def _run_job(job: Job) -> int:
     """Run one job. Returns 1 when it failed."""
-    b, sc, persona, test = job.build, job.scenario, job.persona, job.test
-    # Other screen sizes get their own GIFs and golden pictures.
+    b, sc, persona = job.build, job.scenario, job.persona
+    # Other screen sizes get their own GIFs.
     size = "" if job.variant == "standard" else f"-{job.variant}"
     label = f"{slug(persona)}-{sc.name}{size}"
     run_dir = job.work / "runs" / label
     shutil.rmtree(run_dir, ignore_errors=True)
-    # A private persona's pictures stay in the scratch folder.
-    golden = (job.work / "golden" if persona in b.private_personas else GOLDEN_DIR) / slug(persona) / f"{sc.name}{size}"
-    print(f"{'Test' if test else 'Demo'} {persona} / {sc.name} ...", flush=True)
-    device = Device(
-        b,
-        run_dir,
-        persona=persona,
-        window=job.window,
-        golden=golden,
-        update_golden=job.update_golden,
-    )
+    print(f"Demo {persona} / {sc.name} ...", flush=True)
+    device = Device(b, run_dir, persona=persona, window=job.window)
     failed = 0
     try:
         with device:
             scenarios.run_setup(device, sc)
             device.record_start(run_dir / "frames")
-            ok = True
             try:
-                scenarios.run(device, sc, test=test)
+                scenarios.run(device, sc, test=False)
             except AssertionError as e:
-                ok = False
                 failed = 1
                 print(f"  FAIL: {e}", flush=True)
             device.record_stop()
@@ -198,13 +178,6 @@ def _run_job(job: Job) -> int:
         print("  no frames recorded", flush=True)
         return 1
     private = persona in b.private_personas
-    if test:
-        if not ok:
-            nbytes = encode_gif(frames, run_dir / "results" / "trace.gif", job.max_kb)
-            print(f"  trace: {run_dir / 'results'} ({nbytes // 1024} KB GIF)", flush=True)
-        else:
-            print("  ok", flush=True)
-        return failed
     (run_dir / "marks.json").write_text(
         json.dumps({"captions": captions, "touches": touches, "skipped": skipped}, indent=1)
     )

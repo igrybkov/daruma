@@ -133,24 +133,24 @@ repository root. [docs/testing.md](docs/testing.md) explains each.
 ```sh
 make test-py        # 1. Host tests in Python: registry, build checks, pixel art, layout (minutes)
 make test-cpp       # 2. Host tests in C++: gestures, layout, prompts, pomodoro rules, agenda, weather
-make golden         # 3. Golden pictures on the desktop build
+make golden         # 3. Golden pictures: the scenario files, on the desktop build
 make test-screens   # 4. Screen tests in Python on the desktop build
 ```
 
-`make test` runs 1 and 2. `make screens` runs 3 and 4. `make check`
+`make test` runs 1 and 2. `make screens` runs 3 and 4 in one pytest run. `make check`
 runs everything CI blocks on: the four tests, complexity, clang-tidy,
 the config of every example and the box3 compile.
 
 - `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
   you work. Run the full set before you finish.
-- Both runners work in parallel: record.py runs up to 4 runs at a time,
-  and pytest one worker per CPU (`-n auto`, set in pyproject.toml).
-  Pass `JOBS=1` or `PYTEST_ARGS="-n 0"` to run one at a time.
+- pytest runs one worker per CPU (`-n auto`, set in pyproject.toml).
+  Pass `PYTEST_ARGS="-n 0"` to run one test at a time. `make gifs`
+  records up to 4 GIFs at a time; `JOBS=1` records one at a time.
 - `PERSONA=` and `SCENARIO=` narrow the golden check:
   `make golden PERSONA=Eyes SCENARIO=tour`.
 - Every device listens on a free API port, so runs never clash on ports.
   If another run uses the same scratch folder, pass
-  `DARUMA_WORK=/tmp/mine` to make. Both runners use it.
+  `DARUMA_WORK=/tmp/mine` to make. pytest and record.py both use it.
 - Steps 3 and 4 give the same pictures on macOS and Linux.
   `make docker-test` runs them in Ubuntu 24.04, as CI does.
 - pytest collects each `tests/test_*.cpp` as one test (`tests/conftest.py`).
@@ -264,8 +264,8 @@ release with `daruma_ref: v0.1.0`.
 ## Golden pictures and frames
 
 Golden pictures live in `tests/golden/<persona>/<scenario or test>/`.
-When a check fails, it writes the actual picture, a diff and a GIF of the
-run.
+When a check fails, it writes the actual and expected pictures, a diff
+and a GIF of the run to the test's tmp folder.
 
 If the change is on purpose, accept the new pictures:
 

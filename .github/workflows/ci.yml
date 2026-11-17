@@ -286,9 +286,10 @@ jobs:
           key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
 
   # The golden pictures match on Linux and macOS (docs/testing.md), so this
-  # runs on Linux. The golden check and pytest run in two jobs side by
-  # side, each with its own build: in one job they ran longer than any
-  # other job. "Screen tests" below waits for both.
+  # runs on Linux. The scenario files (the golden check) and the Python
+  # screen tests run in two jobs side by side, each with its own build: in
+  # one job they ran longer than any other job. "Screen tests" below waits
+  # for both.
   screens:
     name: Screen tests (${{ matrix.name }})
     runs-on: ubuntu-26.04
@@ -334,18 +335,15 @@ jobs:
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
-      # 4 runs at a time, one per CPU of these runners. A run waits on its
-      # device much of the time, so more runs than CPUs is fine too.
-      - name: Check the golden pictures
-        if: matrix.id == 'golden'
-        run: uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK" --jobs 4
       # 4 workers, one per CPU of these runners; each device listens on a
-      # free port.
-      - name: Run the screen tests
-        if: matrix.id == 'pytest'
+      # free port. The golden job runs the scenario files, the other the
+      # Python screen tests.
+      - name: Run the ${{ matrix.id == 'golden' && 'golden check' || 'screen tests' }}
+        env:
+          MARKER: ${{ matrix.id == 'golden' && 'scenario' || 'not scenario' }}
         run: |
           mkdir -p "$DARUMA_WORK"
-          uv run --no-sync pytest demos -n 4 --basetemp="$DARUMA_WORK/pytest"
+          uv run --no-sync pytest demos -n 4 -m "$MARKER" --basetemp="$DARUMA_WORK/pytest"
       # The golden job saves the art for the previews. Pull requests save it
       # too: the key names the exact scripts, and the folder is a few MB.
       - name: Save the persona art
@@ -479,14 +477,13 @@ jobs:
         with:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
-      - name: Check the golden pictures
-        if: matrix.id == 'golden'
-        run: uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK" --jobs 4
-      - name: Run the screen tests
-        if: matrix.id == 'screens'
+      # The scenario files (golden pictures) or the Python screen tests.
+      - name: Run the tests
+        env:
+          MARKER: ${{ matrix.id == 'golden' && 'scenario' || 'not scenario' }}
         run: |
           mkdir -p "$DARUMA_WORK"
-          uv run --no-sync pytest demos -n 4 --basetemp="$DARUMA_WORK/pytest"
+          uv run --no-sync pytest demos -n 4 -m "$MARKER" --basetemp="$DARUMA_WORK/pytest"
       - name: Read the C++ coverage
         if: ${{ !cancelled() }}
         env:

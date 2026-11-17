@@ -111,7 +111,7 @@ class DeviceDecoderTest(unittest.TestCase):
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
         cls.binary = Path(cls._tmp.name) / "test_frames"
-        # For coverage, as tests/run_cpp.sh: extra flags, and a folder that
+        # For coverage, as tests/conftest.py: extra flags, and a folder that
         # keeps the program and its data. One program per worker.
         flags = os.environ.get("CXXFLAGS", "").split()
         if os.environ.get("DARUMA_CPP_OUT"):

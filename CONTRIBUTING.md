@@ -151,7 +151,9 @@ the config of every example and the box3 compile.
   `DARUMA_WORK=/tmp/mine` to make. Both runners use it.
 - Steps 3 and 4 give the same pictures on macOS and Linux.
   `make docker-test` runs them in Ubuntu 24.04, as CI does.
-- A new C++ test file goes into the list in `tests/run_cpp.sh`.
+- pytest collects each `tests/test_*.cpp` as one test (`tests/conftest.py`).
+  A new file needs no list entry. Run one with
+  `uv run pytest tests/test_layout.cpp`.
 
 ## Lint and format
 

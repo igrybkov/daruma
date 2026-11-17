@@ -2,7 +2,7 @@
 // focus hold-back, replace, timeouts, answers and asks. Also the card
 // geometry and what a tap does (prompt_layout.h).
 //
-//   tests/run_cpp.sh   (builds and runs it with the other C++ tests)
+//   uv run pytest tests/test_prompts.cpp   (pytest builds and runs it: tests/conftest.py)
 
 #define DARUMA_STATE_LIST \
   X(NEUTRAL, "neutral", MOOD, -1, 0, false) \

@@ -167,6 +167,53 @@ def test_task_checked_off(device):
     expect(device).to_have_state("task_done")
 
 
+@pytest.mark.failing("todo.get_items")
+def test_tasks_retry_after_an_error(device):
+    device.tap(160, 100)
+    device.get_by_text("More").tap()
+    device.get_by_role("tile", name="Tasks").tap()
+    error = device.get_by_text("Home Assistant said no", exact=False)
+    expect(error).to_be_visible()
+    # "HA" answers again; a tap on the message asks at once.
+    device.data.failing.clear()
+    error.tap()
+    expect(device.get_by_role("row", name="Water the fern")).to_be_visible()
+
+
+def test_mute_puts_the_persona_to_sleep(device):
+    device.set("Mute", True)
+    expect(device).to_have_state("sleeping")
+    device.set("Mute", False)
+    expect(device).to_have_state("neutral")
+
+
+def test_quick_menu_lists_actions_and_menus(device):
+    # The desktop's quick menu (examples/desktop.yaml): two pomodoro actions,
+    # the Stats app and the More menu.
+    device.run_action("menu.open:quick")
+    expect(device.get_by_text("More")).to_be_visible()
+    device.get_by_text("More").tap()
+    expect(device.get_by_role("tile", name="Tasks")).to_be_visible()
+
+
+# The pot on the corgi's shelf, on the 320x240 screen (x0, y0, x1, y1).
+PLANT_BOX = (240, 30, 290, 70)
+
+
+@pytest.mark.persona("Pixel corgi")
+def test_low_wellbeing_wilts_the_plant(device):
+    device.set("Outside temperature", 64)
+    device.advance(2)
+    healthy = device.screenshot().crop(PLANT_BOX)
+    device.action("set_wellbeing", value=1)
+    device.advance(1)
+    assert device.screenshot().crop(PLANT_BOX).tobytes() != healthy.tobytes(), "wellbeing 1 left the plant as it was"
+    expect(device).to_match_screenshot("wilted")
+    device.action("set_wellbeing", value=8)
+    device.advance(1)
+    assert device.screenshot().crop(PLANT_BOX).tobytes() == healthy.tobytes(), "wellbeing 8 left the plant wilted"
+
+
 @pytest.mark.persona("Pixel corgi")
 def test_corgi_idle(device):
     device.set("Outside temperature", 64)

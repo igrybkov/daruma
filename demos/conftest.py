@@ -9,6 +9,7 @@ $DARUMA_WORK (a temp folder by default). With pytest-xdist (`-n auto`, the defau
 workers share that build, and each device takes a free API port.
 
     @pytest.mark.persona("Pixel corgi")      # default: Eyes
+    @pytest.mark.failing("todo.get_items")   # "HA" refuses these actions
     def test_pet(device):
         device.pet()
         expect(device).to_have_state("petted")
@@ -32,6 +33,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from demo_data import DemoData  # noqa: E402
 from harness import GOLDEN_DIR, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, frames_of  # noqa: E402
 
@@ -46,6 +48,7 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     config.addinivalue_line("markers", "persona(name): the persona the device shows (default Eyes)")
     config.addinivalue_line("markers", "clock(epoch=..., timezone=...): the wall clock at start and the time zone")
+    config.addinivalue_line("markers", "failing(*actions): HA actions the runner refuses, until the test clears them")
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -109,11 +112,15 @@ def device(request, device_builds, tmp_path):
     # A time zone builds the desktop program for it (the board's clock), and
     # "HA" sends it with the time.
     timezone = clock_args.setdefault("timezone", "UTC")
+    # Set before the device starts: it fetches as soon as "HA" connects.
+    failing = request.node.get_closest_marker("failing")
+    data = DemoData(failing=set(failing.args)) if failing else None
     b = Device(
         device_builds(timezone),
         tmp_path,
         persona=persona,
         **clock_args,
+        data=data,
         window=request.config.getoption("--window"),
         golden=GOLDEN_DIR / slug(persona) / request.node.name,
         update_golden=request.config.getoption("--update-golden"),

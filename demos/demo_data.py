@@ -64,6 +64,10 @@ class DemoData:
         ]
     )
 
+    # HA actions to refuse, as HA does when an entity is gone or a call
+    # fails: "calendar.get_events", "todo.get_items".
+    failing: set[str] = field(default_factory=set)
+
     def calendar(self, start: int, end: int) -> dict:
         """Events between two epoch seconds, in the shape the device wants."""
         rows: list[list] = []
@@ -106,6 +110,12 @@ class DemoData:
             }
         day = now - now % DAY
         return {"d": [[day + d * DAY, c, hi, lo, p, w] for d, c, hi, lo, p, w in WEATHER_DAYS]}
+
+    def reply(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:
+        """The reply to an HA action: refused when it is failing, else answer()."""
+        if action in self.failing:
+            return False, None
+        return self.answer(action, data, now)
 
     def answer(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:
         """Answer an HA action the device performs: (success, response)."""

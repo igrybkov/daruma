@@ -1,8 +1,9 @@
 name: apps
 description: >-
-  The menu's app board, Tasks with a task checked off, and Calendar with
-  today's events (made-up data), then tomorrow.
+  The menu's app board, Tasks with a task checked off, and Calendar: the
+  agenda (made-up data), then today's and tomorrow's day views.
 personas: all
+test_personas: [Eyes]
 setup:
   - set: {Outside temperature: 64}
   - wait: 1
@@ -17,13 +18,21 @@ steps:
   - wait: 1.5
   - tap: {role: row, name: Water the fern}
   - wait: 2.5
+  - snapshot: tasks
   - swipe: {from: [160, 190], to: [160, 90]}
   - wait: 1.5
   - tap: {role: button, name: Back}
   - tap: {role: tile, name: Calendar}
-  - wait: 3
-  # The arrow to the next day.
-  - tap: [290, 59]
+  - expect: {visible: {role: row, name: Today}, timeout: 10}
   - wait: 2
+  - snapshot: agenda
+  # A day's heading opens that day; the arrow goes on to the next day.
+  - tap: {role: row, name: Today}
+  - expect: {visible: {role: heading, name: Today}}
+  - wait: 1.5
+  - tap: {role: button, name: Next}
+  - expect: {visible: {role: heading, name: Tomorrow}}
+  - wait: 2
+  - snapshot: tomorrow
   - press: {input: home, seconds: 2}
   - wait: 1.5

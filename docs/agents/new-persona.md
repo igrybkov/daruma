@@ -79,9 +79,10 @@ module fully before you write one.
    (its `highlight` GIF) and to `docs/gallery.md`. Check the build log's
    fallback lines (`<id>: focus -> neutral`): each is a state you could
    still draw.
-8. **Golden pictures.** The `tour` scenario is checked for every persona:
-   `uv run demos/record.py --update-golden --personas "<Name>" --scenario tour`,
-   then look at the new pictures in `tests/golden/<slug>/tour/`.
+8. **Golden pictures.** The `tour`, `emotions` and `activities` scenarios
+   are checked for every persona:
+   `uv run demos/record.py --update-golden --personas "<Name>" --scenario tour,emotions,activities`,
+   then look at the new pictures in `tests/golden/<slug>/`.
 9. **Full checks.** `uv run demos/record.py --test` and
    `uv run pytest demos`.
 10. **Size.** Compile `examples/box3.yaml` and compare the flash line with

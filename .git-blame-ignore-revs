@@ -1,0 +1,9 @@
+# Commits that only reformat code. `git blame` skips them after:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub's blame view reads this file too.
+#
+# The hash holds when this commit lands on main with a merge commit. A
+# squash or rebase merge makes a new one; put that here instead.
+
+# style: format Python and C++
+52332fba11031dc6d0b220d1f2408760c91046d7

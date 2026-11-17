@@ -5,7 +5,7 @@
 # select, and "Pixel corgi rug" (weekday or plain) to the device settings.
 #
 # States find animations by name (focus -> Focus); the rest fall back, and
-# the build log lists how (components/daruma/registry.py).
+# the build log lists how (src/esphome/components/daruma/registry.py).
 #
 # Drawn by Python while the firmware compiles (pixel/daruma_pixel/personas.py);
 # edit the art there and compile. Previews: see that file.

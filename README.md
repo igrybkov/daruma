@@ -235,8 +235,8 @@ the pull request checklist.
 
 MIT, see [LICENSE](LICENSE).
 
-The hub and the eyes persona (`components/daruma`,
-`components/daruma_eyes`) started from code by
+The hub and the eyes persona (`src/esphome/components/daruma`,
+`src/esphome/components/daruma_eyes`) started from code by
 [Rudy Gnodde](https://github.com/FamousWolf): an ESPHome component that
 puts animated eyes on the ESP32-S3-BOX-3. See
 [his original repository](https://github.com/FamousWolf/deskbuddy). His

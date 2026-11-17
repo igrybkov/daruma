@@ -33,7 +33,7 @@ Four layers, bottom up. The topics in
 
 - **Board** (`packages/board_*.yaml`): the hardware, and names for its
   inputs.
-- **Core** (`packages/core.yaml`, `components/daruma`): the hub owns the
+- **Core** (`packages/core.yaml`, `src/esphome/components/daruma`): the hub owns the
   state, picks what is on screen, routes input and plays sounds. It never
   knows which personas or modules exist.
 - **Personas** (`packages/persona_*.yaml`): each answers to states with
@@ -42,7 +42,7 @@ Four layers, bottom up. The topics in
 - **Modules** (pomodoro, apps, prompts, menus): a package, plus a
   component when it needs C++. Including the package turns it on.
 
-The build is strict. `components/daruma/registry.py` checks every state,
+The build is strict. `src/esphome/components/daruma/registry.py` checks every state,
 action, binding and theme key against every other, so a typo fails at
 compile time.
 
@@ -51,7 +51,7 @@ compile time.
 | Path | What |
 |---|---|
 | [`packages/`](packages/README.md) | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
-| `components/` | ESPHome components in C++ and Python; `daruma/registry.py` holds the states and the build checks |
+| `src/esphome/components/` | ESPHome components in C++ and Python; `daruma/registry.py` holds the states and the build checks |
 | `pixel/daruma_pixel/` | the pixel-art library: engines (`pet.py`, `desk_boss.py`), scenes, breeds, `personas.py` |
 | `art/` | picture sets for `daruma_images` |
 | `sounds/` | `preview.cpp`: writes the built-in sounds as WAV files to listen to |
@@ -130,7 +130,7 @@ make check
   recorder and pytest share a temp folder. When another run may use it,
   pass `DARUMA_WORK=/tmp/mine` to make.
 - **Paths in packages** are relative to the package file
-  (`../components`, `../pixel/...`, `../art/...`). The components resolve
+  (`../src/esphome/components`, `../pixel/...`, `../art/...`). The components resolve
   them at validation time.
 - **Ids.** An ESPHome id may not equal an integration name. That is why
   the doll persona's id is `daruma_doll`.

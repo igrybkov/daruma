@@ -415,7 +415,7 @@ jobs:
           CXXFLAGS: --coverage
           DARUMA_CPP_OUT: ${{ env.COVERAGE_DIR }}/cpp
           COVERAGE_FILE: ${{ env.COVERAGE_DIR }}/python/.coverage.host
-        run: uv run --no-sync pytest tests -n 2 --cov=components --cov=pixel --cov-report=
+        run: uv run --no-sync pytest tests -n 2 --cov=src/esphome/components --cov=pixel --cov-report=
       - name: Read the C++ coverage
         run: >-
           uv run --no-sync python tests/coverage_report.py
@@ -592,7 +592,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          git diff -U0 "$BASE...HEAD" -- components pixel > "$COVERAGE_DIR/pr.diff"
+          git diff -U0 "$BASE...HEAD" -- src pixel > "$COVERAGE_DIR/pr.diff"
           uv run --no-sync python tests/coverage_comment.py "$COVERAGE_DIR/report/lines.json" \
             --tested "$COVERAGE_DIR/report/tested.json" \
             --base "$COVERAGE_DIR/main/lines.json" --base-tested "$COVERAGE_DIR/main/tested.json" \

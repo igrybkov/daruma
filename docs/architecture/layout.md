@@ -7,7 +7,7 @@ How the screen splits into regions, how personas fill other screen sizes, and th
 
 ## Regions
 
-**Layout** (`components/daruma/layout.h`). Plain C++, host-tested.
+**Layout** (`src/esphome/components/daruma/layout.h`). Plain C++, host-tested.
 
 - The hub computes it in `setup()`, before any module, from the display
   the board names (`daruma: display: s3_box_lcd`). `render()` checks
@@ -46,7 +46,7 @@ How the screen splits into regions, how personas fill other screen sizes, and th
 - **Pixel art** takes the largest whole-number scale that fits the stage.
   `scale:` now only caps it.
 - A layered room fills the rest from **edge strips** that the build takes
-  from the room itself (`components/daruma_sprites/extend.py`, plain
+  from the room itself (`src/esphome/components/daruma_sprites/extend.py`, plain
   Python, host-tested). The strips work like this:
   - For each edge, every line across it gets tested for a repeat period.
     The period most lines share wins: the corgi's planks repeat every

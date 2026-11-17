@@ -1,7 +1,7 @@
 """Host previews of the Calendar app's agenda, using the device's own layout
 math and the same row sizes as agenda_view.cpp.
 
-    c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
+    c++ -std=c++17 -I src/esphome/components/daruma tests/test_layout.cpp -o /tmp/test_layout
     uv run python -I tests/preview_agenda.py /tmp/test_layout OUT_DIR FONT_DIR
 
 FONT_DIR holds Manrope[wght].ttf and mdi.ttf. Writes OUT_DIR/agenda_<theme>_<size>.png
@@ -17,10 +17,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 import preview_screens as ps  # noqa: E402
+from PIL import Image, ImageDraw
 
 # The default theme (theme.h): flat background, cards with an accent outline.
 OUTLINE = {

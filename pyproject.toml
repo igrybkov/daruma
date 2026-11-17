@@ -43,6 +43,9 @@ test = [
     "pytest-xdist>=3.8",
     "pyyaml>=6",
 ]
+# The components by their ESPHome names (esphome.components.daruma), for
+# scripts and the REPL. Editable only: src/pyproject.toml.
+components = ["daruma-components"]
 lint = [
     "gitlint-core==0.19.1",
     "pre-commit==4.7.0",
@@ -58,6 +61,7 @@ coverage = [
 mutation = ["mutmut==3.8.1"]
 dev = [
     { include-group = "test" },
+    { include-group = "components" },
     { include-group = "lint" },
     { include-group = "tidy" },
     { include-group = "coverage" },
@@ -78,6 +82,12 @@ environments = [
 [tool.uv.dependency-groups]
 esphome = { requires-python = ">=3.12,<3.15" }
 
+[tool.uv.workspace]
+members = ["src"]
+
+[tool.uv.sources]
+daruma-components = { workspace = true }
+
 [tool.setuptools.packages.find]
 where = ["pixel"]
 include = ["daruma_pixel*"]
@@ -91,6 +101,10 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.isort]
+# src/esphome holds only this repository's components; esphome is ESPHome.
+known-third-party = ["esphome"]
+
 [tool.ruff.lint.per-file-ignores]
 # These persona modules take scene() and the other layers from
 # globals().update(<persona>.layers()), which ruff can't see.
@@ -98,6 +112,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "demos"]
+# daruma_pixel, also where it is not installed (CI syncs with
+# --no-install-project). The components come in through
+# tests/esphome_components.py.
+pythonpath = ["pixel"]
 # pytest-xdist, one worker per CPU: on an M-series Mac (5 performance and
 # 6 efficiency cores) that beat 2, 4 and 6 workers for both test sets.
 # Pass -n 0 to run in one process.
@@ -108,19 +126,19 @@ asyncio_default_fixture_loop_scope = "function"
 # coverage.py. The desktop build runs the components' Python from a scratch
 # copy (demos/harness.py); combine maps it back onto this checkout.
 [tool.coverage.paths]
-components = ["components/", "*/src/components/"]
+components = ["src/esphome/components/", "*/src/src/esphome/components/"]
 pixel = ["pixel/", "*/src/pixel/"]
 
 # Mutation testing of the Python the host tests can load (docs/testing.md).
 # The other component files import ESPHome, so no host test reaches them.
 [tool.mutmut]
 source_paths = [
-    "components/daruma/registry.py",
-    "components/daruma/sprite_codec.py",
-    "components/daruma_sprites/extend.py",
+    "src/esphome/components/daruma/registry.py",
+    "src/esphome/components/daruma/sprite_codec.py",
+    "src/esphome/components/daruma_sprites/extend.py",
 ]
 # The tests read the persona art and the C++ headers from the checkout.
-also_copy = ["components", "pixel", "packages", "art"]
+also_copy = ["src", "pixel", "packages", "art"]
 pytest_add_cli_args_test_selection = ["tests"]
 # One process: mutmut records which test reaches which function, and an
 # xdist worker's records never reach it.
@@ -133,5 +151,5 @@ do_not_mutate_patterns = ["raise RegistryError\\(", "raise ValueError\\(", "^\\s
 # limit today are listed in complexipy-snapshot.json and may not grow; a
 # new function above it fails.
 [tool.complexipy]
-paths = ["components", "pixel", "demos", "tests", "sounds"]
+paths = ["src", "pixel", "demos", "tests", "sounds"]
 max-complexity-allowed = 15

@@ -22,19 +22,15 @@ tests/test_props.py checks the prop pixels themselves stay put.
 from __future__ import annotations
 
 import re
-import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "pixel"))
 
-from component_loader import load_component  # noqa: E402
-
-registry = load_component("components/daruma/registry.py")
-
+import esphome_components  # noqa: E402, F401
 import yaml  # noqa: E402
 from daruma_pixel import personas, pet  # noqa: E402
+from esphome.components.daruma import registry  # noqa: E402
 
 # Props, by a color only that prop has.
 PROP_MARKS = {"glasses": pet.LENS_GLINT, "book": pet.BOOK.base, "ball": pet.BALL.base}
@@ -56,7 +52,7 @@ def module_states() -> list:
     yaml = (ROOT / "packages" / "pomodoro.yaml").read_text()
     for m in re.finditer(r"^\s+(\w+): \{ kind: (\w+), fallback: (\w+)(?:[^}]*duration: (\w+))?", yaml, re.M):
         out.append(registry.State(m[1], m[2], m[3], duration_ms=_duration_ms(m[4] or ""), module="pomodoro"))
-    tasks = (ROOT / "components" / "daruma_tasks" / "__init__.py").read_text()
+    tasks = (ROOT / "src" / "esphome" / "components" / "daruma_tasks" / "__init__.py").read_text()
     for m in re.finditer(r'State\("(\w+)", (\w+), "(\w+)".*?duration_ms=(\d+)', tasks):
         out.append(registry.State(m[1], m[2].lower(), m[3], duration_ms=int(m[4]), module="daruma_tasks"))
     return out

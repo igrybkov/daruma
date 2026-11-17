@@ -5,18 +5,19 @@
 #   tests/compile_db.sh
 #   clang-tidy -p build/clang-tidy tests/test_*.cpp
 #
-# The headers in components/ come in through the tests.
+# The headers in src/esphome/components/ come in through the tests. src/
+# has the layout they include each other by (esphome/components/<name>/...).
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/build/clang-tidy"
-mkdir -p "$OUT/include/esphome"
-ln -sfn "$ROOT/components" "$OUT/include/esphome/components"
+COMPONENTS="$ROOT/src/esphome/components"
+mkdir -p "$OUT"
 {
   echo "["
   sep=""
   for src in "$ROOT"/tests/test_*.cpp; do
     printf '%s  {"directory": "%s", "file": "%s", "arguments": ["c++", "-std=c++17", "-Wall", "-Wextra", "-I%s", "-I%s", "-I%s", "-c", "%s"]}' \
-      "$sep" "$ROOT" "$src" "$OUT/include" "$ROOT/components/daruma" "$ROOT/components/daruma_weather" "$src"
+      "$sep" "$ROOT" "$src" "$ROOT/src" "$COMPONENTS/daruma" "$COMPONENTS/daruma_weather" "$src"
     sep=",
 "
   done

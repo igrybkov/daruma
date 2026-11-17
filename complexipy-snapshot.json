@@ -1,6 +1,6 @@
 [
   {
-    "path": "components/daruma/__init__.py",
+    "path": "src/esphome/components/daruma/__init__.py",
     "file_name": "__init__.py",
     "functions": [
       {
@@ -10,7 +10,7 @@
     ]
   },
   {
-    "path": "components/daruma/registry.py",
+    "path": "src/esphome/components/daruma/registry.py",
     "file_name": "registry.py",
     "functions": [
       {
@@ -36,7 +36,7 @@
     ]
   },
   {
-    "path": "components/daruma/sounds.py",
+    "path": "src/esphome/components/daruma/sounds.py",
     "file_name": "sounds.py",
     "functions": [
       {
@@ -46,7 +46,7 @@
     ]
   },
   {
-    "path": "components/daruma/sprite_codec.py",
+    "path": "src/esphome/components/daruma/sprite_codec.py",
     "file_name": "sprite_codec.py",
     "functions": [
       {
@@ -64,7 +64,7 @@
     ]
   },
   {
-    "path": "components/daruma_sprites/__init__.py",
+    "path": "src/esphome/components/daruma_sprites/__init__.py",
     "file_name": "__init__.py",
     "functions": [
       {

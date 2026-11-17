@@ -304,7 +304,7 @@ CONFIG_SCHEMA = cv.All(
 # <repo>/components/daruma_sprites/ and <repo>/pixel/daruma_pixel/. A script
 # kept elsewhere, such as a persona in another package's repository, imports
 # it as `from daruma_pixel import personas`.
-PIXEL_LIBRARY = Path(__file__).resolve().parents[2] / "pixel"
+PIXEL_LIBRARY = Path(__file__).resolve().parents[4] / "pixel"
 PIXEL_PACKAGE = "daruma_pixel"
 
 

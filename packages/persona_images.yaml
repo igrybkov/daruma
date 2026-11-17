@@ -11,7 +11,7 @@
 # Each include adds an option to the "Persona" select in HA.
 #
 # Var `sounds` (optional): the persona's own sound effects, as a persona's
-# `sounds:` block (components/daruma/sounds.py), for example its `pet`.
+# `sounds:` block (src/esphome/components/daruma/sounds.py), for example its `pet`.
 #
 # Art goes in art/<art>/ of this repository as PNGs up to 320x240
 # (centered), named:
@@ -20,7 +20,7 @@
 #   winks:  neutral_wink, happy_wink
 #   activities: listening, thinking, talking
 # Frames are keyed by state name. States without one (focus, alarm, offline,
-# the reactions, ...) show their fallback's picture (components/daruma/registry.py).
+# the reactions, ...) show their fallback's picture (src/esphome/components/daruma/registry.py).
 # For a smaller set, copy this file and drop frames; Neutral is the one
 # every set needs.
 #

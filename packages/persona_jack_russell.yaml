@@ -12,7 +12,7 @@
 #
 # States find animations by name (petted -> Petted, celebrate -> Celebrate,
 # focus -> Focus); the rest fall back, and the build log lists how
-# (components/daruma/registry.py).
+# (src/esphome/components/daruma/registry.py).
 #
 # Drawn by Python while the firmware compiles (pixel/daruma_pixel/
 # jack_russell.py on dog.py, through personas.py); edit the art there and

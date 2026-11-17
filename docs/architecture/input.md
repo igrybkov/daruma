@@ -169,7 +169,7 @@ voice.start today.
 
 ## Focus ring
 
-In `components/daruma/focus.h`, host-tested.
+In `src/esphome/components/daruma/focus.h`, host-tested.
 
 - `device.uses_focus()` is true when the board's navigation has both
   `next` and `prev`. The BOX-3 with touch has neither, so it looks and

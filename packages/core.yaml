@@ -7,12 +7,12 @@
 # something changed. Voice phases draw one still frame each, so screen
 # traffic does not compete with audio. The hub paces frames to the board's
 # display_profile (min_frame), and places everything by its Layout
-# (components/daruma/layout.h), so any screen size works.
+# (src/esphome/components/daruma/layout.h), so any screen size works.
 #
 # The board package sets the font sizes: font_size_text, font_size_small,
 # font_size_badge, font_size_icon, font_size_timer and font_size_title.
 #
-# Plug-in points on the hub (see components/daruma/hub.h), for a
+# Plug-in points on the hub (see src/esphome/components/daruma/hub.h), for a
 # module's `setup:` lambda (`hub` is the hub):
 #   add_layer(order, fn)            draw on top of the idle persona
 #   add_screen(priority, fn)        take over the idle screen (menu)
@@ -89,7 +89,7 @@ esphome:
 external_components:
   - source:
       type: local
-      path: ../components
+      path: ../src/esphome/components
     components: [daruma, daruma_eyes, daruma_images, daruma_sprites, daruma_menu, daruma_sounds]
 
 api:

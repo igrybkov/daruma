@@ -1,7 +1,7 @@
 // Host test of the gate for Home Assistant calls that wait for a reply
 // (daruma/ha_calls.h).
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma \
 //       tests/test_ha_calls.cpp -o /tmp/test_ha_calls && /tmp/test_ha_calls
 
 #include <cstdio>

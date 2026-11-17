@@ -117,7 +117,7 @@ media_player:
 
 # Sound effects and the timer chime, made on the device when first played.
 # A persona may have its own (`sounds:`); the rest are built in
-# (components/daruma/synth.cpp). Rendered sounds stay in PSRAM up to
+# (src/esphome/components/daruma/synth.cpp). Rendered sounds stay in PSRAM up to
 # cache_size, least recently played freed first; the logs (tag
 # daruma_sounds) show each one made and freed, with free PSRAM.
 daruma_sounds:
@@ -380,7 +380,7 @@ script:
                 else:
                   - voice_assistant.start:
 
-  # Short chiptune effect by synth name (components/daruma/synth.cpp, or one a persona
+  # Short chiptune effect by synth name (src/esphome/components/daruma/synth.cpp, or one a persona
   # adds). The hub plays a state's sound through it. Skipped when sounds are
   # off, and never over the assistant, a ringing timer or an HA announcement.
   - id: play_sound

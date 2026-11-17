@@ -20,11 +20,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from component_loader import load_component
+import esphome_components  # noqa: F401
+from esphome.components.daruma import sprite_codec as codec
 
 _ROOT = Path(__file__).resolve().parents[1]
-
-codec = load_component("components/daruma/sprite_codec.py")
 
 
 def persona_pictures(personas) -> tuple[list, list[list[int]]]:
@@ -88,7 +87,6 @@ def synthetic():
 
 def persona_builds() -> list[tuple[str, object]]:
     """(label, build) for every pixel persona; build() returns its personas."""
-    sys.path.insert(0, str(_ROOT / "pixel"))
     from daruma_pixel import daruma_persona, personas
 
     return [

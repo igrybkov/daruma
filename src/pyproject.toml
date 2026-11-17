@@ -1,0 +1,35 @@
+# This repository's ESPHome components (esphome/components/daruma*), so host
+# code can import them by their ESPHome names:
+#
+#   import esphome.components.daruma_calendar
+#
+# Editable only. uv installs it that way as a workspace member (the root
+# pyproject.toml), and the editable finder adds our names to ESPHome's own
+# esphome.components package. Never build or publish it: a wheel would
+# write these files into the installed ESPHome.
+#
+# Device builds do not use it. ESPHome loads the components from the git
+# checkout (external_components in packages/*.yaml), and its own finder
+# comes first. The host tests do not need it either: tests/esphome_components.py
+# extends esphome.components from sys.path, so mutmut's mutated copy wins.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daruma-components"
+version = "0.0.0"
+description = "Daruma's ESPHome components, importable outside an ESPHome build (editable only)"
+requires-python = ">=3.12"
+classifiers = ["Private :: Do Not Upload"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["esphome.components.*"]
+namespaces = true
+
+[tool.uv]
+# The editable finder lists the packages it found at install time. A new
+# component changes these files, so uv sync installs again.
+cache-keys = [{ file = "pyproject.toml" }, { file = "esphome/components/*/__init__.py" }]

@@ -57,7 +57,7 @@ persona needs only `Neutral` to work, and gets better with every
 animation you add. The build log lists each fallback it took:
 `pixel_corgi: focus -> neutral`.
 
-The list lives in `components/daruma/registry.py` (the core) and in each
+The list lives in `src/esphome/components/daruma/registry.py` (the core) and in each
 module's declaration. A module adds states of its own; see
 [Your own module](#your-own-module).
 
@@ -232,7 +232,7 @@ Each persona can replace any built-in sound with its own: `start`,
 `to` glides, `duty` sets the tone (0.5 is a full square wave), `vibrato`
 wobbles, `arp` runs through notes. A sound lasts 2 seconds at most. The
 options are documented in
-[components/daruma/sounds.py](../components/daruma/sounds.py). A
+[src/esphome/components/daruma/sounds.py](../src/esphome/components/daruma/sounds.py). A
 behavior can also pick any sound by name for any state.
 
 ## Themes and words
@@ -305,7 +305,7 @@ Built in:
   [examples/variant_apps.yaml](../examples/variant_apps.yaml) builds two of
   each.
 - **Your own app.** An app is a C++ class with its own screen, registered
-  in a module's setup. [components/daruma_weather](../components/daruma_weather/)
+  in a module's setup. [src/esphome/components/daruma_weather](../src/esphome/components/daruma_weather/)
   is a compact model to copy: one component, one package, one theme.
 
 ## Menus

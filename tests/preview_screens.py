@@ -1,7 +1,7 @@
 """Host previews of Daruma screens at other sizes, using the device's
 own layout math.
 
-    c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
+    c++ -std=c++17 -I src/esphome/components/daruma tests/test_layout.cpp -o /tmp/test_layout
     uv run python -I tests/preview_screens.py /tmp/test_layout OUT_DIR FONT_DIR
 
 The layout (regions, tiles, unit) comes from test_layout --json, which runs
@@ -24,14 +24,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import esphome_components  # noqa: F401
+from daruma_pixel import personas
+from esphome.components.daruma_sprites import extend
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "pixel"))
-sys.path.insert(0, str(ROOT / "components" / "daruma_sprites"))
-
-import extend  # noqa: E402
-from daruma_pixel import personas  # noqa: E402
 
 # Font sizes per screen, as the board packages set them.
 FONTS = {"320x240": (17, 13, 30), "480x272": (19, 15, 34), "240x240": (17, 13, 30)}

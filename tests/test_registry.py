@@ -5,9 +5,8 @@ python3 -m unittest discover -s tests
 
 import unittest
 
-from component_loader import load_component
-
-registry = load_component("components/daruma/registry.py")
+import esphome_components  # noqa: F401
+from esphome.components.daruma import registry
 
 State, ModuleSpec, Persona, RegistryError = (
     registry.State,

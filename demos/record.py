@@ -30,8 +30,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 import scenario as scenarios  # noqa: E402
 from harness import HERE, Build, Device, build, slug  # noqa: E402
 from media import encode_gif, encode_mp4, frames_of, sounds_of, with_captions, with_touches  # noqa: E402

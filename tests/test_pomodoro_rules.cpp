@@ -1,6 +1,6 @@
 // Host test of which pomodoro buttons show when (daruma/pomodoro_rules.h).
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma \
 //       tests/test_pomodoro_rules.cpp -o /tmp/test_pomodoro_rules && /tmp/test_pomodoro_rules
 
 #include <cstdio>

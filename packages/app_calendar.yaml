@@ -114,7 +114,7 @@ defaults:
 external_components:
   - source:
       type: local
-      path: ../components
+      path: ../src/esphome/components
     components: [daruma_calendar]
 
 daruma_calendar:

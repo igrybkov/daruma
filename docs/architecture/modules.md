@@ -41,7 +41,7 @@ How a module plugs into the core: what it declares, what it may add, and how an 
   fetches only while open or for its status line. Tasks fetches for its
   tile.
 - The text helpers that Calendar and Tasks shared (`fit_text`,
-  `drawable_text`, `text_width`) now live in `components/daruma/text.h`.
+  `drawable_text`, `text_width`) now live in `src/esphome/components/daruma/text.h`.
 - **Copies of an app.** `app_tasks.yaml` and `app_calendar.yaml` take
   `!include` vars (`app_id`, `app_name`, and `source`/`entity` or
   `calendars`), with defaults in the package's top-level `defaults:`

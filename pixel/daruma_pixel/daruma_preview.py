@@ -11,7 +11,7 @@ Writes to OUT_DIR:
 
 and prints the encoded size of the frames: all three eye states as whole
 faces, and the blank face plus eye overlays. Sizes come from the encoder
-the firmware build uses (components/daruma/sprite_codec.py).
+the firmware build uses (src/esphome/components/daruma/sprite_codec.py).
 """
 
 from __future__ import annotations
@@ -64,11 +64,11 @@ def gif(frames, path: Path) -> None:
 
 
 def _encoder():
-    """components/daruma/sprite_codec.py: the encoder the firmware build uses.
+    """src/esphome/components/daruma/sprite_codec.py: the encoder the firmware build uses.
 
     It is plain Python with no ESPHome imports, so it loads on its own.
     """
-    path = HERE.parents[1] / "components/daruma/sprite_codec.py"
+    path = HERE.parents[1] / "src/esphome/components/daruma/sprite_codec.py"
     spec = importlib.util.spec_from_file_location("daruma_sprite_codec", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # dataclasses look the module up by name.

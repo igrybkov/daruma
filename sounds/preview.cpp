@@ -1,12 +1,12 @@
 // Writes every Daruma sound effect as a WAV file, to listen to on a
 // computer. The device makes the same sounds with the same code
-// (components/daruma/synth.cpp). Built-in sounds only;
+// (src/esphome/components/daruma/synth.cpp). Built-in sounds only;
 // a persona's own `sounds:` are not included.
 //
 // From the repository root:
 //
 //   c++ -std=c++17 -O2 -Icomponents/daruma \
-//       sounds/preview.cpp components/daruma/synth.cpp -o /tmp/daruma_sounds \
+//       sounds/preview.cpp src/esphome/components/daruma/synth.cpp -o /tmp/daruma_sounds \
 //       && /tmp/daruma_sounds OUT_DIR
 
 #include <cstdio>

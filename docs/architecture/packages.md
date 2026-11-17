@@ -8,9 +8,10 @@ How the framework ships as one git checkout, and how a device pulls it. Private 
 The framework lives in its own git repository, versioned with tags:
 
 ```
-components/   daruma (core), daruma_menu, daruma_sounds, daruma_prompts,
+src/esphome/components/
+              daruma (core), daruma_menu, daruma_sounds, daruma_prompts,
               daruma_sprites, daruma_eyes, daruma_images, daruma_calendar,
-              daruma_tasks, daruma_desktop
+              daruma_tasks, daruma_weather, daruma_desktop
 packages/     boards (board_box3.yaml, board_box3_buttons.yaml,
               board_desktop.yaml), core.yaml, menu.yaml, pomodoro.yaml,
               prompts.yaml, app_tasks.yaml, app_calendar.yaml, persona_*.yaml
@@ -40,7 +41,7 @@ packages:
 ```
 
 **One checkout for everything.** Each package declares the components it
-needs as a local source, `path: ../components`, relative to the package
+needs as a local source, `path: ../src/esphome/components`, relative to the package
 file. ESPHome looks for a relative path in the config folder first, then
 next to the YAML file that names it (`cv.directory`). For a package from
 git, that is the package's own checkout in ESPHome's cache. So a device
@@ -49,11 +50,23 @@ art always come from the same commit. Adding a second source for the same
 components (`external_components: github://...`) is not needed and makes
 the result depend on order.
 
+**Why `src/esphome/components`.** ESPHome imports a component as
+`esphome.components.<name>`. The folders spell out that name, so host
+code imports the components the same way:
+
+- The host tests import `tests/esphome_components.py` first. It adds the
+  component folders to ESPHome's `esphome.components` package.
+- `uv sync` also installs `src/pyproject.toml` (`daruma-components`) as
+  an editable package, for scripts and the REPL. It is never built: a
+  wheel would write the files into the installed ESPHome.
+- C++ host tests compile with `-I src`, so the headers include each other
+  as in a build (`esphome/components/<name>/...`).
+
 **Files named by packages.** The same rule covers the files the personas
 read. `pixel_art: {script: ../pixel/personas.py}` and
 `art: ../art/flat_corgi` resolve next to the package, and the component
 stores the absolute path (`resolve_file()` and `resolve_dir()` in
-`components/daruma/sprite.py`). It resolves them while the config is
+`src/esphome/components/daruma/sprite.py`). It resolves them while the config is
 validated, while each value still knows its YAML file. The rest of the
 build reads only absolute paths.
 

@@ -54,11 +54,14 @@ coverage = [
     "coverage>=7.6",
     "pytest-cov>=6",
 ]
+# Mutation testing (make mutate, make mutate-diff): docs/testing.md.
+mutation = ["mutmut==3.8.1"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
     { include-group = "tidy" },
     { include-group = "coverage" },
+    { include-group = "mutation" },
 ]
 # The one place that names the ESPHome version the builds use.
 esphome = ["esphome==2026.10.2"]
@@ -107,6 +110,24 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.coverage.paths]
 components = ["components/", "*/src/components/"]
 pixel = ["pixel/", "*/src/pixel/"]
+
+# Mutation testing of the Python the host tests can load (docs/testing.md).
+# The other component files import ESPHome, so no host test reaches them.
+[tool.mutmut]
+source_paths = [
+    "components/daruma/registry.py",
+    "components/daruma/sprite_codec.py",
+    "components/daruma_sprites/extend.py",
+]
+# The tests read the persona art and the C++ headers from the checkout.
+also_copy = ["components", "pixel", "packages", "art"]
+pytest_add_cli_args_test_selection = ["tests"]
+# One process: mutmut records which test reaches which function, and an
+# xdist worker's records never reach it.
+pytest_add_cli_args = ["-n", "0", "-p", "no:cacheprovider"]
+# Error messages and build log lines are text for people; tests match a
+# few words of them.
+do_not_mutate_patterns = ["raise RegistryError\\(", "raise ValueError\\(", "^\\s*log\\.append\\("]
 
 # Cognitive complexity (not cyclomatic) per function. Functions above the
 # limit today are listed in complexipy-snapshot.json and may not grow; a

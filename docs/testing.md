@@ -211,6 +211,49 @@ it only writes the report. On Linux with gcc, the same steps run locally:
   the host tests' Python data alone with `--tested-python` for the tested
   number.
 
+## Mutation tests
+
+A passing test shows that code ran. A mutation test shows that a test
+would notice a bug in it. The tool makes one small change at a time,
+such as `<` to `<=` or `true` to `false`. Then it runs the host tests
+that reach that code. When no test fails, the change "survived". That
+is a gap in the tests.
+
+```sh
+make mutate                    # every mutant: a report
+make mutate-diff               # only the lines changed since origin/main
+make mutate-diff BASE=main     # or since another branch
+```
+
+`make mutate` takes about three minutes. It never fails on a survivor.
+`make mutate-diff` takes seconds. It fails when a mutant on a changed
+line survives. The changes count from the merge base, so commits that
+land on main later are not yours. CI runs `make mutate-diff` on every
+pull request. That check is not required.
+
+- **Python**: [mutmut](https://github.com/boxed/mutmut) mutates the
+  files in `[tool.mutmut]` in `pyproject.toml`. Only the files the host
+  tests can load are there. The others import ESPHome.
+- **C++**: `tests/mutate_cpp.py` mutates the component files that the
+  C++ host tests include. It builds and runs every test that includes
+  the file. A change that doesn't build doesn't count.
+
+When a mutant survives, add a test that tells the change apart. Some
+changes can't be told apart. For example, a bound that a later check
+covers too. Mark those lines `# pragma: no mutate` in Python or
+`// pragma: no mutate` in C++, and say why in a comment. In Python, a
+comment line `# pragma: no mutate block, <why>` covers the statements
+after it, to the end of their block. `make mutate-diff` starts from a
+fresh `mutants/` folder, so it sees a new pragma. `make mutate` keeps
+the folder between runs: delete `mutants/` after you add a pragma.
+
+The Python runs skip lines that raise an error or add a build log line.
+That text is for people, and tests match only a few words of it.
+
+The host tests load each Python file under its path's name, such as
+`components.daruma.registry` (`tests/component_loader.py`). mutmut needs
+that name to find the tests for a mutant.
+
 ## Preview pixel art
 
 ```sh

@@ -54,6 +54,33 @@ jobs:
         if: ${{ !cancelled() && matrix.python == 'pinned' }}
         run: tests/run_cpp.sh
 
+  # Mutation tests of the lines a pull request changes (docs/testing.md).
+  # It fails on a mutant no test catches, but it is not a required check:
+  # a person decides whether to add a test or mark the line.
+  mutation:
+    name: Mutation tests (changed lines)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      # The whole history, for the merge base with the pull request's base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the test tools and mutmut
+        run: uv sync --locked --only-group test --only-group mutation --no-install-project
+      - name: Run the mutation tests
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: make mutate-diff BASE="$BASE" UV_RUN="uv run --no-sync"
+
   # Every check runs, even after one fails, so one run shows them all.
   lint:
     name: Lint

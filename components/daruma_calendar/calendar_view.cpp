@@ -4,6 +4,7 @@
 
 #include "esphome/components/daruma/draw.h"
 #include "esphome/components/daruma/text.h"
+#include "esphome/components/daruma/ui_tree.h"
 
 namespace Daruma {
 
@@ -59,6 +60,9 @@ void CalendarView::draw_bar_(AppView &v, const CalendarViewState &state) {
   const Color off = mix(t.panel, t.muted, 0.4f);
   chevron(v.display, v.x + this->pad_ + v.px(8), cy, v.px(7), -1, state.can_go_back ? t.ink : off);
   chevron(v.display, v.x + v.w - this->pad_ - v.px(8), cy, v.px(7), 1, state.can_go_forward ? t.ink : off);
+  // The arrows' tap areas, as hit() maps them.
+  UiTree::add("button", "Previous", Rect{v.x, v.y, this->arrow_w_, this->bar_h_});
+  UiTree::add("button", "Next", Rect{v.x + v.w - this->arrow_w_, v.y, this->arrow_w_, this->bar_h_});
 
   // "Today  Sun 15", centered between the arrows on one baseline.
   const int room = v.w - 2 * this->arrow_w_;
@@ -75,12 +79,14 @@ void CalendarView::draw_bar_(AppView &v, const CalendarViewState &state) {
   const int left = v.x + (v.w - total) / 2;
   const int baseline = cy + v.px(6);
   v.display.print(left, baseline, v.text, t.ink, TextAlign::BASELINE_LEFT, label.c_str(), t.panel);
+  UiTree::add("heading", state.label, Rect{left, v.y, total, this->bar_h_}, false, state.date);
   if (!date.empty()) {
     v.display.print(left + label_w + gap, baseline, v.small, t.muted, TextAlign::BASELINE_LEFT, date.c_str(), t.panel);
   }
 }
 
 void CalendarView::draw_message_(AppView &v, const std::string &text, int top) {
+  UiTree::add("text", text, Rect{v.x, top, v.w, v.y + v.h - top});
   const int width = v.w - 4 * this->pad_;
   std::vector<std::string> lines = Utilities::Text::wrap(v.display, v.text, text, width);
   if (lines.size() > 3)
@@ -202,6 +208,8 @@ void CalendarView::draw_row_(AppView &v, const CalendarViewState &state, const C
   std::string title = drawable_text(v.text, event.title);
   if (title.empty())
     title = state.untitled_text;
+  const int left = v.x + this->pad_;
+  UiTree::add("row", title, Rect{left, top, right - left, this->row_h_}, false, now ? "now" : (next ? "next" : ""));
   title = fit_text(v.display, v.text, title, right - title_x);
   v.display.print(title_x, mid, v.text, past ? t.muted : t.ink, TextAlign::CENTER_LEFT, title.c_str(), bg);
 }

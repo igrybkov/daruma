@@ -17,6 +17,11 @@ test_frames.cpp needs a fixture; test_frames.py builds and runs it.
 
 For coverage: CXXFLAGS adds compiler flags (--coverage), and
 DARUMA_CPP_OUT names a folder that keeps the programs and their data.
+
+Drawn personas are kept in pytest's cache (persona_cache.py), so each
+persona is drawn once and every xdist worker reads it. Set
+DARUMA_PERSONA_CACHE to use another folder, or to nothing to draw every
+time.
 """
 
 import os
@@ -28,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import esphome_components  # noqa: F401
+import persona_cache
 import pytest
 
 HERE = Path(__file__).resolve().parent
@@ -39,6 +45,10 @@ NOT_COLLECTED = {Path("test_frames.cpp")}
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "cpp: a host C++ test (tests/test_*.cpp)")
+    # Without the cacheprovider plugin (-p no:cacheprovider) there is no
+    # pytest cache, and no persona cache either.
+    if getattr(config, "cache", None) is not None:
+        os.environ.setdefault(persona_cache.ENV, str(config.cache.mkdir("daruma-personas")))
 
 
 def pytest_collect_file(parent: pytest.Collector, file_path: Path) -> "CppFile | None":

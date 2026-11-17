@@ -41,6 +41,7 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 import esphome_components  # noqa: E402, F401
+import persona_cache  # noqa: E402
 from esphome.components.daruma import registry  # noqa: E402
 
 GOAL_KEYS = ("started", "done")
@@ -121,11 +122,7 @@ def _stage_names(conf: dict) -> list:
 
 def _build(script, name: str):
     """The persona `name` of a pixel_art module, as daruma_sprites builds it."""
-    if hasattr(script, "build"):
-        return script.build(name)
-    from daruma_pixel import personas
-
-    return personas.build(name, script)
+    return persona_cache.build(script, name)
 
 
 def _props(conf: dict):

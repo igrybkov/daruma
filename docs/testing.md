@@ -189,6 +189,14 @@ trip through the patch encoder), gestures, layout, prompts, the
 pomodoro's rules, the calendar's agenda and the weather words.
 `DARUMA_SKIP_PERSONAS=1` skips the tests that build every persona.
 
+Drawing every persona takes about a minute, and three test files need
+them. So a test run keeps each drawn persona in
+`.pytest_cache/d/daruma-personas` (`tests/persona_cache.py`). The first
+run draws them. Later runs read them back, until a file in `pixel/`
+changes. `DARUMA_PERSONA_CACHE` picks another folder. Set it empty to
+draw every persona. A coverage run needs an empty or new folder, so
+that it draws each persona and counts the drawing code.
+
 The C++ tests run through pytest too. `tests/conftest.py` collects each
 `tests/test_*.cpp` as one test: pytest builds it and runs it. The
 `cpp` marker picks them out. To run one test, name it:

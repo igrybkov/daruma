@@ -86,16 +86,19 @@ def synthetic():
 
 
 def persona_builds() -> list[tuple[str, object]]:
-    """(label, build) for every pixel persona; build() returns its personas."""
-    from daruma_personas import daruma as daruma_persona
-    from daruma_pixel import personas
+    """(label, build) for every pixel persona; build() returns its personas.
+    persona_cache draws each one once per test run."""
+    import persona_cache
+
+    def one(module: str, *names: str):
+        return lambda: [persona_cache.build(f"daruma_personas.{module}", name) for name in names]
 
     return [
-        ("corgi", lambda: [personas.build("corgi")]),
-        ("the_boss", lambda: [personas.build("the_boss")]),
-        ("jack_russell", lambda: [personas.build("jack_russell")]),
-        ("tabby_cat", lambda: [personas.build("tabby_cat")]),
-        ("daruma", lambda: [daruma_persona.build(n) for n in (0, 1, 2)]),
+        ("corgi", one("corgi", "corgi")),
+        ("the_boss", one("the_boss", "the_boss")),
+        ("jack_russell", one("jack_russell", "jack_russell")),
+        ("tabby_cat", one("tabby_cat", "tabby_cat")),
+        ("daruma", one("daruma", "daruma0", "daruma1", "daruma2")),
     ]
 
 

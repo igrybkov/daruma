@@ -121,6 +121,13 @@ void Desktop::loop() {
   if (this->clock_latch_ != nullptr)
     this->clock_latch_();
   const uint32_t now = esphome::millis();
+  this->loops_++;
+  if (now != this->turns_ms_) {
+    this->turns_ms_ = now;
+    this->turns_ = 0;
+  } else if (this->turns_ < UINT32_MAX) {
+    this->turns_++;
+  }
   while (!this->points_.empty() && static_cast<int32_t>(now - this->points_.front().at) >= 0) {
     const Point &p = this->points_.front();
     if (this->display_ != nullptr) {
@@ -197,6 +204,8 @@ bool Desktop::screenshot(const std::string &dir, const std::string &name) {
 }
 
 void Desktop::describe(JsonObject root) const {
+  root["loops"] = this->loops_;
+  root["turns"] = this->turns_;
   auto list = root["ui"].to<JsonArray>();
   for (const UiNode &n : UiTree::nodes()) {
     auto o = list.add<JsonObject>();

@@ -32,6 +32,15 @@ substitutions:
 
 host:
 
+# No fused multiply-add: a compiler may fuse a * b + c into one step, which
+# rounds once instead of twice. Text blending is such a sum, so fused or
+# not changes a pixel's color here and there. Off everywhere, every
+# compiler draws the same pictures.
+esphome:
+  platformio_options:
+    build_flags:
+      - -ffp-contract=off
+
 logger:
   level: DEBUG
 

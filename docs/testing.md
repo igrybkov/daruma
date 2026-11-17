@@ -6,6 +6,8 @@ and test a screen without a device and without Home Assistant.
 ## What you need
 
 uv, a C compiler, SDL2 and ffmpeg. On macOS: `brew install uv sdl2 ffmpeg`.
+On Debian or Ubuntu: `sudo apt-get install build-essential libsdl2-dev ffmpeg`,
+and uv.
 The builds use ESPHome 2026.10.2 through uv; you don't install it.
 
 ## The desktop build
@@ -122,6 +124,14 @@ uv run pytest demos                       # tests in Python
   `device.get_by_role("target", "plaque").tap()`.
 - **Golden pictures** live in `tests/golden/<persona>/<scenario or test>/`.
   A failed check writes the actual picture, a diff and a GIF of the run.
+- **The same pictures on macOS and Linux.** The runner reads the screen's
+  RGB565 colors and widens them to 8 bits itself, as SDL builds differ
+  there. The desktop build turns off fused multiply-add
+  (`-ffp-contract=off`), so text blends to the same colors with any
+  compiler. `--update-golden` keeps a picture whose pixels didn't change.
+- **Linux in Docker.** `tests/in_docker.sh` runs the screen tests in
+  Ubuntu 24.04, as CI does. Its caches live in Docker volumes, so a
+  second run starts warm. `tests/in_docker.sh bash` opens a shell there.
 - **Pick a persona** with `@pytest.mark.persona("Pixel corgi")` (default
   Eyes), and a wall clock with `@pytest.mark.clock(epoch=..., timezone=...)`.
 - **Another port or folder.** The runner uses port 6053 and a temp folder.

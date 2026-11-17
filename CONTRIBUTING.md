@@ -18,6 +18,12 @@ and ffmpeg. On macOS:
 brew install uv sdl2 ffmpeg
 ```
 
+On Debian or Ubuntu, install uv, then:
+
+```sh
+sudo apt-get install build-essential libsdl2-dev ffmpeg
+```
+
 You don't install ESPHome by hand. `uv sync` installs the test and lint
 tools from `uv.lock` into `.venv`. The screen tests run ESPHome from its
 own locked environment, `.venv-esphome`, which they sync themselves: the
@@ -140,6 +146,8 @@ uv run pytest demos
 - Every device listens on a free API port, so runs never clash on ports.
   If another run uses the same scratch folder, pass `--out /tmp/mine` to
   record.py, or set `DARUMA_WORK=/tmp/mine` for pytest.
+- Steps 3 and 4 give the same pictures on macOS and Linux.
+  `tests/in_docker.sh` runs them in Ubuntu 24.04, as CI does.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
 ## Lint and format
@@ -194,8 +202,7 @@ checks the pull request title and every commit message in it.
 | Host tests (C++) | test 2 above |
 | Config | `esphome config` for each file in `examples/` |
 | Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
-| Screen tests (golden) | test 3 above, on macOS, where the golden pictures were made |
-| Screen tests (pytest) | test 4 above, on macOS |
+| Screen tests | tests 3 and 4 above, in one job with one build |
 | Previews | demo GIFs and contact sheets, uploaded as artifacts |
 | Pull request title | the title is a Conventional Commit |
 | Commit messages | `gitlint` on each commit of the pull request |

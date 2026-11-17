@@ -59,7 +59,8 @@ class Desktop : public esphome::Component {
   bool screenshot(const std::string &dir, const std::string &name);
   // True while queued touches or button presses are still running.
   bool touch_busy() const { return !this->points_.empty() || !this->releases_.empty(); }
-  // The parts on screen (UiTree) as root["ui"]: [{role, name, x, y, w, h, focused, value}].
+  // The parts on screen (UiTree) as root["ui"]: [{role, name, x, y, w, h, focused, value}],
+  // and the turns of the main loop: root["loops"] (all) and root["turns"] (see turns_).
   void describe(JsonObject root) const;
   // Renders the current persona's sound `name` to a WAV file, when recording.
   void sound(Hub *hub, const std::string &name);
@@ -86,6 +87,15 @@ class Desktop : public esphome::Component {
 
   esphome::HighFrequencyLoopRequester high_freq_;
   void (*clock_latch_)(){nullptr};
+  // Turns of the main loop that started after the one that took the current
+  // time. ESPHome runs its timers at the start of a turn, before any
+  // component's loop(), so they see a new time one turn after the latch.
+  // Only at 2 has a whole turn run at this time: timers, then every
+  // component. A runner waits for that before it moves the clock on.
+  uint32_t turns_{0};
+  uint32_t turns_ms_{0};
+  // All turns of the main loop so far.
+  uint32_t loops_{0};
   bool recording_{false};
   bool paused_{false};
   std::string dir_;

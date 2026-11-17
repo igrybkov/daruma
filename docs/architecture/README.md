@@ -77,7 +77,7 @@ file to create.
 
 | You want to | Topic |
 |---|---|
-| Keep state across a reboot: a running timer, today's count, the chosen persona | Preserving state: TBD (`state-preservation.md`) |
+| Keep state across a reboot: a running timer, today's count, the chosen persona | [Preserving state](state-preservation.md) |
 | Support a new board, a USB device or a sensor | Hardware: TBD (`hardware.md`). For now: [Input and bindings](input.md#inputs-are-named-by-the-board) |
 | Install, flash, or find out why a device is offline | Install and debug: TBD (`install.md`). For now: [install.md](../install.md) |
 
@@ -105,7 +105,9 @@ Topics grow when a real task needs more, not before.
 
 Rules for every topic file:
 
-- **One kind of work.** Name it after the task, not the layer.
+- **One kind of work.** Follow the task through every layer it touches.
+  A file named after a layer is fine only if it covers the whole task,
+  not that layer's internals.
 - **At most 300 lines.** If it grows past that, split it into two kinds
   of work. Don't trim the useful parts.
 - **As built only.** No history, no plans, no "before".
@@ -113,6 +115,43 @@ Rules for every topic file:
   start or the example to copy. Grep finds the rest.
 - **Links that work.** Every path in the file must exist.
   `tests/test_docs.py` checks the links, the paths and the line count.
+
+## How to write a topic
+
+The reader is in the middle of a task. They want the next fact, not a
+tour. Write for that reader.
+
+- **Short sentences.** One idea per sentence. Plain verbs: "the hub
+  picks", not "selection is performed by the hub".
+- **Say what is true now.** Not what it used to be, and not what it
+  will be.
+- **Lead with the rule, then the reason.** One reason is enough. Skip it
+  if the rule is obvious.
+- **Name the trap.** If something compiles, passes the tests and is
+  still wrong, it goes under Traps. Say what goes wrong and how to see it.
+- **Show, don't list.** One small example beats five bullets of options.
+  Link to the full option list in a use guide such as
+  [customize.md](../customize.md) instead of copying it.
+- **Link, don't repeat.** If a fact is in another topic, link to the
+  heading.
+- **No filler.** No "simply", "just", "note that", "it is important".
+  No em dashes. No summary at the end.
+
+A paragraph that is hard to act on:
+
+> The frame scheduling subsystem has been designed with voice
+> interactions in mind. It is important to note that there are two
+> mechanisms for requesting frames, and care should generally be taken
+> to select the appropriate one depending on the use case.
+
+The same facts, easy to act on:
+
+> `request_redraw()` waits while a voice phase is up. `request_frame()`
+> draws anyway.
+>
+> Trap: motion that calls `request_frame()` keeps drawing while the voice
+> assistant talks. It looks fine on the desktop. Use `request_redraw()`
+> for motion.
 
 ## Topic template
 

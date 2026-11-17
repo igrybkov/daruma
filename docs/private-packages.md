@@ -226,6 +226,17 @@ uv run demos/record.py --private-persona /path/to/my-daruma-private/packages/per
 
 Its GIF goes to the temp folder, not into the Daruma repository.
 
+To check it against golden pictures, run the scenario tests with the same
+package. The first run with `--update-golden` writes the pictures to
+`golden/` in the temp folder (or `$DARUMA_WORK`). Later runs compare with
+them:
+
+```sh
+uv run pytest demos -m scenario --scenario tour --update-golden \
+    --private-persona /path/to/my-daruma-private/packages/persona_my_persona.yaml \
+    --persona "My persona"
+```
+
 To look at the frames only, install the library from your Daruma clone
 (or from GitHub, `git+https://github.com/igrybkov/daruma`) and run your
 build script, from your repository's root:

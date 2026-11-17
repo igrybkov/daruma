@@ -106,12 +106,22 @@ a reaction. `show: ""` goes back to normal.
 make golden                    # exit 1 on a difference
 make update-golden CONFIRM=1   # accept the new pictures
 make test-screens              # tests in Python
-make screens                   # golden, then test-screens
+make screens                   # golden and test-screens, in one run
 ```
 
-`PERSONA=` and `SCENARIO=` narrow `golden` and `update-golden`.
-`PYTEST_ARGS=` passes options to pytest, for example
+All four run pytest. Each scenario file is a test per persona in its
+`test_personas`, with the marker `scenario`: `make golden` runs those,
+`make test-screens` the rest. `PERSONA=` and `SCENARIO=` narrow the
+scenario tests. `PYTEST_ARGS=` passes options to pytest, for example
 `make test-screens PYTEST_ARGS="-k corgi"`.
+
+pytest itself takes the same options:
+
+```sh
+uv run pytest demos/scenarios/tour.yaml                     # one scenario, every persona
+uv run pytest demos -m scenario --persona Eyes --scenario tour
+uv run pytest "demos/scenarios/tour.yaml::tour[pixel-corgi]"
+```
 
 - **Time is fake.** A small library ([demos/fakeclock.c](../demos/fakeclock.c))
   gives the program a clock that only the runner moves, and a fixed random
@@ -134,7 +144,8 @@ make screens                   # golden, then test-screens
   Parts of the persona that lead somewhere have role `target`:
   `device.get_by_role("target", "plaque").tap()`.
 - **Golden pictures** live in `tests/golden/<persona>/<scenario or test>/`.
-  A failed check writes the actual picture, a diff and a GIF of the run.
+  A failed check writes the actual and expected pictures, a diff and a
+  GIF of the run.
 - **The same pictures on macOS and Linux.** The runner reads the screen's
   RGB565 colors and widens them to 8 bits itself, as SDL builds differ
   there. The desktop build turns off fused multiply-add
@@ -151,9 +162,16 @@ make screens                   # golden, then test-screens
   record.py, or set `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
   With make, `DARUMA_WORK=/tmp/mine` sets the folder for both.
 
-A persona kept out of this repository can still be recorded and tested:
-`--private-persona path/to/persona.yaml --personas "<its name>"`. Its GIFs
-and pictures stay in the temp folder.
+A persona kept out of this repository can still be recorded and tested.
+Pass its package to either runner:
+
+```sh
+uv run demos/record.py --private-persona path/to/persona.yaml --personas "<its name>"
+uv run pytest demos -m scenario --private-persona path/to/persona.yaml --persona "<its name>"
+```
+
+Its GIFs and golden pictures stay in the temp folder (or `$DARUMA_WORK`),
+in `golden/`.
 
 ## Host tests
 

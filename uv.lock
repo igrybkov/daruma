@@ -2,16 +2,16 @@ version = 1
 revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
-    "sys_platform == 'linux' and extra != 'group-12-daruma-pixel-esphome' and extra == 'group-12-daruma-pixel-test'",
     "python_full_version >= '3.13' and sys_platform == 'linux' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
+    "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
+    "sys_platform == 'linux' and extra != 'group-12-daruma-pixel-esphome' and extra == 'group-12-daruma-pixel-test'",
     "python_full_version < '3.13' and sys_platform == 'linux' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "sys_platform == 'linux' and extra != 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "platform_machine == 'arm64' and sys_platform == 'darwin' and extra != 'group-12-daruma-pixel-esphome' and extra == 'group-12-daruma-pixel-test'",
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "platform_machine == 'arm64' and sys_platform == 'darwin' and extra != 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "sys_platform == 'win32' and extra != 'group-12-daruma-pixel-esphome' and extra == 'group-12-daruma-pixel-test'",
-    "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'group-12-daruma-pixel-dev' and extra == 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
     "sys_platform == 'win32' and extra != 'group-12-daruma-pixel-esphome' and extra != 'group-12-daruma-pixel-test'",
 ]
@@ -34,10 +34,10 @@ version = "46.12.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 dependencies = [
@@ -290,10 +290,10 @@ version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/75/f0/9ba1b05811aa5f5434f69768253129460a5744e1814f359efba39a01ce20/backports_zstd-1.7.0.tar.gz", hash = "sha256:1a967189c1822b6e85a2e550fdfc88a3272c17633ea0a4732dac5911a8034f2b", size = 1003722, upload-time = "2026-08-15T17:26:43.96Z" }
@@ -844,10 +844,10 @@ version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz", hash = "sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34", size = 382235, upload-time = "2026-08-26T13:33:14.56Z" }
@@ -1118,7 +1118,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "esphome-glyphsets" },
     { name = "esptool" },
-    { name = "filelock", version = "4.0.10", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock" },
     { name = "freetype-py" },
     { name = "jinja2" },
     { name = "ninja" },
@@ -1186,31 +1186,9 @@ wheels = [
 name = "filelock"
 version = "4.0.10"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/4b/51/a182494d1d8dde1240bff84dda57d48165d982e59582ce8f167e8e3d7628/filelock-4.0.10.tar.gz", hash = "sha256:00d6a81f976a6332551c2c10f39e12b4abb7e01c64d4c497b81a615bc9186f1f", size = 252487, upload-time = "2026-10-03T23:40:48.884Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5b/2a/4b1ea3f2180be251a5cff1e70c8a5b7994ffa5c8eab8937901f8a9db58fe/filelock-4.0.10-py3-none-any.whl", hash = "sha256:698048d158dc3c9e18cc5e88b3efdd4bd0e77d76686b22adb4511cc4b2c2f0db", size = 111193, upload-time = "2026-10-03T23:40:47.334Z" },
-]
-
-[[package]]
-name = "filelock"
-version = "4.2.10"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'linux'",
-    "platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "sys_platform == 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/cf/05bcdacabdc0aec7dc8e19d76281bd82325df62dae3b6430e9ba57397689/filelock-4.2.10.tar.gz", hash = "sha256:fcc3c0cb8bfe7f4b3bb0e231c04b15dbad068cb3c2515f343d8fde4dce93bd5d", size = 670595, upload-time = "2026-11-09T18:58:00.54Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/90/5d0096a325aa0f83ba7a3968bfb485b67e32c947bdf9cd0fcb4b485be718/filelock-4.2.10-py3-none-any.whl", hash = "sha256:9479aaeb4db20b5a53e3da28493edd24720b66b8a0b84030aa56ccdf243d6857", size = 218040, upload-time = "2026-11-09T18:57:59.088Z" },
 ]
 
 [[package]]
@@ -1560,10 +1538,10 @@ version = "12.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz", hash = "sha256:3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce", size = 47025035, upload-time = "2026-07-01T11:56:38.965Z" }
@@ -1716,10 +1694,10 @@ version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/23/4a86fc741c38c5b69792a4ef954b281afa69bea9f083f881de1b0d23bc07/platformdirs-4.12.3.tar.gz", hash = "sha256:427fc0bb321ae0c5b037fa03238ca74820437be162e78b4848c4d4055b9b766c", size = 59538, upload-time = "2026-10-03T23:40:46.595Z" }
@@ -2270,8 +2248,7 @@ name = "python-discovery"
 version = "1.9.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", version = "4.0.10", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-esphome'" },
-    { name = "filelock", version = "4.2.10", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-dev' or extra != 'group-12-daruma-pixel-esphome' or extra == 'group-12-daruma-pixel-test'" },
+    { name = "filelock" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/68/55/70b46fae646bc6f5cb5e82569949d925cff1c7b5ce20ec4a11e0d977f8c6/python_discovery-1.9.5.tar.gz", hash = "sha256:86279f5d2728bc067de28b7ddc571be2eacc2ae0e7048f8629d2481a0f8848a2", size = 141121, upload-time = "2026-11-06T15:32:11.331Z" }
 wheels = [
@@ -2613,10 +2590,10 @@ version = "5.4.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 dependencies = [
@@ -2672,8 +2649,7 @@ version = "21.15.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
-    { name = "filelock", version = "4.0.10", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-esphome'" },
-    { name = "filelock", version = "4.2.10", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-dev' or extra != 'group-12-daruma-pixel-esphome' or extra == 'group-12-daruma-pixel-test'" },
+    { name = "filelock" },
     { name = "packaging" },
     { name = "platformdirs", version = "4.12.3", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-esphome'" },
     { name = "platformdirs", version = "4.14.5", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-daruma-pixel-dev' or extra != 'group-12-daruma-pixel-esphome' or extra == 'group-12-daruma-pixel-test'" },
@@ -2982,10 +2958,10 @@ version = "0.151.5"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and sys_platform == 'linux'",
     "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'linux'",
+    "python_full_version < '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version < '3.13' and sys_platform == 'win32'",
 ]
 dependencies = [

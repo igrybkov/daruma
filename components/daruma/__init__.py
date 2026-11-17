@@ -22,7 +22,7 @@
             home.press: { action: menu.open, menu: pomodoro }
           menu: true               # adds buttons for the moment to menus that list it
           buttons:                 # button looks, so a menu may list an action
-            pomodoro.break: { label: Break, icon: "\U000F0176", color: pomodoro.break }
+            pomodoro.break: { label: Break, icon: "\U000f0176", color: pomodoro.break }
           menus:                   # default menus; the device's menus: win per name
             pomodoro: [pomodoro]
           areas: [plaque]          # tap areas its setup draws (hub.add_tap_area)
@@ -56,7 +56,7 @@
       apps: [calendar, tasks, stats]   # board order; every app gets an "App: <Name>" switch
       menus:                       # named menus of dock buttons (registry.resolve_menus)
         main: [tasks, calendar, weather]    # a tap on the persona opens main (default: Tasks, Calendar, More)
-        quick: [pomodoro.stop, stats, more, { label: Lights, icon: "\U000F0335", event: desk_lights }]
+        quick: [pomodoro.stop, stats, more, { label: Lights, icon: "\U000f0335", event: desk_lights }]
       progress:                    # progress sources and their weights
         pomodoro: 1
       targets:                     # what a tap on a part of the persona does (see the modules' areas)
@@ -81,14 +81,14 @@ import logging
 
 import esphome.automation as automation
 import esphome.codegen as cg
+import esphome.config_validation as cv
+import esphome.final_validate as fv
 from esphome.components import binary_sensor, touchscreen
 from esphome.components import display as ha_display
 from esphome.components import select as ha_select
 from esphome.components import switch as ha_switch
-import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_NAME, CONF_TRIGGER_ID
 from esphome.core import CORE
-import esphome.final_validate as fv
 from esphome.loader import get_component
 
 from . import registry
@@ -374,8 +374,13 @@ PROFILE_SCHEMA = cv.Schema(
 
 def profile_of(config) -> registry.Profile:
     conf = config[CONF_DISPLAY_PROFILE]
-    return registry.Profile(conf[CONF_COLORS_MODE], conf[CONF_ANIMATE], conf[CONF_MIN_FRAME].total_milliseconds,
-                            conf[CONF_PARTIAL_REFRESH], conf[CONF_FULL_REFRESH_EVERY])
+    return registry.Profile(
+        conf[CONF_COLORS_MODE],
+        conf[CONF_ANIMATE],
+        conf[CONF_MIN_FRAME].total_milliseconds,
+        conf[CONF_PARTIAL_REFRESH],
+        conf[CONF_FULL_REFRESH_EVERY],
+    )
 
 
 def build_profile() -> registry.Profile:
@@ -420,27 +425,31 @@ def _entities(config):
     return config
 
 
-CONFIG_SCHEMA = cv.All(cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(Hub),
-        cv.Optional(CONF_DISPLAY): cv.use_id(ha_display.Display),
-        cv.Optional(CONF_DISPLAY_PROFILE, default={}): PROFILE_SCHEMA,
-        cv.Optional(CONF_MODULES, default=[]): cv.ensure_list(MODULE_SCHEMA),
-        cv.Optional(CONF_INPUTS, default=[]): cv.ensure_list(INPUT_SCHEMA),
-        cv.Optional(CONF_NAVIGATION, default={}): cv.Schema({cv.string_strict: cv.string_strict}),
-        cv.Optional(CONF_BINDINGS, default={}): cv.Schema({cv.string_strict: _binding}),
-        cv.Optional(CONF_EXPOSE_BINDINGS, default=False): cv.boolean,
-        cv.Optional(CONF_APPS, default=[]): cv.ensure_list(_name),
-        # Named menus of dock buttons; `main` is what a tap on the persona opens.
-        cv.Optional(CONF_MENUS, default={}): MENUS_SCHEMA,
-        cv.Optional(CONF_PROGRESS, default={}): cv.Schema({_name: cv.float_range(min=0.0, max=100.0)}),
-        # What a tap on a part of the persona does, by area (the modules' `areas:`).
-        cv.Optional(CONF_TARGETS, default={}): TARGETS_SCHEMA,
-        # Module colors and words for every persona, and per persona by id (theme.py applies them).
-        cv.Optional(CONF_THEME, default={}): DEVICE_THEME_SCHEMA,
-        cv.Optional(CONF_THEMES, default={}): cv.Schema({_name: DEVICE_THEME_SCHEMA}),
-    }
-).extend(cv.COMPONENT_SCHEMA), _check_profile, _entities)
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(Hub),
+            cv.Optional(CONF_DISPLAY): cv.use_id(ha_display.Display),
+            cv.Optional(CONF_DISPLAY_PROFILE, default={}): PROFILE_SCHEMA,
+            cv.Optional(CONF_MODULES, default=[]): cv.ensure_list(MODULE_SCHEMA),
+            cv.Optional(CONF_INPUTS, default=[]): cv.ensure_list(INPUT_SCHEMA),
+            cv.Optional(CONF_NAVIGATION, default={}): cv.Schema({cv.string_strict: cv.string_strict}),
+            cv.Optional(CONF_BINDINGS, default={}): cv.Schema({cv.string_strict: _binding}),
+            cv.Optional(CONF_EXPOSE_BINDINGS, default=False): cv.boolean,
+            cv.Optional(CONF_APPS, default=[]): cv.ensure_list(_name),
+            # Named menus of dock buttons; `main` is what a tap on the persona opens.
+            cv.Optional(CONF_MENUS, default={}): MENUS_SCHEMA,
+            cv.Optional(CONF_PROGRESS, default={}): cv.Schema({_name: cv.float_range(min=0.0, max=100.0)}),
+            # What a tap on a part of the persona does, by area (the modules' `areas:`).
+            cv.Optional(CONF_TARGETS, default={}): TARGETS_SCHEMA,
+            # Module colors and words for every persona, and per persona by id (theme.py applies them).
+            cv.Optional(CONF_THEME, default={}): DEVICE_THEME_SCHEMA,
+            cv.Optional(CONF_THEMES, default={}): cv.Schema({_name: DEVICE_THEME_SCHEMA}),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    _check_profile,
+    _entities,
+)
 
 
 # --- Collecting the facts -------------------------------------------------------------
@@ -449,18 +458,27 @@ CONFIG_SCHEMA = cv.All(cv.Schema(
 def _module_from_yaml(conf) -> registry.ModuleSpec:
     name = conf[CONF_NAME]
     states = [
-        registry.State(state, s[CONF_KIND], s[CONF_FALLBACK], s.get(CONF_SOUND),
-                       s[CONF_DURATION].total_milliseconds, name)
+        registry.State(
+            state, s[CONF_KIND], s[CONF_FALLBACK], s.get(CONF_SOUND), s[CONF_DURATION].total_milliseconds, name
+        )
         for state, s in conf[CONF_STATES].items()
     ]
     return registry.ModuleSpec(
-        name=name, states=states, actions=list(conf[CONF_ACTIONS]), apps=[a[CONF_ID] for a in conf[CONF_APPS]],
-        progress=list(conf[CONF_PROGRESS]), colors=dict(conf[CONF_THEME][CONF_COLORS]),
-        words=dict(conf[CONF_THEME][CONF_WORDS]), bindings=dict(conf[CONF_BINDINGS]), menu=conf[CONF_MENU],
+        name=name,
+        states=states,
+        actions=list(conf[CONF_ACTIONS]),
+        apps=[a[CONF_ID] for a in conf[CONF_APPS]],
+        progress=list(conf[CONF_PROGRESS]),
+        colors=dict(conf[CONF_THEME][CONF_COLORS]),
+        words=dict(conf[CONF_THEME][CONF_WORDS]),
+        bindings=dict(conf[CONF_BINDINGS]),
+        menu=conf[CONF_MENU],
         buttons={a: dict(b) for a, b in conf[CONF_BUTTONS].items()},
         menus={n: list(items) for n, items in conf[CONF_MENUS].items()},
-        areas=list(conf[CONF_AREAS]), targets=dict(conf[CONF_TARGETS]),
-        aliases=dict(conf[CONF_THEME][CONF_ALIASES]))
+        areas=list(conf[CONF_AREAS]),
+        targets=dict(conf[CONF_TARGETS]),
+        aliases=dict(conf[CONF_THEME][CONF_ALIASES]),
+    )
 
 
 def collect_modules(full) -> list[registry.ModuleSpec]:
@@ -504,8 +522,9 @@ def _inputs(config) -> dict[str, registry.Input]:
         kind = registry.TOUCH if CONF_TOUCH in conf else registry.BUTTON
         if conf[CONF_NAME] in inputs:
             raise RegistryError(f"inputs: two inputs are named '{conf[CONF_NAME]}'")
-        inputs[conf[CONF_NAME]] = registry.Input(conf[CONF_NAME], kind,
-                                                 registry.expand_gestures(kind, conf[CONF_GESTURES]))
+        inputs[conf[CONF_NAME]] = registry.Input(
+            conf[CONF_NAME], kind, registry.expand_gestures(kind, conf[CONF_GESTURES])
+        )
     return inputs
 
 
@@ -523,8 +542,9 @@ def _final_validate(config):
             registry.resolve_during(char, states)
             for line in log:
                 _LOGGER.info(line)
-            registry.check_theme_keys(char.id, theme.get(CONF_COLORS, {}), theme.get(CONF_WORDS, {}),
-                                      modules, CORE_WORDS)
+            registry.check_theme_keys(
+                char.id, theme.get(CONF_COLORS, {}), theme.get(CONF_WORDS, {}), modules, CORE_WORDS
+            )
             params += [(char.id, p) for p in declared]
         registry.check_params(params)
         registry.check_device_themes(config[CONF_THEME], config[CONF_THEMES], persona_ids, modules, CORE_WORDS)
@@ -539,8 +559,9 @@ def _final_validate(config):
         inputs = _inputs(config)
         if inputs:
             navigation = registry.check_navigation(inputs, config[CONF_NAVIGATION])
-            bindings, log = registry.resolve_bindings(inputs, navigation, config[CONF_BINDINGS], modules, actions,
-                                                      menus)
+            bindings, log = registry.resolve_bindings(
+                inputs, navigation, config[CONF_BINDINGS], modules, actions, menus
+            )
             for line in log:
                 _LOGGER.info(line)
             registry.check_menu_reachable(inputs, bindings, modules)
@@ -576,9 +597,16 @@ def state_id(name: str):
 
 
 _GESTURES = {
-    "press": "PRESS", "double": "DOUBLE", "hold": "HOLD", "long_hold": "LONG_HOLD", "tap": "TAP",
-    "swipe_left": "SWIPE_LEFT", "swipe_right": "SWIPE_RIGHT", "swipe_up": "SWIPE_UP",
-    "swipe_down": "SWIPE_DOWN", "stroke": "STROKE",
+    "press": "PRESS",
+    "double": "DOUBLE",
+    "hold": "HOLD",
+    "long_hold": "LONG_HOLD",
+    "tap": "TAP",
+    "swipe_left": "SWIPE_LEFT",
+    "swipe_right": "SWIPE_RIGHT",
+    "swipe_up": "SWIPE_UP",
+    "swipe_down": "SWIPE_DOWN",
+    "stroke": "STROKE",
 }
 
 
@@ -594,16 +622,26 @@ async def to_code(config):
     if CONF_DISPLAY in config:
         cg.add(var.set_display(await cg.get_variable(config[CONF_DISPLAY])))
     profile = profile_of(config)
-    cg.add(var.set_profile(registry.COLOR_MODES.index(profile.colors), profile.animate, profile.min_frame_ms,
-                           profile.partial_refresh, profile.full_refresh_every))
+    cg.add(
+        var.set_profile(
+            registry.COLOR_MODES.index(profile.colors),
+            profile.animate,
+            profile.min_frame_ms,
+            profile.partial_refresh,
+            profile.full_refresh_every,
+        )
+    )
 
     # Module theme defaults.
     for module in modules:
         for key, rgb in module.colors.items():
             cg.add(cg.RawStatement(f'Daruma::Theme::set_default_color("{module.name}.{key}", {rgb});'))
         for key, text in module.words.items():
-            cg.add(cg.RawStatement(f"Daruma::Theme::set_default_word({cg.safe_exp(f'{module.name}.{key}')}, "
-                                   f"{cg.safe_exp(text)});"))
+            cg.add(
+                cg.RawStatement(
+                    f"Daruma::Theme::set_default_word({cg.safe_exp(f'{module.name}.{key}')}, {cg.safe_exp(text)});"
+                )
+            )
 
     # Modules from yaml: their actions, and setup as a LambdaModule.
     for conf in config[CONF_MODULES]:
@@ -613,9 +651,7 @@ async def to_code(config):
             cg.add(var.add_action(name, cg.RawExpression(f"[]() {{ {trigger}->trigger(); }}")))
         setup = cg.RawExpression("nullptr")
         if CONF_SETUP in conf:
-            setup = await cg.process_lambda(
-                conf[CONF_SETUP], [(Hub.operator("ref"), "hub")], return_type=cg.void
-            )
+            setup = await cg.process_lambda(conf[CONF_SETUP], [(Hub.operator("ref"), "hub")], return_type=cg.void)
         module = cg.new_Pvariable(conf[CONF_ID], conf[CONF_NAME], setup)
         cg.add(var.add_module(module))
 
@@ -628,8 +664,11 @@ async def to_code(config):
     menus, _ = registry.collect_menus(config[CONF_MENUS], modules)
     for name, items in registry.resolve_menus(menus, modules, registry.collect_actions(modules)).items():
         for item in items:
-            cg.add(var.add_menu_entry(name, registry.MENU_KINDS.index(item.kind), item.id, item.label, item.icon,
-                                      item.color))
+            cg.add(
+                var.add_menu_entry(
+                    name, registry.MENU_KINDS.index(item.kind), item.id, item.label, item.icon, item.color
+                )
+            )
 
     # Tap areas: what a tap on each does.
     targets, _ = registry.resolve_targets(config[CONF_TARGETS], modules, registry.collect_actions(modules), menus)
@@ -654,16 +693,23 @@ async def _inputs_to_code(var, config, modules, menus):
     for i, conf in enumerate(config[CONF_INPUTS]):
         index[conf[CONF_NAME]] = i
         touch = CONF_TOUCH in conf
-        cg.add(var.add_input(conf[CONF_NAME], touch, conf[CONF_DOUBLE_WINDOW].total_milliseconds,
-                             conf[CONF_HOLD_TIME].total_milliseconds,
-                             conf[CONF_LONG_HOLD_TIME].total_milliseconds))
+        cg.add(
+            var.add_input(
+                conf[CONF_NAME],
+                touch,
+                conf[CONF_DOUBLE_WINDOW].total_milliseconds,
+                conf[CONF_HOLD_TIME].total_milliseconds,
+                conf[CONF_LONG_HOLD_TIME].total_milliseconds,
+            )
+        )
         if touch:
             screen = await cg.get_variable(conf[CONF_TOUCH])
             cg.add(screen.register_listener(TouchInput.new(var)))
         else:
             sensor = await cg.get_variable(conf[CONF_BUTTON])
-            cg.add(sensor.add_on_state_callback(
-                cg.RawExpression(f"[](bool state) {{ {var}->button_edge({i}, state); }}")))
+            cg.add(
+                sensor.add_on_state_callback(cg.RawExpression(f"[](bool state) {{ {var}->button_edge({i}, state); }}"))
+            )
 
     navigation = registry.check_navigation(inputs, config[CONF_NAVIGATION])
     for key, (name, gesture) in navigation.items():
@@ -677,7 +723,8 @@ async def _inputs_to_code(var, config, modules, menus):
     for b in bindings:
         slot = cg.RawExpression(
             f"{var}->add_binding({index[b.input]}, Daruma::Gesture::{_GESTURES[b.gesture]}, "
-            f"{cg.safe_exp(b.action)}, {'true' if b.idle else 'false'})")
+            f"{cg.safe_exp(b.action)}, {'true' if b.idle else 'false'})"
+        )
         conf = config[CONF_BINDING_SELECTS].get(f"{b.input}.{b.gesture}")
         if conf is not None and b.source == "device":
             sel = await ha_select.new_select(conf, var, slot, options=options)

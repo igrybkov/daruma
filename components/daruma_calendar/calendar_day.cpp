@@ -85,8 +85,8 @@ time_t local_day_start(const esphome::ESPTime &now, int offset) {
 
 std::string iso_utc(time_t epoch) {
   esphome::ESPTime t = esphome::ESPTime::from_epoch_utc(epoch);
-  return esphome::str_sprintf("%04d-%02d-%02dT%02d:%02d:%02d+00:00", t.year, t.month, t.day_of_month, t.hour,
-                              t.minute, t.second);
+  return esphome::str_sprintf("%04d-%02d-%02dT%02d:%02d:%02d+00:00", t.year, t.month, t.day_of_month, t.hour, t.minute,
+                              t.second);
 }
 
 std::string local_hhmm(time_t epoch) {

@@ -15,12 +15,12 @@ using namespace Daruma;
 
 static int failures = 0;
 
-#define CHECK(cond)                                                \
-  do {                                                             \
-    if (!(cond)) {                                                 \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);  \
-      failures++;                                                  \
-    }                                                              \
+#define CHECK(cond) \
+  do { \
+    if (!(cond)) { \
+      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+      failures++; \
+    } \
   } while (0)
 
 static const time_t H = 3600;
@@ -81,10 +81,10 @@ static void test_rows() {
   CHECK(shape(build_agenda({}, DAYS, 0)) == "H0 - ");
   // Free today, busy later; days without events have no heading.
   std::vector<CalendarEvent> events = {
-      timed(T0 + 48 * H + 9 * H, T0 + 48 * H + 10 * H),  // 0: day 2
+      timed(T0 + 48 * H + 9 * H, T0 + 48 * H + 10 * H),   // 0: day 2
       timed(T0 + 24 * H + 15 * H, T0 + 24 * H + 16 * H),  // 1: day 1, 15:00
-      all_day(T0 + 24 * H, T0 + 48 * H),                 // 2: day 1, all day
-      timed(T0 + 24 * H + 8 * H, T0 + 24 * H + 9 * H),   // 3: day 1, 08:00
+      all_day(T0 + 24 * H, T0 + 48 * H),                  // 2: day 1, all day
+      timed(T0 + 24 * H + 8 * H, T0 + 24 * H + 9 * H),    // 3: day 1, 08:00
   };
   CHECK(shape(build_agenda(events, DAYS, 0)) == "H0 - H1 e2 e3 e1 H2 e0 ");
   // Busy today: no "nothing"; trimmed: "+N more" at the end.
@@ -124,7 +124,7 @@ static void test_headings() {
 // Made-up events. "Today" is T0 to T0 + 24 h; the clock reads 10:00.
 static void test_next_event() {
   const time_t now = T0 + 10 * H, end = T0 + 24 * H, three = 3 * H;
-  auto pick = [&](const std::vector<CalendarEvent> &events, time_t at = 0, time_t window = 3 * H) {
+  auto pick = [&](const std::vector<CalendarEvent> &events, time_t at = 0, time_t window = 3 *H) {
     return pick_next_event(events, at ? at : now, window, end);
   };
   auto is = [](NextEventPick p, NextEventKind kind, int index) { return p.kind == kind && p.index == index; };

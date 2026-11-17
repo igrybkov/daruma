@@ -10,13 +10,20 @@ picture's corner color around it (or `background`).
 """
 
 import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.components.daruma import CONF_DARUMA_ID, Hub, Persona, daruma_ns
 from esphome.components.daruma.persona import (
-    BEHAVIORS_SCHEMA, CONF_BEHAVIORS, CONF_PARAMS, with_param_entities, persona, persona_to_code, params_schema)
-from esphome.components.daruma.theme import CONF_THEME, THEME_SCHEMA, theme_to_code
+    BEHAVIORS_SCHEMA,
+    CONF_BEHAVIORS,
+    CONF_PARAMS,
+    params_schema,
+    persona,
+    persona_to_code,
+    with_param_entities,
+)
 from esphome.components.daruma.sounds import CONF_SOUNDS, SOUNDS_SCHEMA, sounds_to_code
 from esphome.components.daruma.sprite import art_path, check_art, resolve_dir, resolve_file, sprite_expression
-import esphome.config_validation as cv
+from esphome.components.daruma.theme import CONF_THEME, THEME_SCHEMA, theme_to_code
 from esphome.const import CONF_ID, CONF_NAME
 
 DEPENDENCIES = ["daruma"]
@@ -71,22 +78,26 @@ def _check_files(config):
     return config
 
 
-CONFIG_SCHEMA = cv.All(cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(ImagePersona),
-        cv.GenerateID(CONF_DARUMA_ID): cv.use_id(Hub),
-        cv.Required(CONF_NAME): cv.string_strict,
-        cv.Optional(CONF_THEME): THEME_SCHEMA,
-        cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
-        cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
-        cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
-        # Around the picture when the screen is larger. Default: the
-        # picture's own top-left color.
-        cv.Optional(CONF_BACKGROUND): _hex_color,
-        cv.Optional(CONF_ART): cv.string_strict,
-        cv.Required(CONF_FRAMES): _validate_frames,
-    }
-).extend(cv.COMPONENT_SCHEMA), _check_files, with_param_entities(PARAMS))
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(ImagePersona),
+            cv.GenerateID(CONF_DARUMA_ID): cv.use_id(Hub),
+            cv.Required(CONF_NAME): cv.string_strict,
+            cv.Optional(CONF_THEME): THEME_SCHEMA,
+            cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
+            cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
+            cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
+            # Around the picture when the screen is larger. Default: the
+            # picture's own top-left color.
+            cv.Optional(CONF_BACKGROUND): _hex_color,
+            cv.Optional(CONF_ART): cv.string_strict,
+            cv.Required(CONF_FRAMES): _validate_frames,
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    _check_files,
+    with_param_entities(PARAMS),
+)
 
 
 def daruma_personas(confs):
@@ -111,6 +122,5 @@ async def to_code(config):
     await theme_to_code(var, config)
     await sounds_to_code(var, config)
     hub = await cg.get_variable(config[CONF_DARUMA_ID])
-    await persona_to_code(var, hub, persona(config[CONF_ID].id, list(config[CONF_FRAMES]), config), config,
-                            PARAMS)
+    await persona_to_code(var, hub, persona(config[CONF_ID].id, list(config[CONF_FRAMES]), config), config, PARAMS)
     cg.add(hub.add_persona(var))

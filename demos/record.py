@@ -205,8 +205,9 @@ def _run_job(job: Job) -> int:
         else:
             print("  ok", flush=True)
         return failed
-    (run_dir / "marks.json").write_text(json.dumps({"captions": captions, "touches": touches,
-                                                    "skipped": skipped}, indent=1))
+    (run_dir / "marks.json").write_text(
+        json.dumps({"captions": captions, "touches": touches, "skipped": skipped}, indent=1)
+    )
     # Touch marks, and frames split where a caption starts, for the GIF only.
     frames = with_touches(frames, touches, skipped, run_dir / "touched", split_at=[ms for ms, _ in captions])
     if captions:

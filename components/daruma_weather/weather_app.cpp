@@ -230,8 +230,7 @@ void WeatherApp::draw(AppView &v) {
   const int room = v.x + v.w - pad - (temp_x + text_width(it, big, temp) + v.px(8));
   const int rx = v.x + v.w - pad;
   const std::string name = this->condition_word_(r.condition);
-  it.print(rx, v.y + v.px(18), v.text, ink, TextAlign::CENTER_RIGHT, fit_text(it, v.text, name, room).c_str(),
-           t.panel);
+  it.print(rx, v.y + v.px(18), v.text, ink, TextAlign::CENTER_RIGHT, fit_text(it, v.text, name, room).c_str(), t.panel);
   UiTree::add("text", name, Rect{rx - room, v.y + v.px(8), room, v.px(20)}, false, temp);
 
   // Today's high and low.
@@ -276,8 +275,7 @@ void WeatherApp::draw(AppView &v) {
     const WeatherLook *hl = weather_look(h.condition);
     if (hl != nullptr)
       it.print(cx, strip_top + v.px(40), v.icons, icon_color, TextAlign::CENTER, hl->icon, t.panel);
-    it.print(cx, strip_top + v.px(68), v.small, ink, TextAlign::CENTER, this->degrees_(h.temperature).c_str(),
-             t.panel);
+    it.print(cx, strip_top + v.px(68), v.small, ink, TextAlign::CENTER, this->degrees_(h.temperature).c_str(), t.panel);
     if (!std::isnan(h.precipitation) && h.precipitation >= 1.0f)
       it.print(cx, strip_top + v.px(84), v.small, rain_color, TextAlign::CENTER,
                (weather_number(h.precipitation) + "%").c_str(), t.panel);

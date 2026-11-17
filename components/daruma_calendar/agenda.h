@@ -33,10 +33,10 @@ struct CalendarEvent {
   // True when the event takes up part of [from, to).
   bool overlaps(time_t from, time_t to) const {
     if (this->all_day)
-      return this->start + HALF_DAY < to && this->end - HALF_DAY > from;
+      return this->start + HALF_DAY<to &&this->end - HALF_DAY> from;
     if (this->start == this->end)
       return this->start >= from && this->start < to;
-    return this->start < to && this->end > from;
+    return this->start<to &&this->end> from;
   }
 };
 

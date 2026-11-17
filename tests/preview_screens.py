@@ -19,9 +19,9 @@ of a board without touch.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -37,9 +37,17 @@ FONTS = {"320x240": (17, 13, 30), "480x272": (19, 15, 34), "240x240": (17, 13, 3
 
 # The corgi's wood theme (persona_pixel_corgi.yaml).
 WOOD = {
-    "frame": (0x96, 0x62, 0x3A), "edge": (0x60, 0x3A, 0x22), "panel": (0xFC, 0xF2, 0xDE), "ink": (0x46, 0x2C, 0x1E),
-    "muted": (0x82, 0x60, 0x46), "title": (0xFC, 0xF2, 0xDE), "accent": (0xD6, 0xA0, 0x32), "dot": (0x70, 0x4A, 0x2C),
-    "dock": (0xFA, 0xF6, 0xEE), "dock_ink": (0x3C, 0x2C, 0x24), "dock_muted": (0x78, 0x64, 0x58),
+    "frame": (0x96, 0x62, 0x3A),
+    "edge": (0x60, 0x3A, 0x22),
+    "panel": (0xFC, 0xF2, 0xDE),
+    "ink": (0x46, 0x2C, 0x1E),
+    "muted": (0x82, 0x60, 0x46),
+    "title": (0xFC, 0xF2, 0xDE),
+    "accent": (0xD6, 0xA0, 0x32),
+    "dot": (0x70, 0x4A, 0x2C),
+    "dock": (0xFA, 0xF6, 0xEE),
+    "dock_ink": (0x3C, 0x2C, 0x24),
+    "dock_muted": (0x78, 0x64, 0x58),
 }
 DONE = (46, 160, 87)
 
@@ -60,8 +68,14 @@ def mono_theme(t):
     def on(bg, fg):
         return fg if fg != out[bg] else ((0, 0, 0) if out[bg][0] >= 128 else (255, 255, 255))
 
-    for fg, bg in (("ink", "panel"), ("muted", "panel"), ("title", "frame"), ("dock_ink", "dock"),
-                   ("dock_muted", "dock"), ("dot", "frame")):
+    for fg, bg in (
+        ("ink", "panel"),
+        ("muted", "panel"),
+        ("title", "frame"),
+        ("dock_ink", "dock"),
+        ("dock_muted", "dock"),
+        ("dot", "frame"),
+    ):
         out[fg] = on(bg, out[fg])
     out["focus"] = on("frame", out["accent"])
     return out
@@ -160,16 +174,16 @@ def badge(s: Screen, img: Image.Image) -> None:
     d.text((cx + 1, cy + 1), "64°", font=s.text, fill=(255, 255, 255), anchor="mm")
 
 
-FOCUS = ("Focus", "\U000F051B", (0xFF, 0x63, 0x47), (255, 255, 255))
-PAUSE = ("Pause", "\U000F03E4", (0xFF, 0x63, 0x47), (255, 255, 255))
-STOP = ("Stop", "\U000F04DB", (0x80, 0x80, 0x80), (255, 255, 255))
-BREAK = ("Break", "\U000F0176", (0x26, 0xED, 0x3A), (0, 0, 0))
-TASKS = ("Tasks", "\U000F0756", (0x4A, 0x7F, 0xE0), (255, 255, 255))
-CALENDAR = ("Calendar", "\U000F00ED", (0xEF, 0x5B, 0x3F), (255, 255, 255))
+FOCUS = ("Focus", "\U000f051b", (0xFF, 0x63, 0x47), (255, 255, 255))
+PAUSE = ("Pause", "\U000f03e4", (0xFF, 0x63, 0x47), (255, 255, 255))
+STOP = ("Stop", "\U000f04db", (0x80, 0x80, 0x80), (255, 255, 255))
+BREAK = ("Break", "\U000f0176", (0x26, 0xED, 0x3A), (0, 0, 0))
+TASKS = ("Tasks", "\U000f0756", (0x4A, 0x7F, 0xE0), (255, 255, 255))
+CALENDAR = ("Calendar", "\U000f00ed", (0xEF, 0x5B, 0x3F), (255, 255, 255))
 
 
 def more(t):
-    return ("More", "\U000F15FC", t["edge"], (255, 255, 255))
+    return ("More", "\U000f15fc", t["edge"], (255, 255, 255))
 
 
 def dock(s: Screen, idle: Image.Image, items=None) -> Image.Image:
@@ -208,8 +222,7 @@ def dock(s: Screen, idle: Image.Image, items=None) -> Image.Image:
         if "focus" in t and bg == t["dock"]:
             d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=t["dock_ink"])
         d.text((cx, cy), icon, font=s.icons, fill=fg, anchor="mm")
-        d.text((cx, cy + r + s.px(13)), fit(d, s.small, label, room), font=s.small, fill=t["dock_ink"],
-               anchor="mm")
+        d.text((cx, cy + r + s.px(13)), fit(d, s.small, label, room), font=s.small, fill=t["dock_ink"], anchor="mm")
     return img
 
 
@@ -224,7 +237,7 @@ def frame(s: Screen, title: str) -> Image.Image:
         d.line((rim, y, s.w - rim - 1, y), fill=shade)
     hh = s.l["header"][3]
     d.text((s.w // 2, hh // 2), title, font=s.text, fill=t["title"], anchor="mm")
-    d.text((s.px(22), hh // 2), "\U000F0141", font=s.icons, fill=t["title"], anchor="mm")
+    d.text((s.px(22), hh // 2), "\U000f0141", font=s.icons, fill=t["title"], anchor="mm")
     return img
 
 
@@ -250,15 +263,22 @@ def board(s: Screen) -> Image.Image:
     t = s.theme
     img = frame(s, "Apps")
     d = ImageDraw.Draw(img)
-    apps = [("Tasks", "\U000F0756", (0x4A, 0x7F, 0xE0), "3 left"), ("Calendar", "\U000F00ED", (0x2E, 0x9E, 0x8A), "Next 14:30"),
-            ("Stats", "\U000F0128", (0xFF, 0x63, 0x47), "Streak 5")]
+    apps = [
+        ("Tasks", "\U000f0756", (0x4A, 0x7F, 0xE0), "3 left"),
+        ("Calendar", "\U000f00ed", (0x2E, 0x9E, 0x8A), "Next 14:30"),
+        ("Stats", "\U000f0128", (0xFF, 0x63, 0x47), "Streak 5"),
+    ]
     for i, (name, icon, color, status) in enumerate(apps):
         tile = s.l["tiles"][i]
         x, y, w, h = tile
         if s.focus and i == 0:
             out, gap = s.px(6), s.px(3)
-            d.rounded_rectangle(rect((x - out, y - out, w + 2 * out, h + 2 * out)), radius=s.px(14) + out, fill=t["focus"])
-            d.rounded_rectangle(rect((x - gap, y - gap, w + 2 * gap, h + 2 * gap)), radius=s.px(14) + gap, fill=t["frame"])
+            d.rounded_rectangle(
+                rect((x - out, y - out, w + 2 * out, h + 2 * out)), radius=s.px(14) + out, fill=t["focus"]
+            )
+            d.rounded_rectangle(
+                rect((x - gap, y - gap, w + 2 * gap, h + 2 * gap)), radius=s.px(14) + gap, fill=t["frame"]
+            )
         card(s, d, tile)
         ic = mono(color) if "focus" in t else color
         if ic == t["panel"]:
@@ -290,8 +310,14 @@ def tasks(s: Screen) -> Image.Image:
     left, top, width, height = cx_ + pad, cy_ + pad, cw - 2 * pad - 8, ch - 2 * pad
     rows = max(1, height // (text_h + 14))
     row_h = height // rows
-    items = [("Water the plants", True), ("Reply to the landlord", False), ("Book the dentist", False),
-             ("Plan the weekend trip to the mountains", False), ("Pay the internet bill", False), ("Call mom", False)]
+    items = [
+        ("Water the plants", True),
+        ("Reply to the landlord", False),
+        ("Book the dentist", False),
+        ("Plan the weekend trip to the mountains", False),
+        ("Pay the internet bill", False),
+        ("Call mom", False),
+    ]
     for k in range(min(rows, len(items))):
         title, done = items[k]
         y = top + k * row_h
@@ -302,7 +328,11 @@ def tasks(s: Screen) -> Image.Image:
             ring = max(2, s.px(2))
             r = min(row_h // 2 - 1, s.px(8))
             d.rounded_rectangle(rect((left, y + 1, width, row_h - 2)), radius=r, fill=row_ring)
-            d.rounded_rectangle(rect((left + ring, y + 1 + ring, width - 2 * ring, row_h - 2 - 2 * ring)), radius=max(1, r - ring), fill=t["panel"])
+            d.rounded_rectangle(
+                rect((left + ring, y + 1 + ring, width - 2 * ring, row_h - 2 - 2 * ring)),
+                radius=max(1, r - ring),
+                fill=t["panel"],
+            )
         r = max(7, min(row_h * 27 // 100, 12))
         ccx = left + r + 4
         if done:
@@ -310,11 +340,18 @@ def tasks(s: Screen) -> Image.Image:
         else:
             d.ellipse((ccx - r, cy - r, ccx + r, cy + r), outline=t["ink"], width=2)
         tx = ccx + r + 10
-        d.text((tx, cy), fit(d, s.text, title, left + width - tx - 4), font=s.text,
-               fill=t["muted"] if done else t["ink"], anchor="lm")
+        d.text(
+            (tx, cy),
+            fit(d, s.text, title, left + width - tx - 4),
+            font=s.text,
+            fill=t["muted"] if done else t["ink"],
+            anchor="lm",
+        )
         if k + 1 < rows:
-            d.line((left + 4, y + row_h - 1, left + width - 5, y + row_h - 1), fill=t["muted"] if "focus" in t else
-                   tuple(int(c * 0.88) for c in t["panel"]))
+            d.line(
+                (left + 4, y + row_h - 1, left + width - 5, y + row_h - 1),
+                fill=t["muted"] if "focus" in t else tuple(int(c * 0.88) for c in t["panel"]),
+            )
     return img
 
 
@@ -350,8 +387,12 @@ def main() -> None:
     # then the pomodoro menu (the red circle) idle and in a session.
     s = Screen(layouts["320x240"], FONTS["320x240"], font_dir, WOOD, focus=False)
     idle = corgi_idle(s)
-    menus = [dock(s, idle), dock(s, idle, [PAUSE, STOP, TASKS, CALENDAR, more(WOOD)]),
-             dock(s, idle, [FOCUS, BREAK]), dock(s, idle, [PAUSE, STOP, BREAK])]
+    menus = [
+        dock(s, idle),
+        dock(s, idle, [PAUSE, STOP, TASKS, CALENDAR, more(WOOD)]),
+        dock(s, idle, [FOCUS, BREAK]),
+        dock(s, idle, [PAUSE, STOP, BREAK]),
+    ]
     sheet(menus).save(out / "menus.png")
     print(f"menus -> {out / 'menus.png'}")
 

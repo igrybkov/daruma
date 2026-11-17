@@ -8,33 +8,21 @@
 #include "esphome/components/display/display.h"
 
 namespace Daruma {
-    namespace Utilities {
-        class Text {
-        public:
-            // Split text into lines that fit maxWidth. Breaks on spaces only.
-            static std::vector<std::string> wrap(
-                esphome::display::Display &display,
-                esphome::display::BaseFont *font,
-                const std::string &text,
-                int maxWidth
-            );
+namespace Utilities {
+class Text {
+ public:
+  // Split text into lines that fit maxWidth. Breaks on spaces only.
+  static std::vector<std::string> wrap(esphome::display::Display &display, esphome::display::BaseFont *font,
+                                       const std::string &text, int maxWidth);
 
-            // Rounded box with wrapped text, centered horizontally.
-            // anchorBottom=false: y is the top edge. true: y is the bottom edge.
-            // Returns the box height.
-            static int bubble(
-                esphome::display::Display &display,
-                esphome::display::BaseFont *font,
-                const std::string &text,
-                int y,
-                bool anchorBottom,
-                int maxLines,
-                esphome::Color background,
-                esphome::Color foreground
-            );
-        };
-    }
-}
+  // Rounded box with wrapped text, centered horizontally.
+  // anchorBottom=false: y is the top edge. true: y is the bottom edge.
+  // Returns the box height.
+  static int bubble(esphome::display::Display &display, esphome::display::BaseFont *font, const std::string &text,
+                    int y, bool anchorBottom, int maxLines, esphome::Color background, esphome::Color foreground);
+};
+}  // namespace Utilities
+}  // namespace Daruma
 
 namespace Daruma {
 

@@ -42,7 +42,7 @@ from dataclasses import dataclass, replace
 from PIL import Image
 
 from . import pet
-from .pet import DARK, H, HEART, HEART_SHINE, W, Breed, Coat, Pose, Rig, Stance  # noqa: F401
+from .pet import DARK, HEART, HEART_SHINE, Breed, Coat, H, Pose, Rig, Stance, W  # noqa: F401
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, intersect, mask, poly, rotate, subtract  # noqa: F401
 
 WHITE = (255, 255, 255)
@@ -139,7 +139,11 @@ def ears_fn(look: Look, base_in: Point = (3, -9), base_out: Point = (12, -4), ti
     def ears(c: Canvas, r: Rig) -> None:
         coat, p, hp = r.breed.coat, r.pose, r.hp
         for side, twitch in ((-1, p.ear_left), (1, p.ear_right)):
-            bi, bo, tp = hp(side * base_in[0], base_in[1]), hp(side * base_out[0], base_out[1]), hp(side * tip[0], tip[1])
+            bi, bo, tp = (
+                hp(side * base_in[0], base_in[1]),
+                hp(side * base_out[0], base_out[1]),
+                hp(side * tip[0], tip[1]),
+            )
             pivot = ((bi[0] + bo[0]) / 2, (bi[1] + bo[1]) / 2)
             angle = side * (p.ears + twitch)
             ear, d = mask((W, H))
@@ -162,8 +166,28 @@ def ears_fn(look: Look, base_in: Point = (3, -9), base_out: Point = (12, -4), ti
 
 # A 5x5 round eye, top row first: "#" iris, "." empty.
 _EYE = (".###.", "#####", "#####", "#####", ".###.")
-_RIM = [(-1, -3), (0, -3), (1, -3), (-2, -3), (2, -3), (-3, -2), (3, -2), (-3, -1), (3, -1), (-3, 0), (3, 0),
-        (-3, 1), (3, 1), (-2, 2), (2, 2), (-2, 3), (-1, 3), (0, 3), (1, 3), (2, 3)]
+_RIM = [
+    (-1, -3),
+    (0, -3),
+    (1, -3),
+    (-2, -3),
+    (2, -3),
+    (-3, -2),
+    (3, -2),
+    (-3, -1),
+    (3, -1),
+    (-3, 0),
+    (3, 0),
+    (-3, 1),
+    (3, 1),
+    (-2, 2),
+    (2, 2),
+    (-2, 3),
+    (-1, 3),
+    (0, 3),
+    (1, 3),
+    (2, 3),
+]
 
 
 def eye(c: Canvas, look: Look, kind: str, x: int, y: int, side: int, pupils: int = 0) -> None:
@@ -296,8 +320,7 @@ def tail_path(shape: str, cx: int, floor: int, hip_y: int, wag: float) -> list[P
     elif shape == "low":
         # Down off the haunch and out along the floor to the right.
         n = 26
-        heads = [140 + 40 * min(1.0, i / 6) - 90 * max(0.0, min(1.0, (i - 6) / 6)) - 10 * w * (i / n)
-                 for i in range(n)]
+        heads = [140 + 40 * min(1.0, i / 6) - 90 * max(0.0, min(1.0, (i - 6) / 6)) - 10 * w * (i / n) for i in range(n)]
         walk(cx + 17, floor - 7, heads)
     elif shape == "wrap":
         # Round the front of the curled-up body, from the far side to under the chin.

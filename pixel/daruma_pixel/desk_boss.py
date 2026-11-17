@@ -225,8 +225,15 @@ def limb(d: ImageDraw.ImageDraw, a: Point, b: Point, wa: float, wb: float) -> No
     dx, dy = b[0] - a[0], b[1] - a[1]
     n = (dx * dx + dy * dy) ** 0.5 or 1.0
     nx, ny = -dy / n, dx / n
-    poly(d, [(a[0] + nx * wa, a[1] + ny * wa), (b[0] + nx * wb, b[1] + ny * wb),
-             (b[0] - nx * wb, b[1] - ny * wb), (a[0] - nx * wa, a[1] - ny * wa)])
+    poly(
+        d,
+        [
+            (a[0] + nx * wa, a[1] + ny * wa),
+            (b[0] + nx * wb, b[1] + ny * wb),
+            (b[0] - nx * wb, b[1] - ny * wb),
+            (a[0] - nx * wa, a[1] - ny * wa),
+        ],
+    )
 
 
 def raised_arm(c: Canvas, look: Look, shoulder: Point, elbow: Point, hand: Point, kind: str) -> Point:
@@ -487,7 +494,8 @@ def animations(rest: Pose, neutral: Frames | None = None, focus: Frames | None =
         "thinking": [(THINKING, 1000)],
         "talking": [(TALKING, 1000)],
         # Reads a sheet with glasses on, then looks up at you.
-        "Focus": focus or [
+        "Focus": focus
+        or [
             (READING, 2600),
             (with_(READING, breath=1), 2000),
             (READING, 1800),

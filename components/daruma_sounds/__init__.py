@@ -12,9 +12,9 @@ cache can go over by a sound, and the log says so.
 """
 
 import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.components import audio
 from esphome.components.daruma import daruma_ns
-import esphome.config_validation as cv
 
 DEPENDENCIES = ["daruma", "audio", "psram"]
 

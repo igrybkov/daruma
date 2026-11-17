@@ -6,9 +6,9 @@ or PIL needed).
 """
 
 import importlib.util
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 _COMPONENTS = Path(__file__).resolve().parents[1] / "components"
 

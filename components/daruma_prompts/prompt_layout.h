@@ -20,15 +20,15 @@
 namespace Daruma {
 
 struct PromptGeometry {
-  int unit_px{1};       // A scaled step, for paddings and radii.
-  int border{2};        // Card border thickness.
-  Rect card;            // The card. A tap outside it dismisses.
-  Rect title;           // Title line; h = 0 without a title.
-  Rect body;            // Wrapped text goes here; h may be 0.
-  Rect bar;             // Countdown bar; h = 0 without a countdown.
+  int unit_px{1};             // A scaled step, for paddings and radii.
+  int border{2};              // Card border thickness.
+  Rect card;                  // The card. A tap outside it dismisses.
+  Rect title;                 // Title line; h = 0 without a title.
+  Rect body;                  // Wrapped text goes here; h may be 0.
+  Rect bar;                   // Countdown bar; h = 0 without a countdown.
   std::vector<Rect> options;  // One per option on screen (list: per visible row).
-  int first{0};         // List: the option in the first row.
-  Rect scroll;          // List: the scroll track; w = 0 when all rows fit.
+  int first{0};               // List: the option in the first row.
+  Rect scroll;                // List: the scroll track; w = 0 when all rows fit.
 };
 
 struct PromptMetrics {
@@ -52,8 +52,7 @@ inline Rect base_card(const Layout &l) { return l.content.inset(l.px(8)); }
 inline int inner_width(const Layout &l, bool urgent) { return base_card(l).w - 2 * frame_of(l, urgent).pad; }
 
 // A card `inner_h` tall inside, centered on the base card, kept on screen.
-inline PromptGeometry card(const Layout &l, bool urgent, int inner_h, int *top, int *bottom, int *left,
-                           int *right) {
+inline PromptGeometry card(const Layout &l, bool urgent, int inner_h, int *top, int *bottom, int *left, int *right) {
   PromptGeometry g;
   g.unit_px = std::max(1, l.px(6));
   const Frame f = frame_of(l, urgent);
@@ -140,8 +139,8 @@ inline PromptGeometry choice(const Layout &l, const PromptMetrics &m, int n_opti
   const int rows = (cells + 1) / 2;
   const int cell_h = m.text_line + l.px(10);
   const int grid_h = rows * cell_h + (rows - 1) * gap;
-  const int need = ch.title_h + std::max(1, body_lines) * m.text_line + gap + grid_h +
-                   (extras > 0 ? extra_h + gap : 0) + ch.bar_h;
+  const int need =
+      ch.title_h + std::max(1, body_lines) * m.text_line + gap + grid_h + (extras > 0 ? extra_h + gap : 0) + ch.bar_h;
   int top, bottom, left, right;
   PromptGeometry g = card(l, urgent, need, &top, &bottom, &left, &right);
   place_chrome(l, g, m.text_line, has_title, has_bar, &top, &bottom, left, right);
@@ -161,8 +160,8 @@ inline PromptGeometry choice(const Layout &l, const PromptMetrics &m, int n_opti
 
 // Rows of options that scroll. The body, when there is one, takes up to
 // `body_lines` lines under the title.
-inline PromptGeometry list(const Layout &l, const PromptMetrics &m, int n_options, int focus, int first,
-                           int body_lines, bool urgent, bool has_title, bool has_bar) {
+inline PromptGeometry list(const Layout &l, const PromptMetrics &m, int n_options, int focus, int first, int body_lines,
+                           bool urgent, bool has_title, bool has_bar) {
   const Chrome ch = chrome(l, m.title_line, has_title, has_bar);
   const int gap = l.px(4);
   const int row_h = m.text_line + l.px(8);

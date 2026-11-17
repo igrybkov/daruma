@@ -63,7 +63,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from harness import Device, DeviceError, Locator, expect
 
 SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
@@ -127,8 +126,13 @@ def all_scenarios() -> list[Scenario]:
 
 
 # The state each voice phase draws (packages/core.yaml, the renderer).
-VOICE_STATES = {"listening": "listening", "thinking": "thinking", "replying": "talking", "error": "error",
-                "timer": "alarm"}
+VOICE_STATES = {
+    "listening": "listening",
+    "thinking": "thinking",
+    "replying": "talking",
+    "error": "error",
+    "timer": "alarm",
+}
 
 
 def covered_states(scenario: Scenario) -> set[str]:
@@ -136,7 +140,7 @@ def covered_states(scenario: Scenario) -> set[str]:
     `expect: {state: ...}` with one state (a list means any one of them)."""
     out: set[str] = set()
     for step in scenario.setup + scenario.steps:
-        (kind, arg), = step.items()
+        ((kind, arg),) = step.items()
         if kind == "show" and arg:
             out.add(arg)
         elif kind == "voice":
@@ -162,7 +166,7 @@ def run_step(device: Device, step: dict[str, Any], *, test: bool) -> None:
     """Run one step. Snapshots compare only in test mode."""
     if len(step) != 1:
         raise DeviceError(f"A step has one key: {step}")
-    (kind, arg), = step.items()
+    ((kind, arg),) = step.items()
     if kind == "wait":
         device.advance(float(arg))
     elif kind == "skip":
@@ -210,8 +214,11 @@ def run_step(device: Device, step: dict[str, Any], *, test: bool) -> None:
         if test:
             spec = {"name": arg} if isinstance(arg, str) else dict(arg)
             expect(device).to_match_screenshot(
-                spec["name"], mask=[tuple(m) for m in spec.get("mask", [])],
-                tolerance=spec.get("tolerance", 0), max_diff_pixels=spec.get("max_diff_pixels", 0))
+                spec["name"],
+                mask=[tuple(m) for m in spec.get("mask", [])],
+                tolerance=spec.get("tolerance", 0),
+                max_diff_pixels=spec.get("max_diff_pixels", 0),
+            )
     elif kind == "expect":
         _expect(device, dict(arg))
     else:

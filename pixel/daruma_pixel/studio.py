@@ -18,8 +18,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from . import cat_grass
-from . import room
+from . import cat_grass, room
 from .pixelkit import Color
 
 W, H = 106, 80
@@ -36,8 +35,9 @@ _BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
 
 def _mottle(x: int, y: int) -> float:
     """Soft blotches, the same every build: a few slow waves added up."""
-    return (math.sin(x * 0.31 + y * 0.17) + math.sin(x * 0.13 - y * 0.29 + 1.7)
-            + 0.6 * math.sin(x * 0.57 + y * 0.43 + 0.4)) / 2.6
+    return (
+        math.sin(x * 0.31 + y * 0.17) + math.sin(x * 0.13 - y * 0.29 + 1.7) + 0.6 * math.sin(x * 0.57 + y * 0.43 + 0.4)
+    ) / 2.6
 
 
 @dataclass(frozen=True)
@@ -74,10 +74,14 @@ class Studio:
         return img
 
     def layers(self) -> dict:
-        return {"plant": cat_grass.grass, "PLANT_STAGES": cat_grass.STAGES,
-                "DEFAULT_STAGE": cat_grass.DEFAULT_STAGE,
-                "RUG_COLORS": (self.drape_edge, self.drape, self.drape_shadow),
-                "RUG_BY_WEEKDAY": room.RUG_BY_WEEKDAY, "RUG_BOX": DRAPE_BOX}
+        return {
+            "plant": cat_grass.grass,
+            "PLANT_STAGES": cat_grass.STAGES,
+            "DEFAULT_STAGE": cat_grass.DEFAULT_STAGE,
+            "RUG_COLORS": (self.drape_edge, self.drape, self.drape_shadow),
+            "RUG_BY_WEEKDAY": room.RUG_BY_WEEKDAY,
+            "RUG_BOX": DRAPE_BOX,
+        }
 
 
 def _is_bar(x: int, y: int) -> bool:

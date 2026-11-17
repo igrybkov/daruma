@@ -84,7 +84,7 @@ class WeatherApp : public esphome::Component {
   int kind_{HOURLY};
   int request_{0};
   uint32_t sent_ms_{0};
-  int ok_replies_{0};      // Of this round's two.
+  int ok_replies_{0};       // Of this round's two.
   bool want_fetch_{false};  // A round should start when HA is there.
   Failure failure_{Failure::NONE};
 

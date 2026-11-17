@@ -32,9 +32,9 @@ left over three rows of tomatoes (goal 9), the timer under focus. With
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -59,7 +59,13 @@ DOCKS = {
     "flat_corgi": ("1E222A", "E8ECF0", "969CA6"),
 }
 # pomodoro.yaml's theme defaults (no persona overrides them).
-TOMATO, UNRIPE, BONUS, LEAF, PLAQUE = (0xE8, 0x32, 0x2B), (0x9C, 0xCC, 0x3C), (0x8E, 0x44, 0xAD), (0x2E, 0x7D, 0x32), (0x3A, 0x22, 0x16)
+TOMATO, UNRIPE, BONUS, LEAF, PLAQUE = (
+    (0xE8, 0x32, 0x2B),
+    (0x9C, 0xCC, 0x3C),
+    (0x8E, 0x44, 0xAD),
+    (0x2E, 0x7D, 0x32),
+    (0x3A, 0x22, 0x16),
+)
 FOCUS, BREAK, PAUSED = (0xFF, 0x63, 0x47), (0x26, 0xED, 0x3A), (0x80, 0x80, 0x80)
 GOAL, DONE = 8, 5
 
@@ -73,7 +79,7 @@ STATES = (
 
 
 def rgb(h: str):
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def on(bg, fg, mono: bool):
@@ -190,6 +196,7 @@ def after(s: ps.Screen, img, state, dock, font, plaque, mono=False) -> None:
         base = t["baseline"]
         dx, dy, dw, cap = t["digits"]
         sx = t["sep_cx"]
+
         def bars(cx, top, bh, bw, gap, fill):
             x0 = cx - gap // 2 - bw
             for bx in (x0, x0 + bw + gap):
@@ -203,8 +210,14 @@ def after(s: ps.Screen, img, state, dock, font, plaque, mono=False) -> None:
             d.text((dx + dw // 2 + shift, base), mins, font=font, fill=c, anchor="ms")
             if paused:
                 bh = cap * 3 // 4
-                bars(dx + dw // 2 + shift - int(d.textlength(mins, font=font)) // 2 - s.px(6),
-                     dy + (cap - bh) // 2, bh, max(s.px(3), 2), max(s.px(2), 1), c)
+                bars(
+                    dx + dw // 2 + shift - int(d.textlength(mins, font=font)) // 2 - s.px(6),
+                    dy + (cap - bh) // 2,
+                    bh,
+                    max(s.px(3), 2),
+                    max(s.px(2), 1),
+                    c,
+                )
         else:
             if paused:
                 # The tab on the top edge, the plaque's color in its sign.
@@ -280,8 +293,12 @@ def main() -> None:
         digit_w = max(int(round(font.getlength(str(v)))) for v in range(10))
         box = font.getbbox("X", anchor="ls")
         cap = -box[1]
-        res = subprocess.run([binary, "--plaque", str(s.w), str(s.h), str(GOAL), str(digit_w), str(cap)],
-                             check=True, capture_output=True, text=True)
+        res = subprocess.run(
+            [binary, "--plaque", str(s.w), str(s.h), str(GOAL), str(digit_w), str(cap)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         return json.loads(res.stdout)
 
     def shots(s, base_for, dock, font, mono=False):
@@ -308,6 +325,7 @@ def main() -> None:
         base = room()
         ps.sheet(shots(s, lambda _st: base, DOCKS[name], timer_font(22))).save(out / f"line_{name}{suffix}.png")
         print(f"{name} -> {out / f'line_{name}{suffix}.png'}")
+
     def eye_looks(size):
         w, h = size.split("x")
         args = [binary, "--eyes", w, h] + (["--before"] if old else [])
@@ -325,13 +343,19 @@ def main() -> None:
         digit_w = max(int(round(font.getlength(str(v)))) for v in range(10))
         cap = -font.getbbox("X", anchor="ls")[1]
         w, h = size.split("x")
-        res = subprocess.run([binary, "--plaque", w, h, "9", str(digit_w), str(cap)],
-                             check=True, capture_output=True, text=True)
+        res = subprocess.run(
+            [binary, "--plaque", w, h, "9", str(digit_w), str(cap)], check=True, capture_output=True, text=True
+        )
         plaque = json.loads(res.stdout)
         looks2 = eye_looks(size)
         imgs = []
-        for idx, state in ((NEUTRAL, STATES[0]), (LOOK_THINKING, STATES[0]), (SAD, STATES[0]),
-                           (SLEEPY, STATES[0]), (LOOK_FOCUS, STATES[1])):
+        for idx, state in (
+            (NEUTRAL, STATES[0]),
+            (LOOK_THINKING, STATES[0]),
+            (SAD, STATES[0]),
+            (SLEEPY, STATES[0]),
+            (LOOK_FOCUS, STATES[1]),
+        ):
             img = Image.new("RGB", (s2.w, s2.h), EYE_BG)
             draw_look(s2, img, looks2[idx])
             after(s2, img, state, DOCKS["eyes"], font, plaque)
@@ -343,7 +367,8 @@ def main() -> None:
         s2 = ps.Screen(layouts[size], fonts, font_dir, ps.WOOD, focus=False)
         base = ps.corgi_idle(s2)
         ps.sheet(shots(s2, lambda _st: base, DOCKS["pixel_corgi"], timer_font(timer))).save(
-            out / f"line_corgi_{size}{suffix}.png")
+            out / f"line_corgi_{size}{suffix}.png"
+        )
         print(f"corgi {size} -> {out / f'line_corgi_{size}{suffix}.png'}")
 
     # Mono: the derived theme's dock colors, the frame to black and white.

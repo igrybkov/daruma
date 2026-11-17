@@ -12,9 +12,9 @@ PNG per case and a contact sheet (sheet.png) into <out dir>.
 """
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -23,14 +23,31 @@ GEOMETRY_SRC = ROOT / "tests" / "prompt_geometry.cpp"
 
 # Themes from persona_pixel_corgi.yaml (wood) and persona_eyes.yaml (outline).
 THEMES = {
-    "wood": dict(style="wood", frame="96623A", edge="603A22", panel="FCF2DE", ink="462C1E", muted="826046",
-                 title="FCF2DE", accent="D6A032", dot="704A2C"),
-    "outline": dict(style="outline", frame="080A0E", edge="28323C", panel="141A20", ink="E1F5FA", muted="6E96A0",
-                    title="00DCF0", accent="00C8DC", dot="283C46"),
+    "wood": dict(
+        style="wood",
+        frame="96623A",
+        edge="603A22",
+        panel="FCF2DE",
+        ink="462C1E",
+        muted="826046",
+        title="FCF2DE",
+        accent="D6A032",
+        dot="704A2C",
+    ),
+    "outline": dict(
+        style="outline",
+        frame="080A0E",
+        edge="28323C",
+        panel="141A20",
+        ink="E1F5FA",
+        muted="6E96A0",
+        title="00DCF0",
+        accent="00C8DC",
+        dot="283C46",
+    ),
 }
 # The prompts module's theme color defaults (daruma_prompts/__init__.py).
-MODULE = dict(urgent="E53935", game="7E57C2", countdown="F2A33A", selected="F2A33A", correct="2E9E44",
-              wrong="D23C3C")
+MODULE = dict(urgent="E53935", game="7E57C2", countdown="F2A33A", selected="F2A33A", correct="2E9E44", wrong="D23C3C")
 
 
 # Per screen: font sizes (title, text) from the board's substitutions, and
@@ -43,7 +60,7 @@ SCREENS = {
 
 
 def rgb(hex_):
-    return tuple(int(hex_[i:i + 2], 16) for i in (0, 2, 4))
+    return tuple(int(hex_[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def shade(c, k):
@@ -203,20 +220,39 @@ class Canvas:
         top = y + (h - len(lines) * lh) // 2 if center else y
         for i, line in enumerate(lines):
             line = self.fit(font, line, w)
-            self.print(x + w // 2 if center else x, top + i * lh, font, ink, line,
-                       "TOP_CENTER" if center else "TOP_LEFT")
+            self.print(
+                x + w // 2 if center else x, top + i * lh, font, ink, line, "TOP_CENTER" if center else "TOP_LEFT"
+            )
 
 
 def geometry(tool, layout, w, h, title_line, text_line, n, urgent, title, bar, body_lines=0, focus=-1, first=0):
-    out = subprocess.run([str(tool), layout, str(w), str(h), str(title_line), str(text_line), str(n),
-                          str(int(urgent)), str(int(title)), str(int(bar)), str(body_lines), str(focus),
-                          str(first)], check=True, capture_output=True, text=True).stdout
+    out = subprocess.run(
+        [
+            str(tool),
+            layout,
+            str(w),
+            str(h),
+            str(title_line),
+            str(text_line),
+            str(n),
+            str(int(urgent)),
+            str(int(title)),
+            str(int(bar)),
+            str(body_lines),
+            str(focus),
+            str(first),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
     return json.loads(out)
 
 
 def inner_width(tool, w, h, urgent):
-    out = subprocess.run([str(tool), "width", str(w), str(h), str(int(urgent))], check=True, capture_output=True,
-                         text=True).stdout
+    out = subprocess.run(
+        [str(tool), "width", str(w), str(h), str(int(urgent))], check=True, capture_output=True, text=True
+    ).stdout
     return int(out)
 
 
@@ -237,8 +273,21 @@ def render(tool, case, theme, w, h, fonts, lines):
     # The body's lines at the card's width, capped as the controller caps them.
     cap = {"message": 6, "choice": 3, "list": 2}[layout]
     body_lines = min(cap, len(c.wrap(text_font, body, inner_width(tool, w, h, urgent)))) if body else 0
-    g = geometry(tool, layout, w, h, c.line_h(title_font), c.line_h(text_font), len(options), urgent, bool(title),
-                 bar, body_lines, focus, 0)
+    g = geometry(
+        tool,
+        layout,
+        w,
+        h,
+        c.line_h(title_font),
+        c.line_h(text_font),
+        len(options),
+        urgent,
+        bool(title),
+        bar,
+        body_lines,
+        focus,
+        0,
+    )
     unit = g["unit"]
 
     normal = t["accent"] if t["style"] == "outline" else t["edge"]
@@ -303,34 +352,73 @@ def render(tool, case, theme, w, h, fonts, lines):
 
 CASES = {
     "message_doorbell": dict(
-        layout="message", style="urgent", title="Someone's at the door",
+        layout="message",
+        style="urgent",
+        title="Someone's at the door",
         body="Курʼєр з посилкою 📦 чекає біля входу. Front door camera, 18:42.",
-        options=["Unlock", "Talk", "Ignore"], left=0.55),
+        options=["Unlock", "Talk", "Ignore"],
+        left=0.55,
+    ),
     "message_doorbell_short": dict(
-        layout="message", style="urgent", title="Someone's at the door", body="",
-        options=["Unlock", "Talk", "Ignore"], left=0.8),
+        layout="message",
+        style="urgent",
+        title="Someone's at the door",
+        body="",
+        options=["Unlock", "Talk", "Ignore"],
+        left=0.8,
+    ),
     "message_info": dict(
-        layout="message", style="info", title="Laundry is done",
+        layout="message",
+        style="info",
+        title="Laundry is done",
         body="The washer finished 5 minutes ago. Hang the shirts before they wrinkle!",
-        options=["OK"], timeout=-1),
+        options=["OK"],
+        timeout=-1,
+    ),
     "choice_question": dict(
-        layout="choice", style="game", title="Question 3 of 10 · Score 2",
+        layout="choice",
+        style="game",
+        title="Question 3 of 10 · Score 2",
         body="Which planet has the most known moons?",
-        options=["Saturn", "Jupiter", "Uranus", "Neptune", "50:50"], left=0.4, focus=1),
+        options=["Saturn", "Jupiter", "Uranus", "Neptune", "50:50"],
+        left=0.4,
+        focus=1,
+    ),
     "choice_long_question": dict(
-        layout="choice", style="urgent", title="Question 9 of 10 · Score 7",
+        layout="choice",
+        style="urgent",
+        title="Question 9 of 10 · Score 7",
         body="Which element has the chemical symbol W, from its old German name wolfram?",
-        options=["Tungsten", "Tin", "Titanium", "Tellurium", "50:50"], left=0.7),
+        options=["Tungsten", "Tin", "Titanium", "Tellurium", "50:50"],
+        left=0.7,
+    ),
     "choice_marked": dict(
-        layout="choice", style="game", title="Question 3 of 10 · Score 2",
+        layout="choice",
+        style="game",
+        title="Question 3 of 10 · Score 2",
         body="Яка планета має найбільше відомих супутників? 🪐",
         options=["Saturn", "Jupiter, the largest planet of the Solar System", "Uranus", "Neptune", "50:50"],
-        marks=["correct", "hidden", "wrong", "hidden", "hidden"], answered=True),
+        marks=["correct", "hidden", "wrong", "hidden", "hidden"],
+        answered=True,
+    ),
     "list_dinner": dict(
-        layout="list", style="info", title="Dinner tonight?",
+        layout="list",
+        style="info",
+        title="Dinner tonight?",
         body="Pick one. The family vote closes at 6 pm.",
-        options=["Pizza", "Борщ і пампушки", "Tacos", "Sushi", "Pasta carbonara with extra cheese", "Salad",
-                 "Leftovers", "Takeout"], timeout=-1, focus=5),
+        options=[
+            "Pizza",
+            "Борщ і пампушки",
+            "Tacos",
+            "Sushi",
+            "Pasta carbonara with extra cheese",
+            "Salad",
+            "Leftovers",
+            "Takeout",
+        ],
+        timeout=-1,
+        focus=5,
+    ),
 }
 
 
@@ -345,8 +433,9 @@ def main():
     link = include / "esphome" / "components"
     if not link.exists():
         link.symlink_to(ROOT / "components", target_is_directory=True)
-    subprocess.run(["c++", "-std=c++17", "-Wall", "-Wextra", "-I", str(include), str(GEOMETRY_SRC), "-o", str(tool)],
-                   check=True)
+    subprocess.run(
+        ["c++", "-std=c++17", "-Wall", "-Wextra", "-I", str(include), str(GEOMETRY_SRC), "-o", str(tool)], check=True
+    )
     images = []
     for name, case in CASES.items():
         for theme in ("wood", "outline"):
@@ -366,8 +455,13 @@ def main():
     d = ImageDraw.Draw(sheet)
     for k, (name, img) in enumerate(images):
         x, y = (k % cols) * (cell_w + 20), (k // cols) * (cell_h + 40)
-        big = img.resize((img.width * 2 if img.width < 400 else img.width * 4 // 3,
-                          img.height * 2 if img.width < 400 else img.height * 4 // 3), Image.NEAREST)
+        big = img.resize(
+            (
+                img.width * 2 if img.width < 400 else img.width * 4 // 3,
+                img.height * 2 if img.width < 400 else img.height * 4 // 3,
+            ),
+            Image.NEAREST,
+        )
         sheet.paste(big, (x, y + 30))
         d.text((x, y + 6), name, fill=(230, 230, 230))
     sheet.save(out / "sheet.png")

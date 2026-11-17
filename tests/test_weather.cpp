@@ -15,20 +15,20 @@ using namespace Daruma;
 
 static int failures = 0;
 
-#define CHECK(cond)                                                \
-  do {                                                             \
-    if (!(cond)) {                                                 \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);  \
-      failures++;                                                  \
-    }                                                              \
+#define CHECK(cond) \
+  do { \
+    if (!(cond)) { \
+      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+      failures++; \
+    } \
   } while (0)
 
 int main() {
   // Every HA condition has a look; an unknown one has none.
   {
-    const char *conditions[] = {"sunny", "clear-night", "partlycloudy", "cloudy", "fog", "hail", "lightning",
-                                "lightning-rainy", "pouring", "rainy", "snowy", "snowy-rainy", "windy",
-                                "windy-variant", "exceptional"};
+    const char *conditions[] = {"sunny", "clear-night", "partlycloudy",    "cloudy",        "fog",
+                                "hail",  "lightning",   "lightning-rainy", "pouring",       "rainy",
+                                "snowy", "snowy-rainy", "windy",           "windy-variant", "exceptional"};
     std::set<std::string> words;
     for (const char *c : conditions) {
       const WeatherLook *look = weather_look(c);

@@ -52,27 +52,42 @@ signal: none, started, done). `pixel_art: goal:` names the script's persona for
 room. An animation a stage lacks comes from the nearest stage that has it.
 """
 
-from functools import lru_cache
 import hashlib
 import importlib.util
 import pickle
-from pathlib import Path
 import sys
+from functools import lru_cache
+from pathlib import Path
 
 import esphome.codegen as cg
-from esphome.components.daruma import CONF_DARUMA_ID, Hub, Persona, daruma_ns
-from esphome.components.daruma.persona import (
-    BEHAVIORS_SCHEMA, CONF_BEHAVIORS, CONF_DURING, CONF_PARAMS, DURING_SCHEMA, with_param_entities, Param, persona,
-    persona_to_code, params_schema)
-from esphome.components.daruma.theme import CONF_THEME, THEME_SCHEMA, theme_to_code
-from esphome.components.daruma.sounds import CONF_SOUNDS, SOUNDS_SCHEMA, sounds_to_code
-from esphome.components.daruma import build_profile
-from esphome.components.daruma.sprite import (
-    art_path, bundle_file, check_art, frame_set, resolve_dir, resolve_file, sprite_expression, sprite_from_image,
-)
 import esphome.config_validation as cv
-from esphome.core import CORE
+from esphome.components.daruma import CONF_DARUMA_ID, Hub, Persona, build_profile, daruma_ns
+from esphome.components.daruma.persona import (
+    BEHAVIORS_SCHEMA,
+    CONF_BEHAVIORS,
+    CONF_DURING,
+    CONF_PARAMS,
+    DURING_SCHEMA,
+    Param,
+    params_schema,
+    persona,
+    persona_to_code,
+    with_param_entities,
+)
+from esphome.components.daruma.sounds import CONF_SOUNDS, SOUNDS_SCHEMA, sounds_to_code
+from esphome.components.daruma.sprite import (
+    art_path,
+    bundle_file,
+    check_art,
+    frame_set,
+    resolve_dir,
+    resolve_file,
+    sprite_expression,
+    sprite_from_image,
+)
+from esphome.components.daruma.theme import CONF_THEME, THEME_SCHEMA, theme_to_code
 from esphome.const import CONF_DURATION, CONF_HEIGHT, CONF_ID, CONF_NAME, CONF_WIDTH, CONF_X, CONF_Y
+from esphome.core import CORE
 
 DEPENDENCIES = ["daruma"]
 MULTI_CONF = True
@@ -200,9 +215,7 @@ PIXEL_ART_SCHEMA = cv.Schema(
         cv.Required(CONF_SCRIPT): cv.string_strict,
         cv.Required(CONF_PERSONA): cv.string_strict,
         # The script's persona per goal stage after none (CONF_PERSONA).
-        cv.Optional(CONF_GOAL): cv.Schema(
-            {cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}
-        ),
+        cv.Optional(CONF_GOAL): cv.Schema({cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}),
     }
 )
 
@@ -256,30 +269,34 @@ def _validate_layers(config):
     return config
 
 
-CONFIG_SCHEMA = cv.All(cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(SpritePersona),
-        cv.GenerateID(CONF_DARUMA_ID): cv.use_id(Hub),
-        cv.Required(CONF_NAME): cv.string_strict,
-        cv.Optional(CONF_THEME): THEME_SCHEMA,
-        cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
-        cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
-        cv.Optional(CONF_DURING, default={}): DURING_SCHEMA,
-        cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
-        # The largest scale to draw at; without it, the largest that fits.
-        cv.Optional(CONF_SCALE): cv.int_range(min=1, max=16),
-        cv.Optional(CONF_BACKGROUND, default="000000"): _hex_color,
-        cv.Optional(CONF_ART): cv.string_strict,
-        cv.Optional(CONF_PIXEL_ART): PIXEL_ART_SCHEMA,
-        cv.Optional(CONF_ANIMATIONS): _validate_animations,
-        cv.Optional(CONF_BACKDROP): cv.string_strict,
-        cv.Optional(CONF_SPRITE_OFFSET, default=[0, 0]): cv.All(cv.ensure_list(cv.int_), cv.Length(min=2, max=2)),
-        cv.Optional(CONF_WINDOW): WINDOW_SCHEMA,
-        cv.Optional(CONF_PLANT): PLANT_SCHEMA,
-        cv.Optional(CONF_RECOLOR): RECOLOR_SCHEMA,
-        cv.Optional(CONF_PLAY_ONCE, default=[]): cv.ensure_list(cv.string_strict),
-    }
-).extend(cv.COMPONENT_SCHEMA), _validate_layers, with_param_entities(PARAMS))
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(SpritePersona),
+            cv.GenerateID(CONF_DARUMA_ID): cv.use_id(Hub),
+            cv.Required(CONF_NAME): cv.string_strict,
+            cv.Optional(CONF_THEME): THEME_SCHEMA,
+            cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
+            cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
+            cv.Optional(CONF_DURING, default={}): DURING_SCHEMA,
+            cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
+            # The largest scale to draw at; without it, the largest that fits.
+            cv.Optional(CONF_SCALE): cv.int_range(min=1, max=16),
+            cv.Optional(CONF_BACKGROUND, default="000000"): _hex_color,
+            cv.Optional(CONF_ART): cv.string_strict,
+            cv.Optional(CONF_PIXEL_ART): PIXEL_ART_SCHEMA,
+            cv.Optional(CONF_ANIMATIONS): _validate_animations,
+            cv.Optional(CONF_BACKDROP): cv.string_strict,
+            cv.Optional(CONF_SPRITE_OFFSET, default=[0, 0]): cv.All(cv.ensure_list(cv.int_), cv.Length(min=2, max=2)),
+            cv.Optional(CONF_WINDOW): WINDOW_SCHEMA,
+            cv.Optional(CONF_PLANT): PLANT_SCHEMA,
+            cv.Optional(CONF_RECOLOR): RECOLOR_SCHEMA,
+            cv.Optional(CONF_PLAY_ONCE, default=[]): cv.ensure_list(cv.string_strict),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    _validate_layers,
+    with_param_entities(PARAMS),
+)
 
 
 # The pixel library: the Python package daruma_pixel (personas, pixelkit, the
@@ -375,6 +392,7 @@ def _cache_path(script: Path, name: str) -> Path | None:
 
 def _same_room(a, b, label):
     """Personas for the goal stages must share the room, so one view fits all."""
+
     def pixels(img):
         return img.convert("RGBA").tobytes() if img is not None else None
 
@@ -383,8 +401,10 @@ def _same_room(a, b, label):
         "backdrop": (pixels(a.backdrop), pixels(b.backdrop)),
         "sprite offset": (tuple(a.sprite_offset), tuple(b.sprite_offset)),
         "window": (a.window, b.window),
-        "plant": ([pixels(i) for i in a.plant_stages + a.plant_wilted],
-                  [pixels(i) for i in b.plant_stages + b.plant_wilted]),
+        "plant": (
+            [pixels(i) for i in a.plant_stages + a.plant_wilted],
+            [pixels(i) for i in b.plant_stages + b.plant_wilted],
+        ),
         "rug colors": ((a.recolor_from, a.recolor_by_weekday), (b.recolor_from, b.recolor_by_weekday)),
     }
     for what, (x, y) in checks.items():
@@ -418,8 +438,11 @@ def _from_script(config):
         x, y, w, h = persona.window
         out[CONF_WINDOW] = {CONF_X: x, CONF_Y: y, CONF_WIDTH: w, CONF_HEIGHT: h}
     if persona.plant_stages:
-        out[CONF_PLANT] = {CONF_OFFSET: list(persona.plant_offset), CONF_STAGES: persona.plant_stages,
-                           CONF_WILTED: persona.plant_wilted}
+        out[CONF_PLANT] = {
+            CONF_OFFSET: list(persona.plant_offset),
+            CONF_STAGES: persona.plant_stages,
+            CONF_WILTED: persona.plant_wilted,
+        }
     if persona.recolor_from:
         out[CONF_RECOLOR] = {CONF_COLORS: persona.recolor_from, CONF_BY_WEEKDAY: persona.recolor_by_weekday}
     out[CONF_ANIMATIONS] = {}
@@ -465,8 +488,7 @@ def _goal_maps(config, names: list[str]) -> list[list[int]]:
     stages = config[_STAGES]
     maps = []
     for number in range(len(stages)):
-        order = [number] + [n for d in range(1, len(stages)) for n in (number - d, number + d)
-                            if 0 <= n < len(stages)]
+        order = [number] + [n for d in range(1, len(stages)) for n in (number - d, number + d) if 0 <= n < len(stages)]
         row = []
         for name in names:
             key = next(stages[n][name] for n in order if stages[n] is not None and name in stages[n])
@@ -612,13 +634,24 @@ async def to_code(config):
     names = _names(config)
     pid = config[CONF_ID].id
     keys = list(config[CONF_ANIMATIONS])
-    cg.add_global(cg.RawStatement(f"static const char *const {pid}_anim_names[] = {{"
-                                  + ", ".join(cg.safe_exp(k).__str__() for k in keys) + "};"))
+    cg.add_global(
+        cg.RawStatement(
+            f"static const char *const {pid}_anim_names[] = {{"
+            + ", ".join(cg.safe_exp(k).__str__() for k in keys)
+            + "};"
+        )
+    )
     cg.add(var.add_animation_table(cg.RawExpression(f"{pid}_anim_names"), len(keys)))
-    steps = [f"{{{index}, {frame_of[id(frame[CONF_IMAGE])]}, {_ms(frame[CONF_DURATION])}}}"
-             for index, anim in enumerate(config[CONF_ANIMATIONS].values()) for frame in anim[CONF_FRAMES]]
-    cg.add_global(cg.RawStatement(f"static const Daruma::SpritePersona::FrameStep {pid}_frame_steps[] = {{"
-                                  + ", ".join(steps) + "};"))
+    steps = [
+        f"{{{index}, {frame_of[id(frame[CONF_IMAGE])]}, {_ms(frame[CONF_DURATION])}}}"
+        for index, anim in enumerate(config[CONF_ANIMATIONS].values())
+        for frame in anim[CONF_FRAMES]
+    ]
+    cg.add_global(
+        cg.RawStatement(
+            f"static const Daruma::SpritePersona::FrameStep {pid}_frame_steps[] = {{" + ", ".join(steps) + "};"
+        )
+    )
     cg.add(var.add_frame_table(cg.RawExpression(f"{pid}_frame_steps"), len(steps)))
     for index, (key, anim) in enumerate(config[CONF_ANIMATIONS].items()):
         if CONF_BLINK in anim:

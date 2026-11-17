@@ -35,10 +35,14 @@ class PromptController : public esphome::Component, public Module {
   // Info prompts wait while any owner holds this activity (focus).
   void add_hold_back(StateId activity) { this->hold_back_.push_back(activity); }
   // (prompt id, choice, index, reason) for every answer, except a close from HA.
-  template<typename F> void add_on_answer_callback(F &&callback) { this->answer_callback_.add(std::forward<F>(callback)); }
+  template<typename F> void add_on_answer_callback(F &&callback) {
+    this->answer_callback_.add(std::forward<F>(callback));
+  }
   // (prompt id, style, sound or "") the first time a prompt is drawn. The
   // controller plays the sound itself.
-  template<typename F> void add_on_shown_callback(F &&callback) { this->shown_callback_.add(std::forward<F>(callback)); }
+  template<typename F> void add_on_shown_callback(F &&callback) {
+    this->shown_callback_.add(std::forward<F>(callback));
+  }
 
   void setup(Hub &hub) override;
   void loop() override;
@@ -47,10 +51,10 @@ class PromptController : public esphome::Component, public Module {
   // --- API actions. Each returns "" or what was wrong with the call. ----------
   // An empty string or list, or 0 for the timeout, keeps a field's default
   // (see docs/prompts.md).
-  std::string show(const std::string &id, const std::string &layout, const std::string &title,
-                   const std::string &body, const std::vector<std::string> &options,
-                   const std::vector<std::string> &marks, const std::string &style, int timeout_s,
-                   const std::string &state, const std::string &sound, bool dismissable, uint32_t ask = 0);
+  std::string show(const std::string &id, const std::string &layout, const std::string &title, const std::string &body,
+                   const std::vector<std::string> &options, const std::vector<std::string> &marks,
+                   const std::string &style, int timeout_s, const std::string &state, const std::string &sound,
+                   bool dismissable, uint32_t ask = 0);
   std::string update(const std::string &id, const std::string &body, const std::vector<std::string> &marks,
                      int countdown_s);
   std::string close(const std::string &id);
@@ -139,19 +143,19 @@ class PromptController : public esphome::Component, public Module {
   std::map<uint32_t, std::string> call_errors_;
   StateId attention_{static_cast<StateId>(0)};
 
-  uint32_t active_seq_{0};   // The prompt whose state the persona plays.
-  uint32_t drawn_seq_{0};    // The prompt drawn last.
-  uint32_t announce_seq_{0}; // Drawn for the first time; loop() plays its sound.
-  uint32_t focus_seq_{0};    // The prompt the focus and scroll belong to.
-  FocusRing focus_;          // Drawn only on boards that use a focus.
-  int first_{0};             // List: the option in the first row.
-  int list_fit_{1};          // List: rows that fit.
-  ListScroll scroll_;        // List: when it last changed page.
-  int32_t drawn_tick_{-1};   // The countdown second (minute on slow screens) last drawn.
+  uint32_t active_seq_{0};    // The prompt whose state the persona plays.
+  uint32_t drawn_seq_{0};     // The prompt drawn last.
+  uint32_t announce_seq_{0};  // Drawn for the first time; loop() plays its sound.
+  uint32_t focus_seq_{0};     // The prompt the focus and scroll belong to.
+  FocusRing focus_;           // Drawn only on boards that use a focus.
+  int first_{0};              // List: the option in the first row.
+  int list_fit_{1};           // List: rows that fit.
+  ListScroll scroll_;         // List: when it last changed page.
+  int32_t drawn_tick_{-1};    // The countdown second (minute on slow screens) last drawn.
   PromptGeometry geometry_drawn_;
-  uint32_t replay_seq_{0};   // The urgent prompt whose sound repeats.
+  uint32_t replay_seq_{0};  // The urgent prompt whose sound repeats.
   uint32_t replay_at_{0};
-  uint8_t played_{0};        // Times its sound played.
+  uint8_t played_{0};  // Times its sound played.
 
   // An urgent prompt plays its sound this often while unanswered, this
   // many times in all.

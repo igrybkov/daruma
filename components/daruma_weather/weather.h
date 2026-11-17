@@ -77,7 +77,9 @@ struct WeatherReport {
   std::vector<WeatherHour> hours;
   std::vector<WeatherDay> days;
 
-  bool empty() const { return this->condition.empty() && std::isnan(this->temperature) && this->hours.empty() && this->days.empty(); }
+  bool empty() const {
+    return this->condition.empty() && std::isnan(this->temperature) && this->hours.empty() && this->days.empty();
+  }
 
   // Today's row of the daily forecast: the first that is not over yet
   // (`today_start` is local midnight). nullptr when there is none.

@@ -56,10 +56,32 @@ def encode_gif(frames: list[tuple[Path, float]], out: Path, max_kb: int, scale: 
     out.parent.mkdir(parents=True, exist_ok=True)
     for fps, colors in ((None, 256), (12, 128), (8, 96), (6, 64)):
         rate = f"fps={fps}," if fps else ""
-        vf = (f"{rate}scale=iw*{scale}:ih*{scale}:flags=neighbor,split[a][b];"
-              f"[a]palettegen=max_colors={colors}:stats_mode=full[p];[b][p]paletteuse=dither=none")
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
-                        "-vf", vf, "-fps_mode", "vfr", "-loop", "0", str(out)], check=True)
+        vf = (
+            f"{rate}scale=iw*{scale}:ih*{scale}:flags=neighbor,split[a][b];"
+            f"[a]palettegen=max_colors={colors}:stats_mode=full[p];[b][p]paletteuse=dither=none"
+        )
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(listing),
+                "-vf",
+                vf,
+                "-fps_mode",
+                "vfr",
+                "-loop",
+                "0",
+                str(out),
+            ],
+            check=True,
+        )
         size = out.stat().st_size
         if size <= max_kb * 1024:
             break
@@ -90,8 +112,9 @@ def encode_mp4(frames: list[tuple[Path, float]], sounds: list[tuple[Path, float]
 CAPTION_HEIGHT = 22  # Pixels under the screen, before the GIF's 2x scale.
 
 
-def with_captions(frames: list[tuple[Path, float]], captions: list[tuple[int, str]],
-                  out_dir: Path) -> list[tuple[Path, float]]:
+def with_captions(
+    frames: list[tuple[Path, float]], captions: list[tuple[int, str]], out_dir: Path
+) -> list[tuple[Path, float]]:
     """The frames with a caption strip under the screen: each frame shows the
     last caption set at or before its time (Device.caption). Writes PNGs to
     out_dir and returns them with the same durations."""
@@ -126,7 +149,7 @@ def with_captions(frames: list[tuple[Path, float]], captions: list[tuple[int, st
 # Touch marks: a ring where a finger lands, shown on the GIF frames only.
 TOUCH_LEAD_MS = 300  # The ring shows this long before the finger lands.
 TOUCH_FADE_MS = 450  # ...and fades out over this, after the finger lifts.
-TOUCH_STEP_MS = 50   # Frames of the fade, as a GIF frame rate.
+TOUCH_STEP_MS = 50  # Frames of the fade, as a GIF frame rate.
 _RING = (255, 255, 255)
 _EDGE = (20, 20, 24)
 _FILL = (60, 130, 255)  # Blue reads on the light cards and on the red app frame.
@@ -180,11 +203,14 @@ def _draw_button(draw, font, t: dict[str, Any], now: int, a: float, at: int, end
         a = max(a, 0.0)
     else:
         a = 1.0 if now < end - TOUCH_FADE_MS else (end - now) / TOUCH_FADE_MS
-    draw.rounded_rectangle((x0, y0, x1, y1), 12, fill=(*_EDGE, int(215 * a)),
-                           outline=(*_RING, int(200 * a)), width=1)
+    draw.rounded_rectangle((x0, y0, x1, y1), 12, fill=(*_EDGE, int(215 * a)), outline=(*_RING, int(200 * a)), width=1)
     r = 6 + 2 * (1.0 if at <= now < lifted else 0.0)
-    draw.ellipse((x0 + 14 - r, 208 - r, x0 + 14 + r, 208 + r), fill=(220, 40, 40, int(255 * a)),
-                 outline=(*_RING, int(255 * a)), width=1)
+    draw.ellipse(
+        (x0 + 14 - r, 208 - r, x0 + 14 + r, 208 + r),
+        fill=(220, 40, 40, int(255 * a)),
+        outline=(*_RING, int(255 * a)),
+        width=1,
+    )
     draw.text((x0 + 26, 208), label, font=font, anchor="lm", fill=(*_RING, int(255 * a)))
 
 
@@ -215,8 +241,9 @@ def _draw_touch(draw, font, t: dict[str, Any], now: int, start: int, at: int, en
     x, y = _finger_at(draw, t, now, a, at)
     r = 11 + 7 * grow
     draw.ellipse((x - r - 2, y - r - 2, x + r + 2, y + r + 2), outline=(*_EDGE, int(170 * a)), width=2)
-    draw.ellipse((x - r, y - r, x + r, y + r), fill=(*_FILL, int(150 * fill * a)),
-                 outline=(*_RING, int(255 * a)), width=2)
+    draw.ellipse(
+        (x - r, y - r, x + r, y + r), fill=(*_FILL, int(150 * fill * a)), outline=(*_RING, int(255 * a)), width=2
+    )
 
 
 def _end_on_screen_change(windows: list, frames: list[tuple[Path, float]], starts: list[int]) -> None:
@@ -259,9 +286,13 @@ def _marked_frame(path: Path, now: int, windows: list, font):
     return frame.convert("RGB")
 
 
-def with_touches(frames: list[tuple[Path, float]], touches: list[dict[str, Any]],
-                 skipped: list[tuple[int, int]], out_dir: Path,
-                 split_at: list[int] = ()) -> list[tuple[Path, float]]:
+def with_touches(
+    frames: list[tuple[Path, float]],
+    touches: list[dict[str, Any]],
+    skipped: list[tuple[int, int]],
+    out_dir: Path,
+    split_at: list[int] = (),
+) -> list[tuple[Path, float]]:
     """The frames, all as PNG (ffmpeg's concat reads every file with the
     first one's decoder), with a mark wherever the runner touched (Device.touches):
     a ring that shows just before the finger lands, a dot while it is down,

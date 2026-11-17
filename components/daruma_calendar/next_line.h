@@ -49,10 +49,10 @@ class NextEventLine {
   std::vector<CalendarApp *> apps_;
   esphome::display::BaseFont *font_{nullptr};
   LineText text_;
-  Rect drawn_;  // The pill on screen now; empty when none.
-  std::string fitted_;     // text_.title cut to fit (measure_).
-  int fitted_w_{0};        // The pill's own width for it.
-  int fitted_for_{-1};     // The region width it was cut for; -1: measure again.
+  Rect drawn_;          // The pill on screen now; empty when none.
+  std::string fitted_;  // text_.title cut to fit (measure_).
+  int fitted_w_{0};     // The pill's own width for it.
+  int fitted_for_{-1};  // The region width it was cut for; -1: measure again.
   const Persona *persona_{nullptr};
   int minute_{-1};
   bool dirty_{true};

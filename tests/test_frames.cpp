@@ -158,8 +158,7 @@ static bool read_set(FILE *f, Set *set) {
           return false;
         st->data[i] = (uint8_t) v;
       }
-      st->sprite = std::make_unique<Sprite>(w, h, bits, clear, colors, st->palette.data(), st->data.data(),
-                                            base >= 0);
+      st->sprite = std::make_unique<Sprite>(w, h, bits, clear, colors, st->palette.data(), st->data.data(), base >= 0);
       set->frames.push_back(FrameRef{st->sprite.get(), (int16_t) base, (int16_t) x, (int16_t) y});
       set->stored.push_back(std::move(st));
     } else if (strcmp(kind, "expect") == 0) {

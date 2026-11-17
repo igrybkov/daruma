@@ -42,8 +42,10 @@ BARK_LIGHT = (140, 104, 74)
 BARK_DARK = (70, 48, 36)
 
 # Foliage tones: dark, mid, light, highlight.
-LEAF = {False: ((38, 84, 52), (60, 120, 62), (98, 160, 80), (150, 198, 104)),
-        True: ((104, 74, 40), (150, 108, 50), (186, 144, 70), (210, 176, 98))}
+LEAF = {
+    False: ((38, 84, 52), (60, 120, 62), (98, 160, 80), (150, 198, 104)),
+    True: ((104, 74, 40), (150, 108, 50), (186, 144, 70), (210, 176, 98)),
+}
 
 # The full tree, as points up the trunk from the soil (x, y).
 TRUNK = [(94, 38), (93, 36), (92, 34), (92, 32), (93, 30), (95, 28), (96, 26), (95, 24), (94, 23)]
@@ -191,7 +193,7 @@ def _seedling(L: Layer, wilted: bool) -> None:
 def _fallen(L: Layer, stage: int) -> None:
     """A few dead needles on the table, more on a bigger tree."""
     spots = [(CX - 7, TABLE_TOP - 1), (CX + 7, TABLE_TOP - 1), (CX - 6, TABLE_TOP - 1), (CX + 6, TABLE_TOP - 1)]
-    for x, y in spots[:1 + stage // 2]:
+    for x, y in spots[: 1 + stage // 2]:
         L.dot(x, y, LEAF[True][1])
 
 

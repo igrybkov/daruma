@@ -81,10 +81,10 @@ module fully before you write one.
    still draw.
 8. **Golden pictures.** The `tour`, `emotions` and `activities` scenarios
    are checked for every persona:
-   `uv run demos/record.py --update-golden --personas "<Name>" --scenario tour,emotions,activities`,
+   `make update-golden CONFIRM=1 PERSONA="<Name>" SCENARIO=tour,emotions,activities`,
    then look at the new pictures in `tests/golden/<slug>/`.
-9. **Full checks.** `uv run demos/record.py --test` and
-   `uv run pytest demos`.
+9. **Full checks.** `uv run pytest demos`. It runs the scenario files
+   and the Python screen tests.
 10. **Size.** Compile `examples/box3.yaml` and compare the flash line with
     the build before. A pixel persona's frames take tens of KB, not
     hundreds.

@@ -15,10 +15,10 @@ SHELL := /bin/sh
 # --- Variables -----------------------------------------------------------
 
 EXAMPLE ?= ## An example in examples/, without .yaml (config: all; compile: box3)
-PERSONA ?= ## Personas to record or update, comma-separated (default: all)
-SCENARIO ?= ## Scenarios to record or update, comma-separated (default: all)
+PERSONA ?= ## Personas to record, check or update, comma-separated (default: all)
+SCENARIO ?= ## Scenarios to record, check or update, comma-separated (default: all)
 VARIANT ?= ## Screen for gifs: standard, wide or square (default: standard)
-JOBS ?= ## Runs at a time for record.py (default: up to 4)
+JOBS ?= ## Runs at a time for gifs (default: up to 4); pytest takes -n in PYTEST_ARGS
 DOCS ?= ## Where gifs writes the GIFs (default: docs/demos)
 PYTEST_ARGS ?= ## Extra pytest arguments, for example "-n 0" or "-k corgi"
 DOCKER_CMD ?= ## A command for docker-test (default: golden and screen tests)
@@ -49,6 +49,11 @@ RECORD := $(UV_RUN) python demos/record.py \
 	$(if $(SCENARIO),--scenario '$(SCENARIO)') \
 	$(if $(DARUMA_WORK),--out '$(DARUMA_WORK)') \
 	$(if $(JOBS),--jobs $(JOBS))
+
+# The scenario tests that PERSONA= and SCENARIO= pick (demos/conftest.py).
+SCREENS := $(UV_RUN) pytest demos \
+	$(if $(PERSONA),--persona '$(PERSONA)') \
+	$(if $(SCENARIO),--scenario '$(SCENARIO)')
 
 # clang-tidy on macOS needs the SDK's headers.
 ifeq ($(shell uname -s),Darwin)
@@ -167,20 +172,21 @@ mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a survi
 	$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)' || status=1; \
 	exit $$status
 
-screens: golden test-screens ## The golden check, then the screen tests; make -k runs both on a failure
+screens: secrets ## The golden check and the screen tests, in one pytest run (PERSONA=, SCENARIO=, PYTEST_ARGS=)
+	$(SCREENS) $(PYTEST_ARGS)
 
-golden: secrets ## Check the screens against the golden pictures (PERSONA=, SCENARIO=, JOBS=)
-	$(RECORD) --test
+golden: secrets ## Check the scenarios against the golden pictures (PERSONA=, SCENARIO=, PYTEST_ARGS=)
+	$(SCREENS) -m scenario $(PYTEST_ARGS)
 
-test-screens: secrets ## Screen tests in pytest on the desktop build (PYTEST_ARGS=)
-	$(UV_RUN) pytest demos $(PYTEST_ARGS)
+test-screens: secrets ## The screen tests in Python, without the scenarios (PYTEST_ARGS=)
+	$(UV_RUN) pytest demos -m "not scenario" $(PYTEST_ARGS)
 
 update-golden: secrets ## Write new golden pictures; needs CONFIRM=1 (PERSONA=, SCENARIO=)
 ifneq ($(CONFIRM),1)
 	@echo "update-golden rewrites tests/golden. Run: make update-golden CONFIRM=1" >&2
 	@exit 1
 endif
-	$(RECORD) --update-golden
+	$(SCREENS) -m scenario --update-golden $(PYTEST_ARGS)
 
 gifs: secrets ## Record demo GIFs (PERSONA=, SCENARIO=, VARIANT=, DOCS=, JOBS=)
 	$(RECORD) $(if $(VARIANT),--variant $(VARIANT)) $(if $(DOCS),--docs '$(DOCS)')

@@ -35,7 +35,6 @@ EOF
 
 if [ $# -eq 0 ]; then
   set -- bash -c 'uv sync --locked --only-group test --no-install-project \
-    && uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK" \
     && uv run --no-sync pytest demos -n auto -p no:cacheprovider --basetemp="$DARUMA_WORK/pytest"'
 fi
 

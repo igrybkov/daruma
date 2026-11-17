@@ -54,6 +54,33 @@ jobs:
         if: ${{ !cancelled() && matrix.python == 'pinned' }}
         run: tests/run_cpp.sh
 
+  # Mutation tests of the lines a pull request changes (docs/testing.md).
+  # It fails on a mutant no test catches, but it is not a required check:
+  # a person decides whether to add a test or mark the line.
+  mutation:
+    name: Mutation tests (changed lines)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      # The whole history, for the merge base with the pull request's base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the test tools and mutmut
+        run: uv sync --locked --only-group test --only-group mutation --no-install-project
+      - name: Run the mutation tests
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: make mutate-diff BASE="$BASE" UV_RUN="uv run --no-sync"
+
   # Every check runs, even after one fails, so one run shows them all.
   lint:
     name: Lint
@@ -337,9 +364,10 @@ jobs:
           if-no-files-found: ignore
 
   # Coverage: which code the tests run. It has jobs of its own, beside the
-  # test jobs, so no test job gets slower. It only reports: no number fails
-  # the build. The coverage jobs build the C++ with gcc's --coverage and run
-  # the Python under coverage.py; "Coverage report" joins their data.
+  # test jobs, so no test job gets slower. The coverage jobs build the C++
+  # with gcc's --coverage and run the Python under coverage.py; "Coverage
+  # report" joins their data. On a pull request it checks two rules
+  # (tests/coverage_comment.py) and fails when one breaks.
   coverage-host:
     name: Coverage (host tests)
     runs-on: ubuntu-26.04
@@ -473,8 +501,6 @@ jobs:
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
-      # The pull request's own commit, not the merge with main: the
-      # coverage comment maps the line numbers onto the pull request's diff.
       # The pull request's own commit, so line numbers match its diff. The
       # whole history, for that diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -495,19 +521,34 @@ jobs:
           pattern: coverage-*
           path: ${{ env.COVERAGE_DIR }}/jobs
       # coverage.py maps the build's copy of the sources back onto this
-      # checkout ([tool.coverage.paths] in pyproject.toml).
+      # checkout ([tool.coverage.paths] in pyproject.toml). The host tests'
+      # data on its own gives the "tested" Python number; every job's data
+      # also counts the code that runs in the builds. The first combine
+      # keeps its input, which the second one reads. Its data file is named
+      # .coverage, in a folder of its own: combine only reads files named
+      # like the data file. When the host tests failed, there is no host
+      # data and no tested number.
       - name: Join the Python coverage
         run: |
+          if [ -d "$COVERAGE_DIR/jobs/coverage-host/python" ]; then
+            mkdir -p "$COVERAGE_DIR/tested"
+            uv run --no-sync coverage combine --keep --data-file="$COVERAGE_DIR/tested/.coverage" \
+              "$COVERAGE_DIR"/jobs/coverage-host/python
+            uv run --no-sync coverage json --data-file="$COVERAGE_DIR/tested/.coverage" \
+              -o "$COVERAGE_DIR/python-tested.json"
+          fi
           uv run --no-sync coverage combine --data-file="$COVERAGE_DIR/.coverage" "$COVERAGE_DIR"/jobs/*/python
           uv run --no-sync coverage json --data-file="$COVERAGE_DIR/.coverage" -o "$COVERAGE_DIR/python.json"
       - name: Write the report
         run: |
           uv run --no-sync python tests/coverage_report.py --lines "$COVERAGE_DIR"/jobs/*/cpp-*.json \
-            --python "$COVERAGE_DIR/python.json" --out "$COVERAGE_DIR/report"
+            --python "$COVERAGE_DIR/python.json" --tested-python "$COVERAGE_DIR/python-tested.json" \
+            --out "$COVERAGE_DIR/report"
           {
             echo "### Coverage"
             echo "Lines the tests run, by area. C++ from the host tests and the desktop build"
-            echo "under the screen tests; Python from the host tests and ESPHome's code generation."
+            echo "under the screen tests. Python tested: from the host tests. Python run in builds:"
+            echo "also ESPHome's config checks and code generation, which run in every build."
             echo "Per file: files.md in the coverage artifact."
             echo
             cat "$COVERAGE_DIR/report/summary.md"
@@ -530,6 +571,9 @@ jobs:
           else
             echo "No coverage from main to compare with."
           fi
+      # Checks the rules too. It writes "pass" or "fail" to status.txt and
+      # succeeds either way, so the comment goes up before the job fails.
+      # The thresholds are in tests/coverage_comment.py.
       - name: Write the comment
         if: github.event_name == 'pull_request'
         env:
@@ -537,8 +581,10 @@ jobs:
         run: |
           git diff -U0 "$BASE...HEAD" -- components pixel > "$COVERAGE_DIR/pr.diff"
           uv run --no-sync python tests/coverage_comment.py "$COVERAGE_DIR/report/lines.json" \
-            --base "$COVERAGE_DIR/main/lines.json" --base-run "${BASE_RUN:-}" \
-            --diff "$COVERAGE_DIR/pr.diff" --out "$COVERAGE_DIR/comment.md"
+            --tested "$COVERAGE_DIR/report/tested.json" \
+            --base "$COVERAGE_DIR/main/lines.json" --base-tested "$COVERAGE_DIR/main/tested.json" \
+            --base-run "${BASE_RUN:-}" --diff "$COVERAGE_DIR/pr.diff" \
+            --out "$COVERAGE_DIR/comment.md" --status "$COVERAGE_DIR/status.txt"
       # One comment, updated on every push. A pull request from a fork gets
       # a read-only token, so no comment.
       - name: Comment on the pull request
@@ -547,6 +593,13 @@ jobs:
         with:
           header: coverage
           path: ${{ env.COVERAGE_DIR }}/comment.md
+      - name: Check the coverage rules
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ "$(cat "$COVERAGE_DIR/status.txt")" != pass ]; then
+            echo "::error::A coverage rule failed. The coverage comment, or the log of \"Write the comment\", shows which."
+            exit 1
+          fi
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the

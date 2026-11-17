@@ -42,7 +42,7 @@ struct Now {
   Phase phase{Phase::IDLE};
   bool paused{false};
   // Seconds since the last finished focus; negative when none today.
-  int32_t since_focus_end{-1};
+  int32_t since_focus_end{-1};  // pragma: no mutate (any negative number means the same)
   // That focus earned a long break (it was the Nth of the day).
   bool earned_long{false};
   int32_t short_break_s{5 * 60};
@@ -50,7 +50,12 @@ struct Now {
 };
 
 // True after every `every`-th pomodoro of the day.
-inline bool earns_long(int done, int every) { return done > 0 && every > 0 && done % every == 0; }
+inline bool earns_long(int done, int every) {
+  // Zero would divide by zero below, which has no defined result to test.
+  if (every <= 0)  // pragma: no mutate
+    return false;
+  return done > 0 && done % every == 0;
+}
 
 inline bool break_window(const Now &n) {
   if (n.phase != Phase::IDLE || n.since_focus_end < 0)

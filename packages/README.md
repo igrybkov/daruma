@@ -1,70 +1,95 @@
 # Packages
 
-Daruma is built from parts, and each package is one part: a board, the
-core, a persona or a feature. Your device file stays short. It names the
-parts you want, and ESPHome fetches them from this repository. To get a
-new version, change the `ref`.
+Daruma is an animated companion on a small screen. It runs on an
+ESP32-S3-BOX-3, and [Home Assistant](https://www.home-assistant.io/)
+controls it. You build its firmware with [ESPHome](https://esphome.io/)
+from one YAML file, the **device file**.
 
-A package is an
-[ESPHome package](https://esphome.io/components/packages/): a YAML file
-that ESPHome merges into your device's config. List it under
-`packages:` to turn the part on. Leave it out and the part is gone, with
-nothing else to remove. Each file's header comment has its options and
-the Home Assistant actions it adds.
+Daruma comes in parts, and each file in this folder is one part: the
+hardware, the core, a look, or a feature. You pick the parts you want.
+Your device file only lists them, so it stays short. ESPHome downloads
+the parts from this repository when it builds.
 
-For a full device file, see [examples/box3.yaml](../examples/box3.yaml).
+A [package](https://esphome.io/components/packages/) is ESPHome's word
+for such a part. It's a YAML file that ESPHome merges into your device
+file. Here is a small device file:
 
-## Board: pick one
+```yaml
+packages:
+  daruma:
+    url: https://github.com/igrybkov/daruma
+    ref: main            # which version of Daruma to use
+    files:
+      - packages/board_box3.yaml
+      - packages/core.yaml
+      - packages/persona_daruma.yaml
+      - packages/menu.yaml
+      - packages/pomodoro.yaml
+```
+
+To add a feature, add its line. To remove one, delete its line. Nothing
+else needs to change. To update Daruma, change `ref` to a newer version.
+
+Each file starts with a comment. It lists the file's options, and what
+it lets Home Assistant do. For a full device file, see
+[examples/box3.yaml](../examples/box3.yaml).
+
+## The hardware: pick one
+
+A **board** package tells Daruma what hardware it runs on: the screen,
+the buttons, the touch screen, the speaker.
 
 | Package | What it is |
 |---|---|
-| [board_box3.yaml](board_box3.yaml) | The ESP32-S3-BOX-3 with touch and both buttons. |
-| [board_box3_buttons.yaml](board_box3_buttons.yaml) | The same BOX-3, driven by its two buttons only. |
-| [board_desktop.yaml](board_desktop.yaml) | A window on a computer, for demos and tests. |
+| [board_box3.yaml](board_box3.yaml) | The ESP32-S3-BOX-3, with touch and both buttons. |
+| [board_box3_buttons.yaml](board_box3_buttons.yaml) | The same BOX-3, used with its two buttons only. |
+| [board_desktop.yaml](board_desktop.yaml) | A window on a computer, for trying things out and for tests. |
 
-The two BOX-3 boards share
-[board_box3_hardware.yaml](board_box3_hardware.yaml): the screen, audio,
-buttons and touch. It pulls in
-[core_voice.yaml](core_voice.yaml): the voice assistant, wake word,
-speaker and Wi-Fi. You don't list either of them yourself.
+You don't list [board_box3_hardware.yaml](board_box3_hardware.yaml) or
+[core_voice.yaml](core_voice.yaml) yourself. Both BOX-3 boards bring
+them in. They hold the screen setup, the audio and the voice assistant.
 
-## Core: always
+## The core: always
 
 | Package | What it is |
 |---|---|
-| [core.yaml](core.yaml) | The hub: state, mood, signals, input, sounds and drawing. |
+| [core.yaml](core.yaml) | The part every device needs. It decides what the device shows, handles taps and buttons, plays sounds and draws the screen. |
 
-## Personas: one or more
+## Looks: one or more
 
-The first one listed is the default. The "Persona" select in Home
-Assistant switches between them.
+A **persona** is one look of the device: a character with its own
+animations. List as many as you like. The first one is the default. You
+switch between them with the "Persona" setting in Home Assistant, or by
+swiping left or right on the screen.
 
 | Package | What it is |
 |---|---|
-| [persona_daruma.yaml](persona_daruma.yaml) | A pixel-art daruma doll that paints its eyes as you reach today's goal. |
+| [persona_daruma.yaml](persona_daruma.yaml) | A pixel-art daruma doll. It paints in its eyes as you reach today's goal. |
 | [persona_pixel_corgi.yaml](persona_pixel_corgi.yaml) | A pixel-art corgi in a cozy room. |
 | [persona_jack_russell.yaml](persona_jack_russell.yaml) | A pixel-art Jack Russell terrier. |
 | [persona_tabby_cat.yaml](persona_tabby_cat.yaml) | A pixel-art tabby cat. |
 | [persona_the_boss.yaml](persona_the_boss.yaml) | A pixel-art executive at her desk. |
-| [persona_eyes.yaml](persona_eyes.yaml) | Eyes drawn from shapes. |
-| [persona_images.yaml](persona_images.yaml) | A persona from PNG pictures. Include it once per picture set. |
+| [persona_eyes.yaml](persona_eyes.yaml) | A pair of eyes drawn from simple shapes. |
+| [persona_images.yaml](persona_images.yaml) | Your own pictures, one PNG for each mood or activity. List it once for each set of pictures. |
 
-## Modules: any you want
+## Features: any you want
 
-| Package | What it adds | Needs |
+Each of these adds something the device can do. Some need another
+package too. The last column says which.
+
+| Package | What it adds | Also needs |
 |---|---|---|
-| [menu.yaml](menu.yaml) | The tap menu. Without it, a tap pets the persona. | core |
-| [pomodoro.yaml](pomodoro.yaml) | A pomodoro timer, a daily goal and tomatoes. | core |
-| [prompts.yaml](prompts.yaml) | Cards that Home Assistant shows, and the answers sent back. | core |
-| [app_tasks.yaml](app_tasks.yaml) | Today's tasks from a to-do list or a script. Include it once per list. | core, menu |
-| [app_calendar.yaml](app_calendar.yaml) | The coming events of one or more calendars. Include it once per set. | core, menu |
-| [app_weather.yaml](app_weather.yaml) | Today's weather from a weather entity. | core, menu |
+| [menu.yaml](menu.yaml) | A menu that opens when you tap the screen. Without it, a tap pets the character. | |
+| [pomodoro.yaml](pomodoro.yaml) | A focus timer ([pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique)). You set a daily goal in sessions, and the screen shows a tomato for each one. | |
+| [prompts.yaml](prompts.yaml) | Cards: full-screen messages from Home Assistant, with buttons to answer. See [prompts.md](../docs/prompts.md). | |
+| [app_tasks.yaml](app_tasks.yaml) | An app with today's tasks, from a Home Assistant to-do list. You can check tasks off. List it once for each to-do list. | menu |
+| [app_calendar.yaml](app_calendar.yaml) | An app with your coming calendar events. List it once for each group of calendars. | menu |
+| [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |
 
 ## More
 
-- How to set options and include a package twice:
+- Change a part's options, or list one twice:
   [customize.md](../docs/customize.md).
-- Packages from your own repository:
+- Keep your own parts in your own repository:
   [private-packages.md](../docs/private-packages.md).
-- How to write a module or a persona:
-  [docs/architecture/](../docs/architecture/README.md).
+- Write a new part: [docs/architecture/](../docs/architecture/README.md).

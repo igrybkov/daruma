@@ -1,35 +1,50 @@
 # Blueprints
 
-Home Assistant blueprints that use the device. Each one started as a real
-automation and was made generic: every entity is an input.
+Daruma is an animated companion on a small screen. It runs on an
+ESP32-S3-BOX-3, and [Home Assistant](https://www.home-assistant.io/)
+controls it. This folder holds blueprints that make Home Assistant use
+the device.
+
+A [blueprint](https://www.home-assistant.io/docs/blueprint/) is a
+reusable automation or script for Home Assistant. You import it once.
+Then you make an automation or a script from it, and fill in your own
+entities: your doorbell, your lock, your device. You don't write any
+YAML yourself.
+
+## What's here
+
+Most of these use **cards**. A card is a full-screen message on the
+device, with buttons to answer. The device sends the answer back to Home
+Assistant, and the automation acts on it. [prompts.md](../docs/prompts.md)
+explains cards. It also has an import button for each blueprint.
 
 | Blueprint | Kind | What it does |
 |---|---|---|
-| [prompt_demos](script/prompt_demos.yaml) | script | Shows every kind of card (yes/no with `ask`, an urgent alert, a card that stays, a list, two stacked alerts) and the answer it sent back. |
-| [doorbell_prompt](automation/doorbell_prompt.yaml) | automation | Shows an urgent prompt when someone rings: Unlock, Talk or Ignore. |
-| [quiz](script/quiz.yaml) | script | A multiple-choice quiz with scores and a 50:50 lifeline. |
-| [task_list](script/task_list.yaml) | script | Returns a sensor attribute's task list, trimmed, for the Tasks app's "Script" source. |
+| [prompt_demos](script/prompt_demos.yaml) | script | A two-minute tour of every kind of card: a yes/no question, an urgent alert, a card that stays, a scrolling list, two alerts at once. After each one, it shows the answer the device sent back. Start here. |
+| [doorbell_prompt](automation/doorbell_prompt.yaml) | automation | When your doorbell rings, the device shows "Someone's at the door" with Unlock, Talk and Ignore. Unlock opens the lock you pick. Talk runs an action you pick, such as a two-way audio call. |
+| [quiz](script/quiz.yaml) | script | A quiz from your own list of questions. Each question has four answers and a 50:50 button that hides two wrong ones, once per game. The device keeps the score. |
+| [task_list](script/task_list.yaml) | script | Not a card. The device's Tasks app can show tasks from a to-do list or from a script. This script reads a list of tasks from a sensor, so the app can show them. |
 
-Import buttons are in [prompts.md](../docs/prompts.md).
+## Writing a new blueprint
 
-## Writing a blueprint
-
-- Use only what the framework offers: API actions, events and entities.
-  Then the blueprint works on any board and any persona.
-- Make every entity an input. Don't name a real device or a real house.
-- Add a blueprint when an automation in a real house proves useful.
-- How the device talks to Home Assistant:
+- Use only what Daruma offers Home Assistant: its actions, its events
+  and its entities. Then the blueprint works on any Daruma device, with
+  any look.
+- Make every entity an input. Never name a real device or a real house.
+- Add a blueprint here when an automation proves useful in a real home.
+- For how the device and Home Assistant talk:
   [Talking to Home Assistant](../docs/architecture/home-assistant.md) and
   [Prompts](../docs/architecture/prompts.md).
 
 ## Ideas
 
-Not built yet.
+These are not built yet. Each one would be a good blueprint to write
+next.
 
 | Blueprint | Kind | What it would do |
 |---|---|---|
-| `joke_after_focus` | automation | After a focus session or the daily goal, asks an AI task for a short joke and shows it on the device. |
-| `window_weather` | automation | Sets the persona's window sky from a weather entity, and the temperature badge from a sensor. |
-| `quiet_during_calls` | automation | While a call is on, mutes the device's sounds, speaker and mic, and restores them after. |
-| `goal_nudge` | automation | Late in the day, if the daily goal is still far off, the device looks sad and offers to start a focus session. |
-| `calendar_heads_up` | automation | A few minutes before a meeting, shows an info prompt with the title and a "Start focus after" option. |
+| `joke_after_focus` | automation | After a focus session, or when you reach the daily goal, ask an AI for a short joke and show it on the device. |
+| `window_weather` | automation | Set the sky in the window behind the character from a weather entity, and the temperature on screen from a sensor. |
+| `quiet_during_calls` | automation | While you're on a call, mute the device's sounds, speaker and mic. Turn them back on after. |
+| `goal_nudge` | automation | Late in the day, if the daily goal is still far off, make the device look sad and offer to start a focus session. |
+| `calendar_heads_up` | automation | A few minutes before a meeting, show a card with its title and a "Start focus after" button. |

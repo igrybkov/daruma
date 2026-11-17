@@ -21,11 +21,9 @@ from __future__ import annotations
 from PIL import Image, ImageDraw
 
 from .desk_boss import (
-    DESK_Y,
     HAPPY,
     READING,
     SAD,
-    DeskColors,
     H,
     Look,
     Persona,
@@ -39,8 +37,10 @@ from .desk_boss import (
     shoulder,
     with_,
 )
+from .office import DeskColors
 from .personas import Spec
 from .pixelkit import Canvas, Ramp, ellipse, mask, poly, subtract
+from .scene import Spot
 
 OUTLINE = (34, 26, 30)
 SKIN = Ramp(base=(186, 126, 90), shadow=(154, 100, 70), light=(206, 150, 112), line=(122, 76, 54))
@@ -78,10 +78,12 @@ METAL = Ramp(base=(194, 198, 206), shadow=(156, 160, 170), light=(222, 226, 232)
 
 # --- Office -----------------------------------------------------------------
 
+DESK_AT = Spot(W // 2, 61)  # The middle of her desk's top edge; she sits behind it.
+
 
 def office(img: Image.Image) -> None:
     d = ImageDraw.Draw(img)
-    d.rectangle((0, 44, W, DESK_Y), fill=WALL_LOW)  # Two-tone wall with a trim line.
+    d.rectangle((0, 44, W, DESK_AT.y), fill=WALL_LOW)  # Two-tone wall with a trim line.
     d.line((0, 43, W, 43), fill=TRIM)
 
     # Wall clock, top right: no numbers, hands at ten past ten.
@@ -112,14 +114,21 @@ def office(img: Image.Image) -> None:
     c = Canvas(W, H)
     leaves = [(102, 36, 3), (90, 30, -3), (98, 22, 1), (93, 25, -1), (95, 40, 0)]
     for x, tip, lean in leaves:
-        mid = (tip + DESK_Y) // 2
+        mid = (tip + DESK_AT.y) // 2
         leaf, ld = mask((W, H))
         poly(
-            ld, [(x - 1, DESK_Y), (x + 1, DESK_Y), (x + 2 + lean // 2, mid), (x + lean, tip), (x - 2 + lean // 2, mid)]
+            ld,
+            [
+                (x - 1, DESK_AT.y),
+                (x + 1, DESK_AT.y),
+                (x + 2 + lean // 2, mid),
+                (x + lean, tip),
+                (x - 2 + lean // 2, mid),
+            ],
         )
         c.paint(leaf, LEAF)
-        for y in range(tip + 5, DESK_Y - 2, 5):  # Darker bands across the leaf.
-            t = (y - tip) / (DESK_Y - tip)
+        for y in range(tip + 5, DESK_AT.y - 2, 5):  # Darker bands across the leaf.
+            t = (y - tip) / (DESK_AT.y - tip)
             lx = round(x + lean * (1 - t))
             c.dot(lx, y, LEAF.shadow)
     c.outline(OUTLINE)
@@ -129,29 +138,29 @@ def office(img: Image.Image) -> None:
 def desk_props(img: Image.Image, p: Pose) -> None:
     c = Canvas(W, H)
     if p.hand != "mug":  # She is holding it.
-        _mug(c, 9, DESK_Y - 7)
+        _mug(c, 9, DESK_AT.y - 7)
     # Desk sign: a slanted plaque with a check mark.
     sign, d = mask((W, H))
-    poly(d, [(20, DESK_Y - 1), (31, DESK_Y - 1), (30, DESK_Y - 6), (21, DESK_Y - 6)])
+    poly(d, [(20, DESK_AT.y - 1), (31, DESK_AT.y - 1), (30, DESK_AT.y - 6), (21, DESK_AT.y - 6)])
     c.paint(sign, Ramp(base=(58, 62, 72), shadow=(44, 46, 54)), shade=False)
     for x, y in ((23, -4), (24, -3), (25, -2), (26, -3), (27, -4), (28, -5)):
-        c.dot(x, DESK_Y + y, (236, 240, 236))
+        c.dot(x, DESK_AT.y + y, (236, 240, 236))
     # Laptop, open toward her: a plain lid and the edge of its base.
     lid, d = mask((W, H))
-    d.rectangle((75, DESK_Y - 13, 94, DESK_Y - 2), fill=1)
+    d.rectangle((75, DESK_AT.y - 13, 94, DESK_AT.y - 2), fill=1)
     c.paint(lid, METAL)
-    c.line([(77, DESK_Y - 2), (92, DESK_Y - 2)], (92, 96, 106))  # Hinge.
-    c.line([(74, DESK_Y - 1), (95, DESK_Y - 1)], METAL.shadow)  # Base.
+    c.line([(77, DESK_AT.y - 2), (92, DESK_AT.y - 2)], (92, 96, 106))  # Hinge.
+    c.line([(74, DESK_AT.y - 1), (95, DESK_AT.y - 1)], METAL.shadow)  # Base.
     # Cup of pens, far left.
     cup, d = mask((W, H))
-    d.rectangle((1, DESK_Y - 6, 5, DESK_Y - 1), fill=1)
+    d.rectangle((1, DESK_AT.y - 6, 5, DESK_AT.y - 1), fill=1)
     c.paint(cup, Ramp(base=(70, 74, 84), shadow=(52, 54, 62)), shade=False)
     for x, top, color in (
-        (2, DESK_Y - 10, (60, 110, 196)),
-        (4, DESK_Y - 9, (214, 64, 64)),
-        (3, DESK_Y - 11, (40, 40, 44)),
+        (2, DESK_AT.y - 10, (60, 110, 196)),
+        (4, DESK_AT.y - 9, (214, 64, 64)),
+        (3, DESK_AT.y - 11, (40, 40, 44)),
     ):
-        for y in range(top, DESK_Y - 6):
+        for y in range(top, DESK_AT.y - 6):
             c.dot(x, y, color)
     c.outline(OUTLINE)
     img.alpha_composite(c.img)
@@ -377,7 +386,7 @@ def mouth(c: Canvas, kind: str, x: int, y: int) -> None:
 def check_watch(c: Canvas, r: Rig) -> None:
     """Left forearm raised across the chest, the watch face turned toward her."""
     desk_hands(c, r, (-1,))
-    wrist = raised_arm(c, r.look, shoulder(r, 1), (r.cx + 19, DESK_Y - 4), (r.cx - 1, r.top + 10), "fist")
+    wrist = raised_arm(c, r.look, shoulder(r, 1), (r.cx + 19, r.desk.y - 4), (r.cx - 1, r.top + 10), "fist")
     wx, wy = round(wrist[0]) + 1, round(wrist[1]) - 1
     for dx in (-1, 0, 1):  # Gold case around a white face.
         for dy in (-1, 0, 1):
@@ -391,7 +400,7 @@ def sip(c: Canvas, r: Rig) -> None:
     mx, my = r.at(*r.look.nose_at)
     my += r.look.mouth_drop - 1
     _mug(c, mx - 2, my, handle=-1)
-    raised_arm(c, r.look, shoulder(r, -1), (r.cx - 13, DESK_Y - 1), (mx - 5, my + 4), "fist")
+    raised_arm(c, r.look, shoulder(r, -1), (r.cx - 13, r.desk.y - 1), (mx - 5, my + 4), "fist")
 
 
 LOOK = Look(
@@ -418,13 +427,13 @@ LOOK = Look(
     glasses=frames(FRAMES),
     gestures={"watch": check_watch, "mug": sip},
     head_scale=1.15,
-    neck_y=39,
+    neck_rise=22,
     eye_at=(3.8, -2),
     mouth_drop=7,
     tear_at=(-3.8, 0.5),
 )
 
-_boss = Persona(LOOK)
+_boss = Persona(LOOK, desk=DESK_AT)
 background, foreground, scene = _boss.background, _boss.foreground, _boss.scene
 WINDOW = None
 

@@ -142,7 +142,9 @@ The library is the Python package `daruma_pixel`
   cats share `cat.py`. See [jack_russell.py](../pixel/daruma_pixel/jack_russell.py)
   and [tabby_cat.py](../pixel/daruma_pixel/tabby_cat.py).
 - **`desk_boss`**: a person behind a desk. A **look** sets skin, hair,
-  clothes and desk props. See [the_boss.py](../pixel/daruma_pixel/the_boss.py).
+  clothes and desk props. The desk and chair are `office.py` props; the
+  look module says where the desk stands. See
+  [the_boss.py](../pixel/daruma_pixel/the_boss.py).
 
 The daruma is its own module ([daruma.py](../pixel/daruma_pixel/daruma.py)):
 a persona can also draw everything itself, as long as it offers the names

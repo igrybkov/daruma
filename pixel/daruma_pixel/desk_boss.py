@@ -3,12 +3,14 @@
 A Look says who sits at the desk: skin, hair, face parts, clothes, glasses,
 the room behind them and the props on the desk, plus any gestures of
 their own. The engine draws everything they share: body, arms and hands,
-chair, desk, the moods, and the layers the device needs.
+the moods, and the layers the device needs. The chair and desk are
+office.py's props; the person sits at the desk, whose top edge is the spot
+the look module passes in.
 
 A look module builds a Persona from its Look and exposes the same names
 every persona module has (see personas.py):
 
-    _boss = Persona(LOOK)
+    _boss = Persona(LOOK, desk=Spot(W // 2, 61))
     background, foreground, scene = _boss.background, _boss.foreground, _boss.scene
     WINDOW = None
     ANIMATIONS = animations(rest=NEUTRAL, neutral=[...])
@@ -24,12 +26,13 @@ from dataclasses import dataclass, field, replace
 
 from PIL import Image, ImageDraw
 
+from . import office
 from .effects import extras as _extras
+from .office import DeskColors
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, mask, poly, rotate
+from .scene import Spot
 
 W, H = 106, 80
-CX = W // 2
-DESK_Y = 61  # Top edge of the desk.
 
 PAPER = Ramp(base=(248, 248, 242), shadow=(214, 216, 210))
 PRINT = (150, 154, 160)
@@ -63,6 +66,7 @@ class Rig:
     look: Look
     cx: int
     top: int  # Shoulder line.
+    desk: Spot  # The middle of the desk's top edge.
     neck: tuple[int, int]
     head_c: tuple[int, int]
 
@@ -75,15 +79,6 @@ class Rig:
         """hp() snapped to the pixel grid."""
         px, py = self.hp(x, y)
         return round(px), round(py)
-
-
-@dataclass(frozen=True)
-class DeskColors:
-    top: Color
-    edge: Color  # The lit front edge of the top.
-    front: Color
-    line: Color  # Drawer outlines and the seam under the top.
-    handle: Color
 
 
 Hook = Callable[[Canvas, Rig], None]
@@ -138,7 +133,7 @@ class Look:
     gestures: dict[str, Hook] = field(default_factory=dict)  # Extra or replaced hand poses.
     # Proportions, in head space.
     head_scale: float = 1.25
-    neck_y: int = 37  # Top of the neck at rest.
+    neck_rise: int = 24  # Rows from the top of the neck down to the desk, at rest.
     eye_at: Point = (4, -2)  # Right eye; the left one is mirrored.
     nose_at: Point = (0, -0.5)
     mouth_drop: int = 9  # Pixels from the nose point down to the mouth.
@@ -291,7 +286,7 @@ def shoulder(r: Rig, side: int) -> Point:
 def desk_hands(c: Canvas, r: Rig, sides: tuple[int, ...] = (-1, 1)) -> None:
     """Arms down the sides, forearms on the desk, hands resting in the middle."""
     for side in sides:
-        raised_arm(c, r.look, shoulder(r, side), (r.cx + side * 18, DESK_Y - 2), (r.cx + side * 5, DESK_Y), "rest")
+        raised_arm(c, r.look, shoulder(r, side), (r.cx + side * 18, r.desk.y - 2), (r.cx + side * 5, r.desk.y), "rest")
 
 
 def _desk(c: Canvas, r: Rig) -> None:
@@ -307,7 +302,7 @@ def _thumbs(c: Canvas, r: Rig) -> None:
 def _chin(c: Canvas, r: Rig) -> None:
     """Elbow on the desk, fist under the chin."""
     desk_hands(c, r, (-1,))
-    raised_arm(c, r.look, shoulder(r, 1), (r.cx + 12, DESK_Y - 1), r.hp(2, 13), "fist")
+    raised_arm(c, r.look, shoulder(r, 1), (r.cx + 12, r.desk.y - 1), r.hp(2, 13), "fist")
 
 
 def _ear(c: Canvas, r: Rig) -> None:
@@ -329,7 +324,7 @@ def _paper(c: Canvas, r: Rig) -> None:
             if (x - cx + y) % 6 != 0:  # Gaps between words.
                 c.dot(x, y, PRINT)
     for side in (-1, 1):
-        raised_arm(c, r.look, shoulder(r, side), (cx + side * 19, DESK_Y - 1), (cx + side * 9, y0 + 8), "fist")
+        raised_arm(c, r.look, shoulder(r, side), (cx + side * 19, r.desk.y - 1), (cx + side * 9, y0 + 8), "fist")
 
 
 GESTURES: dict[str, Hook] = {"desk": _desk, "thumbs": _thumbs, "chin": _chin, "ear": _ear, "paper": _paper}
@@ -341,42 +336,27 @@ GESTURES: dict[str, Hook] = {"desk": _desk, "thumbs": _thumbs, "chin": _chin, "e
 class Persona:
     """A Look at its desk: the device layers and the full scene for any pose."""
 
-    def __init__(self, look: Look) -> None:
+    def __init__(self, look: Look, desk: Spot) -> None:
         self.look = look
+        self.at = desk  # The middle of the desk's top edge; the person sits behind it.
         self.gestures = {**GESTURES, **look.gestures}
 
     def chair(self, img: Image.Image) -> None:
         """High-back office chair, so the suit stands out from the wall."""
-        ramp = self.look.chair
-        c = Canvas(W, H)
-        back, d = mask((W, H))
-        d.rounded_rectangle((CX - 27, 30, CX + 27, DESK_Y + 4), radius=8, fill=1)
-        c.paint(back, ramp)
-        for x in (CX - 18, CX + 18):  # Stitched panels.
-            c.line([(x, 36), (x, DESK_Y)], ramp.shadow)
-        c.outline(self.look.outline)
-        img.alpha_composite(c.img)
+        office.chair(img, self.at, self.look.chair, self.look.outline)
 
     def desk(self, img: Image.Image, p: Pose) -> None:
-        dc = self.look.desk
-        d = ImageDraw.Draw(img)
-        d.rectangle((0, DESK_Y, W, DESK_Y + 4), fill=dc.top)
-        d.line((0, DESK_Y, W, DESK_Y), fill=dc.edge)
-        d.rectangle((0, DESK_Y + 5, W, H), fill=dc.front)
-        d.line((0, DESK_Y + 5, W, DESK_Y + 5), fill=dc.line)
-        for x in (12, W - 13):  # Drawer panels.
-            d.rectangle((x - 9, DESK_Y + 8, x + 9, H - 2), outline=dc.line)
-            d.rectangle((x - 2, DESK_Y + 12, x + 2, DESK_Y + 12), fill=dc.handle)
+        office.desk(img, self.at, self.look.desk)
         self.look.desk_props(img, p)
 
     def body(self, p: Pose) -> tuple[Image.Image, Image.Image]:
         """Returns (body behind the desk, arms and hands in front of it)."""
         look = self.look
         c = Canvas(W, H)
-        cx = CX
-        neck = (cx + p.head_dx, look.neck_y + p.head_dy)
-        top = 41 - p.breath
-        r = Rig(pose=p, look=look, cx=cx, top=top, neck=neck, head_c=(neck[0], neck[1] - 15))
+        cx, desk_y = self.at.x, self.at.y
+        neck = (cx + p.head_dx, desk_y - look.neck_rise + p.head_dy)
+        top = desk_y - 20 - p.breath
+        r = Rig(pose=p, look=look, cx=cx, top=top, desk=self.at, neck=neck, head_c=(neck[0], neck[1] - 15))
 
         torso, d = mask((W, H))
         ellipse(d, cx, top + 8, 21, 8)
@@ -410,7 +390,7 @@ class Persona:
             look.glasses(c, eyes)
 
         c.outline(look.outline)
-        _extras(c, tuple(e for e in p.extras if e != "tear"), cx, 76)
+        _extras(c, tuple(e for e in p.extras if e != "tear"), cx, desk_y + 15)
         if "tear" in p.extras:
             tx, ty = r.at(*look.tear_at)
             for dy in range(3):

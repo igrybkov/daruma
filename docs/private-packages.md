@@ -48,9 +48,10 @@ The easy way is a look on an engine. For a person at a desk:
 ```python
 # pixel/my_persona.py
 from daruma_pixel.desk_boss import Persona, Look, Pose, animations, with_
+from daruma_pixel.scene import Spot
 ...
 LOOK = Look(...)  # skin, hair, clothes, room, desk props
-_c = Persona(LOOK)
+_c = Persona(LOOK, desk=Spot(53, 61))  # the middle of the desk's top edge
 background, foreground, scene = _c.background, _c.foreground, _c.scene
 WINDOW = None
 ANIMATIONS = animations(rest=Pose(), ...)

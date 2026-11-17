@@ -44,7 +44,7 @@ GLASS = (255, 0, 255)  # A placeholder for the glass while drawing; never left i
 
 @dataclass(frozen=True)
 class LivingRoom:
-    """A living room with a couch. The defaults are the Jack Russell's."""
+    """A living room with a couch: linen walls, oak floor and a red throw by default."""
 
     wall: Color = (228, 214, 188)  # Linen wallpaper ...
     wall_stripe: Color = (216, 200, 170)  # ... with a fine stripe every 4 px.

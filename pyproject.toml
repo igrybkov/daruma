@@ -23,6 +23,7 @@ test = [
     { include-group = "pixel" },
     # The screen tests talk to the device with it. ESPHome pins the version.
     "aioesphomeapi",
+    "grimp>=3.5",
     "pillow>=10",
     "pytest>=9",
     "pytest-asyncio>=1.5",

@@ -143,3 +143,6 @@ make check
   editable by `uv sync`. A device build installs nothing: it puts every
   `pixel/*/src` on `sys.path`. `daruma_shapes` and `daruma_personas` are
   namespace packages, so they have no `__init__.py` at the top.
+- **Pixel layers.** A persona imports shapes and the drawing layer, never
+  another persona. A shape never imports a persona. The drawing layer
+  imports neither. `tests/test_pixel_layers.py` checks it.

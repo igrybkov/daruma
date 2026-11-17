@@ -89,6 +89,7 @@ Each member adds its own part, so the top folder has no `__init__.py`.
 `discover()` lists the personas in `daruma_personas`; no file lists them
 by hand. Imports only go down: a persona never imports another persona,
 a shape never imports a persona, and the drawing layer imports neither.
+`tests/test_pixel_layers.py` checks it with grimp.
 
 `uv sync` installs every member editable (the `pixel` group). Firmware
 builds install nothing: `daruma_sprites` puts every `pixel/*/src` of its

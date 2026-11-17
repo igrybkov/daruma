@@ -221,6 +221,14 @@ The update keeps a golden whose pixels did not change. It removes the
 goldens of frames a persona no longer draws. Open the changed pictures
 before you commit them.
 
+### Pixel layers
+
+`tests/test_pixel_layers.py` checks the imports between the pixel
+packages with grimp. Imports only go down: a persona imports shapes and
+`daruma_pixel`, a shape imports `daruma_pixel` and other shapes, and
+`daruma_pixel` imports neither. A persona never imports another persona.
+A failed check names the module, the line and the rule it breaks.
+
 ## Coverage
 
 CI measures which lines the tests run, in jobs beside the tests. The

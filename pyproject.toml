@@ -48,10 +48,17 @@ lint = [
     "pre-commit==4.7.0",
 ]
 tidy = ["clang-tidy==23.1.4"]
+# Coverage of the tests (CI's coverage jobs) for the Python. The C++ comes
+# from gcc's gcov (tests/coverage_report.py).
+coverage = [
+    "coverage>=7.6",
+    "pytest-cov>=6",
+]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
     { include-group = "tidy" },
+    { include-group = "coverage" },
 ]
 # The one place that names the ESPHome version the builds use.
 esphome = ["esphome==2026.10.2"]
@@ -94,6 +101,12 @@ testpaths = ["tests", "demos"]
 addopts = "-n auto"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+# coverage.py. The desktop build runs the components' Python from a scratch
+# copy (demos/harness.py); combine maps it back onto this checkout.
+[tool.coverage.paths]
+components = ["components/", "*/src/components/"]
+pixel = ["pixel/", "*/src/pixel/"]
 
 # Cognitive complexity (not cyclomatic) per function. Functions above the
 # limit today are listed in complexipy-snapshot.json and may not grow; a

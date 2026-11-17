@@ -111,6 +111,12 @@ class DeviceDecoderTest(unittest.TestCase):
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
         cls.binary = Path(cls._tmp.name) / "test_frames"
+        # For coverage, as tests/run_cpp.sh: extra flags, and a folder that
+        # keeps the program and its data. One program per worker.
+        flags = os.environ.get("CXXFLAGS", "").split()
+        if os.environ.get("DARUMA_CPP_OUT"):
+            cls.binary = Path(os.environ["DARUMA_CPP_OUT"]) / f"test_frames-{os.getpid()}"
+            cls.binary.parent.mkdir(parents=True, exist_ok=True)
         include = _HERE.parents[0] / "components" / "daruma"
         subprocess.run(
             [
@@ -120,6 +126,7 @@ class DeviceDecoderTest(unittest.TestCase):
                 "-Wextra",
                 "-Werror",
                 "-O1",
+                *flags,
                 f"-I{include}",
                 str(_HERE / "test_frames.cpp"),
                 "-o",

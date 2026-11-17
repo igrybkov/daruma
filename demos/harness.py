@@ -57,6 +57,10 @@ REPO_DIR = HERE.parent
 # default the build runs the version locked in uv.lock (the "esphome" group),
 # from the environment the harness runs in.
 ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME")
+# A folder turns on coverage: the build gets its own folder and the
+# --coverage flag (gcov), and ESPHome's Python runs under coverage.py, which
+# writes its data here. Normal builds stay as they are.
+COVERAGE = os.environ.get("DARUMA_COVERAGE")
 # uvx ignores .python-version, so the build passes it on.
 PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
@@ -161,26 +165,10 @@ def build(
     src = out / "src"
     _copy_sources(src)
     config_dir = src / "examples"
-    name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
-    if private_packages:
-        name += "-private"  # Its own build folder: the public build stays as it is.
-    if timezone != "UTC":
-        name += "-" + slug(timezone.split("/")[-1])[:10]  # Host names: at most 31 characters.
+    name = _build_name(variant, private_packages, timezone)
     subs = {"name": name, "desktop_api_port": str(port), "desktop_timezone": timezone, **VARIANTS[variant]}
-    yaml_name = DEVICE_YAML
-    private: set[str] = set()
-    if name != "daruma-desktop":
-        # ESPHome keeps a record of the last build per config file, and
-        # cleans the build folder when the name in it differs. A config file
-        # per build name keeps each build's objects for the next build.
-        lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
-        for i, pkg in enumerate(private_packages or []):
-            pkg = Path(pkg).resolve()
-            lines.append(f"  private_{i}: !include {pkg}")
-            private.add(_persona_name(pkg))
-        yaml_name = f"{name}.yaml"
-        (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
-    cmd, env = _esphome_command()
+    yaml_name, private = _write_config(config_dir, name, private_packages)
+    cmd, env = _esphome_command(src)
     for k, v in subs.items():
         cmd += ["-s", k, v]
     cmd += ["compile", yaml_name]
@@ -194,11 +182,54 @@ def build(
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
 
 
-def _esphome_command() -> tuple[list[str], dict[str, str]]:
-    """The command that runs ESPHome, and its environment."""
+def _build_name(variant: str, private_packages: list[str] | None, timezone: str) -> str:
+    """The build's name, which is also its folder: one per kind of build."""
+    name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
+    if private_packages:
+        name += "-private"  # Its own build folder: the public build stays as it is.
+    if timezone != "UTC":
+        name += "-" + slug(timezone.split("/")[-1])[:10]  # Host names: at most 31 characters.
+    if COVERAGE:
+        name += "-cov"
+    return name
+
+
+def _write_config(config_dir: Path, name: str, private_packages: list[str] | None) -> tuple[str, set[str]]:
+    """The config file for build `name`, and the names of its private personas."""
+    if name == "daruma-desktop":
+        return DEVICE_YAML, set()
+    # ESPHome keeps a record of the last build per config file, and cleans
+    # the build folder when the name in it differs. A config file per build
+    # name keeps each build's objects for the next build.
+    lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
+    private: set[str] = set()
+    for i, pkg in enumerate(private_packages or []):
+        pkg = Path(pkg).resolve()
+        lines.append(f"  private_{i}: !include {pkg}")
+        private.add(_persona_name(pkg))
+    if COVERAGE:
+        # Lists merge by joining, so this adds to the board's build flags.
+        lines += ["esphome:", "  platformio_options:", "    build_flags:", "      - --coverage"]
+    yaml_name = f"{name}.yaml"
+    (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
+    return yaml_name, private
+
+
+def _esphome_command(src: Path) -> tuple[list[str], dict[str, str]]:
+    """The command that runs ESPHome, and its environment.
+
+    With coverage on, ESPHome runs under coverage.py, which measures the
+    components' Python and the pixel art in the scratch copy `src`.
+    """
     if ESPHOME_SPEC:
         return ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"], dict(os.environ)
-    return [sys.executable, "-m", "esphome"], dict(os.environ)
+    if not COVERAGE:
+        return [sys.executable, "-m", "esphome"], dict(os.environ)
+    data = Path(COVERAGE).resolve()
+    data.mkdir(parents=True, exist_ok=True)
+    run = [sys.executable, "-m", "coverage", "run", "--parallel-mode", f"--data-file={data / '.coverage'}"]
+    run += [f"--source={src / 'components'},{src / 'pixel'}", "-m", "esphome"]
+    return run, dict(os.environ)
 
 
 # Screen sizes, with font sizes to match (as examples/variant_*.yaml).

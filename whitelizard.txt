@@ -1,24 +1,24 @@
 # C++ functions above lizard's cyclomatic limit (-C 15) when the check came in.
 # Split a function instead of adding it here. Remove a line once its
 # function is under the limit.
-components/daruma_calendar/agenda_view.cpp:Daruma::AgendaView::draw
-components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::draw_day_
-components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::input
-components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::maybe_fetch_
-components/daruma_calendar/calendar_view.cpp:Daruma::CalendarView::draw_list_
-components/daruma_menu/menu_controller.cpp:Daruma::MenuController::draw_dock_
-components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::draw_prompt_
-components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::on_input_
-components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::show
-components/daruma_sprites/sprite_persona.cpp:Daruma::SpritePersona::compose_under_
-components/daruma_sprites/sprite_persona.cpp:Daruma::SpritePersona::draw_delta
-components/daruma_sprites/window.cpp:Daruma::paint_window
-components/daruma_tasks/task_view.cpp:Daruma::TaskView::input
-components/daruma_weather/weather_app.cpp:Daruma::WeatherApp::draw
-components/daruma_weather/weather_app.cpp:Daruma::WeatherApp::loop
-components/daruma/hub.cpp:Daruma::Hub::emit_
-components/daruma/hub.cpp:Daruma::Hub::loop
-components/daruma/hub.cpp:Daruma::Hub::menu_items
+src/esphome/components/daruma_calendar/agenda_view.cpp:Daruma::AgendaView::draw
+src/esphome/components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::draw_day_
+src/esphome/components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::input
+src/esphome/components/daruma_calendar/calendar_app.cpp:Daruma::CalendarApp::maybe_fetch_
+src/esphome/components/daruma_calendar/calendar_view.cpp:Daruma::CalendarView::draw_list_
+src/esphome/components/daruma_menu/menu_controller.cpp:Daruma::MenuController::draw_dock_
+src/esphome/components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::draw_prompt_
+src/esphome/components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::on_input_
+src/esphome/components/daruma_prompts/prompt_controller.cpp:Daruma::PromptController::show
+src/esphome/components/daruma_sprites/sprite_persona.cpp:Daruma::SpritePersona::compose_under_
+src/esphome/components/daruma_sprites/sprite_persona.cpp:Daruma::SpritePersona::draw_delta
+src/esphome/components/daruma_sprites/window.cpp:Daruma::paint_window
+src/esphome/components/daruma_tasks/task_view.cpp:Daruma::TaskView::input
+src/esphome/components/daruma_weather/weather_app.cpp:Daruma::WeatherApp::draw
+src/esphome/components/daruma_weather/weather_app.cpp:Daruma::WeatherApp::loop
+src/esphome/components/daruma/hub.cpp:Daruma::Hub::emit_
+src/esphome/components/daruma/hub.cpp:Daruma::Hub::loop
+src/esphome/components/daruma/hub.cpp:Daruma::Hub::menu_items
 tests/test_frames.cpp:check
 tests/test_frames.cpp:read_set
 tests/test_layout.cpp:test_corners

@@ -38,7 +38,7 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
     to 31, 14 by default). HA sends at most `agenda_max` (25) events,
     sorted by start, titles cut to `title_chars`, no descriptions. All-day
     events carry HA's local midnights as epochs.
-  - Grouping and headings are plain C++ in `components/daruma_calendar/agenda.h`,
+  - Grouping and headings are plain C++ in `src/esphome/components/daruma_calendar/agenda.h`,
     host-tested (`tests/test_agenda.cpp`). An event goes under the day it
     starts; one still running from before today goes under Today. All-day
     events are placed by their middle, so a clock a few hours off HA's
@@ -58,7 +58,7 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
   - "Next event within" (hours, 0 = off, 3 by default) is a number
     setting per copy. The package var `next_event` picks the copies that
     show it: `auto` is the first copy only.
-  - The pick is plain C++ (`components/daruma_calendar/next_event.h`, tested in
+  - The pick is plain C++ (`src/esphome/components/daruma_calendar/next_event.h`, tested in
     `test_agenda.cpp`). A running event wins; of several, the one that
     started last. Else the earliest that starts within the hours and
     before midnight: the line is about today. All-day events never show.

@@ -252,7 +252,7 @@ it only writes the report. On Linux with gcc, the same steps run locally:
 
 - C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
   the programs and their data, in `tests/conftest.py` and `test_frames.py`.
-- Python host tests: `pytest tests --cov=components --cov=pixel`.
+- Python host tests: `pytest tests --cov=src/esphome/components --cov=pixel`.
 - Screen tests: `DARUMA_COVERAGE=<folder>` builds the desktop program
   with `--coverage`, in a build folder of its own, and runs ESPHome's code
   generation under coverage.py, which writes its data to that folder.
@@ -300,9 +300,10 @@ the folder between runs: delete `mutants/` after you add a pragma.
 The Python runs skip lines that raise an error or add a build log line.
 That text is for people, and tests match only a few words of it.
 
-The host tests load each Python file under its path's name, such as
-`components.daruma.registry` (`tests/component_loader.py`). mutmut needs
-that name to find the tests for a mutant.
+The host tests import the components by their ESPHome names, such as
+`esphome.components.daruma.registry` (`tests/esphome_components.py`).
+The files live at that path under `src/`, and mutmut names a module by
+its path without `src/`. So mutmut finds the tests for a mutant.
 
 ## Preview pixel art
 

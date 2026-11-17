@@ -6,7 +6,7 @@
 
 lines.json and tested.json come from tests/coverage_report.py: this pull
 request's run, and with --base and --base-tested the newest one from main.
---diff is `git diff -U0` from main to the pull request.
+--diff is `git diff -U0 --find-renames` from main to the pull request.
 
 Python has two numbers. "Tested" counts only the lines the host tests run.
 "Run in builds" also counts ESPHome's config checks and code generation,
@@ -33,17 +33,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from changed_lines import added_lines
 from coverage_report import Lines, language, percent, tally
 
 # The rules' thresholds. CI uses these defaults.
 MIN_CHANGED = 80.0  # percent of the measured changed lines that must run
 MAX_DROP = 0.5  # percentage points a total may fall below main's
 
-HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 MAX_FILES = 15
 
 Sums = dict[tuple[str, str], list[int]]
@@ -79,19 +78,12 @@ def load(path: Path | None) -> Lines | None:
 
 
 def changed_lines(diff: str) -> dict[str, set[int]]:
-    """{path: line numbers added or changed}, from a diff with no context lines."""
-    changed: dict[str, set[int]] = {}
-    path = None
-    for line in diff.splitlines():
-        if line.startswith("+++ "):
-            name = line[4:]
-            path = name[2:] if name.startswith("b/") else None
-            continue
-        m = HUNK.match(line)
-        if m and path:
-            start, count = int(m[1]), int(m[2] or 1)
-            changed.setdefault(path, set()).update(range(start, start + count))
-    return changed
+    """{path: line numbers added or changed}, from a diff with no context lines.
+
+    Make the diff with --find-renames and a pathspec that holds a moved
+    file's old and new paths, so a move adds only the lines that changed.
+    """
+    return added_lines(diff)
 
 
 def ranges(numbers: list[int]) -> str:

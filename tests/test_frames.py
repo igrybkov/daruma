@@ -2,7 +2,7 @@
 
     uv run pytest tests/test_frames.py
 
-- The encoder (components/daruma/sprite_codec.py) round trips through
+- The encoder (src/esphome/components/daruma/sprite_codec.py) round trips through
   its own Python decoder, on small made-up frames.
 - The device's decoder (frame_chain.h, sprite.h), built with the host's
   c++, decodes every frame of every pixel persona to exactly its source
@@ -16,13 +16,11 @@ Skipped without Pillow, and the C++ part without a c++ compiler.
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE))
 
 try:
     from PIL import Image
@@ -117,7 +115,7 @@ class DeviceDecoderTest(unittest.TestCase):
         if os.environ.get("DARUMA_CPP_OUT"):
             cls.binary = Path(os.environ["DARUMA_CPP_OUT"]) / f"test_frames-{os.getpid()}"
             cls.binary.parent.mkdir(parents=True, exist_ok=True)
-        include = _HERE.parents[0] / "components" / "daruma"
+        include = _HERE.parents[0] / "src" / "esphome" / "components" / "daruma"
         subprocess.run(
             [
                 "c++",

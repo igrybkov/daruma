@@ -24,7 +24,7 @@ another.
   reads a module directly.
 - A **module** adds states, signal sources, screens, settings and theme
   keys. Including its package turns it on.
-- `components/daruma/registry.py` checks all of it at build time.
+- `src/esphome/components/daruma/registry.py` checks all of it at build time.
 
 ## Find your topic
 

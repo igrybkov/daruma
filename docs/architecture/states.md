@@ -20,7 +20,7 @@ The persona plays the reaction if there is one. Otherwise it plays the
 top activity, and otherwise the mood.
 
 Every state is declared once, in a registry
-(`components/daruma/registry.py`):
+(`src/esphome/components/daruma/registry.py`):
 
 ```python
 State("focus", ACTIVITY, fallback="neutral")

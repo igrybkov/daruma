@@ -47,7 +47,7 @@ substitutions:
 external_components:
   - source:
       type: local
-      path: ../components
+      path: ../src/esphome/components
     components: [daruma_prompts]
 
 daruma_prompts:

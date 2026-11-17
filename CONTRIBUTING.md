@@ -64,7 +64,7 @@ substitutions:
 | Path | What |
 |---|---|
 | `packages/` | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
-| `components/` | ESPHome components. `daruma/` is the hub; `daruma/registry.py` holds the states and the build checks. `daruma_*` are personas and modules. |
+| `src/esphome/components/` | ESPHome components. `daruma/` is the hub; `daruma/registry.py` holds the states and the build checks. `daruma_*` are personas and modules. |
 | `pixel/daruma_pixel/` | the pixel-art library, run at build time: engines, scenes, breeds, `personas.py` |
 | `art/` | picture sets for `daruma_images` |
 | `examples/` | `box3.yaml` (a device), `desktop.yaml` (a window on a computer), build variants |
@@ -98,7 +98,7 @@ for people too. To contribute the persona, also:
 ## Add an app
 
 An app is a C++ class with its own screen, registered by a module.
-[components/daruma_weather](components/daruma_weather/) and
+[src/esphome/components/daruma_weather](src/esphome/components/daruma_weather/) and
 [packages/app_weather.yaml](packages/app_weather.yaml) are a compact
 model: one component, one package, one theme. Read
 [customize.md, Apps](docs/customize.md#apps) first.

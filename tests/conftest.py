@@ -8,8 +8,11 @@ The test builds the file with the host's c++ and runs it. The program
 prints FAIL lines and exits non-zero when a check fails.
 
 The headers include each other as an ESPHome build sees them
-(esphome/components/<name>/...), so the tests compile against a scratch
-folder where esphome/components points at this repository's components/.
+(esphome/components/<name>/...). src/ has that layout, so the tests
+compile with -I src.
+
+Importing esphome_components first lets the Python tests import the
+components by their ESPHome names (esphome.components.daruma.registry).
 test_frames.cpp needs a fixture; test_frames.py builds and runs it.
 
 For coverage: CXXFLAGS adds compiler flags (--coverage), and
@@ -24,10 +27,12 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import esphome_components  # noqa: F401
 import pytest
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+COMPONENTS = ROOT / "src" / "esphome" / "components"
 # Paths relative to HERE. Built and run by their own Python tests.
 NOT_COLLECTED = {Path("test_frames.cpp")}
 
@@ -64,9 +69,6 @@ class CppTest(pytest.Item):
         if shutil.which("c++") is None:
             pytest.skip("needs a c++ compiler")
         with tempfile.TemporaryDirectory() as tmp:
-            include = Path(tmp) / "include"
-            (include / "esphome").mkdir(parents=True)
-            (include / "esphome" / "components").symlink_to(ROOT / "components")
             out = Path(os.environ.get("DARUMA_CPP_OUT") or tmp)
             out.mkdir(parents=True, exist_ok=True)
             binary = out / self.path.stem
@@ -78,9 +80,9 @@ class CppTest(pytest.Item):
                     "-Wall",
                     "-Wextra",
                     *os.environ.get("CXXFLAGS", "").split(),
-                    f"-I{include}",
-                    f"-I{ROOT / 'components' / 'daruma'}",
-                    f"-I{ROOT / 'components' / 'daruma_weather'}",
+                    f"-I{ROOT / 'src'}",
+                    f"-I{COMPONENTS / 'daruma'}",
+                    f"-I{COMPONENTS / 'daruma_weather'}",
                     str(self.path),
                     "-o",
                     str(binary),

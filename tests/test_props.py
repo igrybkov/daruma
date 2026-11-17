@@ -33,7 +33,6 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 _PACKAGES = _ROOT / "packages"
 _LIBRARY = _ROOT / "pixel"
-sys.path.insert(0, str(_LIBRARY))
 
 try:
     import yaml
@@ -41,9 +40,8 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None
 
-from component_loader import load_component  # noqa: E402
-
-registry = load_component("components/daruma/registry.py")
+import esphome_components  # noqa: E402, F401
+from esphome.components.daruma import registry  # noqa: E402
 
 GOAL_KEYS = ("started", "done")
 KEEP = 0.95  # Share of the prop pixels a reaction frame must show unchanged.

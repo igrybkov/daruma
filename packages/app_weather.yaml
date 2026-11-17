@@ -77,7 +77,7 @@ defaults:
 external_components:
   - source:
       type: local
-      path: ../components
+      path: ../src/esphome/components
     components: [daruma_weather]
 
 daruma_weather:

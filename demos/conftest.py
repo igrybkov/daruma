@@ -35,20 +35,16 @@ from __future__ import annotations
 import fcntl
 import os
 import pickle
-import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import scenario as scenarios  # noqa: E402
-from demo_data import DemoData  # noqa: E402
-from harness import GOLDEN_DIR, Build, Device, build, desktop_personas, persona_name, slug  # noqa: E402
-from media import encode_gif, frames_of  # noqa: E402
+import scenario as scenarios
+from demo_data import DemoData
+from harness import GOLDEN_DIR, Build, Device, build, desktop_personas, persona_name, slug
+from media import encode_gif, frames_of
 
 DEFAULT_PERSONA = "Eyes"
 

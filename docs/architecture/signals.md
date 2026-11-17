@@ -76,7 +76,7 @@ Shared signals cover what every persona should react to. Params cover the
 rest. A param must never stand in for a shared signal, so a module can't
 depend on a param of one persona.
 
-As built (`components/daruma/persona.py`):
+As built (`src/esphome/components/daruma/persona.py`):
 
 - The prefix is the persona's id: `pixel_corgi.rug`, `eyes.color`.
 - Each persona component declares its own params in Python. The types are

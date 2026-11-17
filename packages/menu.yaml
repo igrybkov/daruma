@@ -41,7 +41,7 @@
 # their `next` and `prev` inputs and open with `select`; bind menu.open to
 # a button there.
 #
-# The look follows the current persona's `theme:` (components/daruma/theme.py).
+# The look follows the current persona's `theme:` (src/esphome/components/daruma/theme.py).
 
 substitutions:
   # The button that pages to the rest of a long menu.

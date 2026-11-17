@@ -2,7 +2,7 @@
 // taps, swipes and strokes on a touch screen (gesture.h) and what state
 // shows (state_machine.h).
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma \
 //       tests/test_input.cpp -o /tmp/test_input && /tmp/test_input
 
 #define DARUMA_STATE_LIST \

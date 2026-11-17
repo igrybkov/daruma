@@ -14,7 +14,7 @@ file, wherever the cache is:
 - `pixel_art: { script: ../pixel/my_persona.py }` finds the script in your
   checkout.
 - `art: ../art/my_set` finds a picture folder in your checkout.
-- `path: ../components` finds your own components, if you have any.
+- `path: ../src/esphome/components` finds your own components, if you have any.
 
 A pixel-art script runs with two folders on Python's import path: its own
 folder, and the folder that holds Daruma's pixel library, the Python

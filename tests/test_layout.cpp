@@ -2,7 +2,7 @@
 // (plaque.h), where the eyes persona's looks sit (daruma_eyes/eye_reach.h),
 // the focus ring (focus.h) and the frame scheduler (profile.h).
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma \
 //       tests/test_layout.cpp -o /tmp/test_layout && /tmp/test_layout
 //
 // With --json it prints the layouts of the preview sizes instead, for

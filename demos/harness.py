@@ -64,7 +64,7 @@ COVERAGE = os.environ.get("DARUMA_COVERAGE")
 # uvx ignores .python-version, so the build passes it on.
 PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
-SOURCES = ["examples", "packages", "components", "pixel", "art"]
+SOURCES = ["examples", "packages", "src", "pixel", "art"]
 GOLDEN_DIR = HERE.parent / "tests" / "golden"
 
 # The device's wall clock at the start of every run: Wednesday 11 March 2026,
@@ -262,7 +262,7 @@ def _esphome_command(src: Path) -> tuple[list[str], dict[str, str]]:
     data = Path(COVERAGE).resolve()
     data.mkdir(parents=True, exist_ok=True)
     run = [sys.executable, "-m", "coverage", "run", "--parallel-mode", f"--data-file={data / '.coverage'}"]
-    run += [f"--source={src / 'components'},{src / 'pixel'}", "-m", "esphome"]
+    run += [f"--source={src / 'src' / 'esphome' / 'components'},{src / 'pixel'}", "-m", "esphome"]
     return run, dict(os.environ)
 
 

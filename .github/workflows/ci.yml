@@ -415,7 +415,7 @@ jobs:
           CXXFLAGS: --coverage
           DARUMA_CPP_OUT: ${{ env.COVERAGE_DIR }}/cpp
           COVERAGE_FILE: ${{ env.COVERAGE_DIR }}/python/.coverage.host
-        run: uv run --no-sync pytest tests -n 2 --cov=components --cov=pixel --cov-report=
+        run: uv run --no-sync pytest tests -n 2 --cov=src/esphome/components --cov=pixel --cov-report=
       - name: Read the C++ coverage
         run: >-
           uv run --no-sync python tests/coverage_report.py
@@ -586,13 +586,15 @@ jobs:
           fi
       # Checks the rules too. It writes "pass" or "fail" to status.txt and
       # succeeds either way, so the comment goes up before the job fails.
-      # The thresholds are in tests/coverage_comment.py.
+      # The thresholds are in tests/coverage_comment.py. The diff has no
+      # pathspec, so git pairs a moved file's old and new paths and counts
+      # only the lines that changed; the rules count only measured files.
       - name: Write the comment
         if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          git diff -U0 "$BASE...HEAD" -- components pixel > "$COVERAGE_DIR/pr.diff"
+          git diff -U0 --find-renames "$BASE...HEAD" > "$COVERAGE_DIR/pr.diff"
           uv run --no-sync python tests/coverage_comment.py "$COVERAGE_DIR/report/lines.json" \
             --tested "$COVERAGE_DIR/report/tested.json" \
             --base "$COVERAGE_DIR/main/lines.json" --base-tested "$COVERAGE_DIR/main/tested.json" \

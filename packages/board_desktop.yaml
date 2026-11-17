@@ -2,7 +2,7 @@
 # SDL). For demos and tests; nothing here runs on a device. Pairs with
 # core.yaml. It leaves out core_voice.yaml: there is no mic, speaker, wake
 # word or Wi-Fi. Sounds are not played; while a recording runs, each one is
-# written as a WAV file (components/daruma_desktop).
+# written as a WAV file (src/esphome/components/daruma_desktop).
 #
 # Inputs, named like the BOX-3's (bind them in the device yaml):
 #   home    the H key, or Escape: press, double, hold (1.5 s)
@@ -47,7 +47,7 @@ logger:
 external_components:
   - source:
       type: local
-      path: ../components
+      path: ../src/esphome/components
     components: [daruma_desktop]
 
 api:

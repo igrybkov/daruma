@@ -9,8 +9,8 @@ folder with gcc's gcov (JSON output, so gcc 10 or later). Each coverage job
 saves its C++ lines with --save, while the build is still there. Python
 comes as coverage.py JSON. The builds compile copies of the components, so
 each file is mapped back to its place in this repository by its path. Line
-counts of the same file add up. Only this repository's components/ and
-pixel/ count.
+counts of the same file add up. Only this repository's
+src/esphome/components/ and pixel/ count.
 
 Python has two numbers. --python holds every run: the host tests, and
 ESPHome's config checks and code generation in the builds. Those run
@@ -19,7 +19,7 @@ alone. A Python line counts as tested only when the host tests run it.
 
 Writes, in --out:
 - coverage.lcov   every line of every file, for an editor or genhtml
-- summary.md      per area (components/<name>, pixel), and the total
+- summary.md      per area (src/esphome/components/<name>, pixel), and the total
 - files.md        per file, and the files no test compiled or loaded
 - lines.json      every line's count, for tests/coverage_comment.py
 - tested.json     every Python line of lines.json, counted from the host
@@ -39,7 +39,8 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENTS = {p.name for p in (ROOT / "components").iterdir() if p.is_dir()}
+COMPONENTS_DIR = "src/esphome/components"
+COMPONENTS = {p.name for p in (ROOT / COMPONENTS_DIR).iterdir() if p.is_dir()}
 SOURCES = ("*.cpp", "*.h", "*.py")
 
 # {repository path: {line: count}}
@@ -51,7 +52,7 @@ def repo_path(path: str) -> str | None:
     parts = path.replace("\\", "/").split("/")
     for i in range(len(parts) - 2, -1, -1):
         if parts[i] == "components" and parts[i + 1] in COMPONENTS:
-            return "/".join(parts[i:])
+            return "/".join([COMPONENTS_DIR, *parts[i + 1 :]])
         if parts[i] == "pixel" and parts[i + 1] == "daruma_pixel":
             return "/".join(parts[i:])
     return None
@@ -97,9 +98,10 @@ def read_python(file: Path, lines: Lines) -> None:
 
 
 def area(path: str) -> str:
-    """components/<name> or pixel."""
-    parts = path.split("/")
-    return "/".join(parts[:2]) if parts[0] == "components" else "pixel"
+    """src/esphome/components/<name> or pixel."""
+    if path.startswith(COMPONENTS_DIR + "/"):
+        return "/".join(path.split("/")[:4])
+    return "pixel"
 
 
 def language(path: str) -> str:
@@ -162,7 +164,7 @@ def summary(lines: Lines, tested: Lines | None = None) -> str:
 def unreached() -> list[str]:
     """Source files in no report: never compiled or loaded by a test, or no code."""
     found = []
-    for top in ("components", "pixel"):
+    for top in (COMPONENTS_DIR, "pixel"):
         for pattern in SOURCES:
             found += [str(p.relative_to(ROOT)) for p in (ROOT / top).rglob(pattern)]
     return sorted(found)

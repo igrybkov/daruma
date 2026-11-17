@@ -33,7 +33,8 @@ from changed_lines import ROOT, changed_lines
 
 # The same flags as tests/conftest.py, without the warnings.
 FLAGS = ["-std=c++17", "-w"]
-INCLUDES = ["components/daruma", "components/daruma_weather"]
+INCLUDES = ["src/esphome/components/daruma", "src/esphome/components/daruma_weather"]
+COMPONENTS = ROOT / "src" / "esphome" / "components"
 SKIP_TESTS = {"test_frames"}
 
 OPERATORS = [
@@ -72,19 +73,23 @@ def tests() -> list[str]:
     return sorted(p.stem for p in (ROOT / "tests").glob("test_*.cpp") if p.stem not in SKIP_TESTS)
 
 
-def compile_command(test: str, include: Path, components: Path, out: Path) -> list[str]:
-    dirs = [include] + [components.parent / d for d in INCLUDES]
+def compile_command(test: str, root: Path, out: Path) -> list[str]:
+    """Builds `test` against the components in `root` (this checkout or a copy).
+
+    src/ has the layout the headers include each other by (esphome/components/...).
+    """
+    dirs = [root / "src"] + [root / d for d in INCLUDES]
     return ["c++", *FLAGS, *(f"-I{d}" for d in dirs), str(ROOT / "tests" / f"{test}.cpp"), "-o", str(out)]
 
 
-def headers_by_test(include: Path) -> dict[str, list[str]]:
+def headers_by_test() -> dict[str, list[str]]:
     """Each test -> the component files it includes, directly or not."""
     out = {}
     for test in tests():
-        command = compile_command(test, include, ROOT / "components", Path(os.devnull))[:-2] + ["-MM"]
+        command = compile_command(test, ROOT, Path(os.devnull))[:-2] + ["-MM"]
         deps = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=True).stdout
         paths = {Path(os.path.realpath(ROOT / p)) for p in deps.replace("\\\n", " ").split()[1:]}
-        out[test] = sorted(str(p.relative_to(ROOT)) for p in paths if p.is_relative_to(ROOT / "components"))
+        out[test] = sorted(str(p.relative_to(ROOT)) for p in paths if p.is_relative_to(COMPONENTS))
     return out
 
 
@@ -118,16 +123,14 @@ def mutants(path: str, only: set[int] | None) -> list[Mutant]:
 
 
 class Workers:
-    """Scratch copies of components/, one per thread, so mutants build side by side."""
+    """Scratch copies of src/, one per thread, so mutants build side by side."""
 
     def __init__(self, count: int):
         self.root = Path(tempfile.mkdtemp(prefix="daruma-mutate-"))
         self.free: queue.Queue[Path] = queue.Queue()
         for i in range(count):
             work = self.root / str(i)
-            shutil.copytree(ROOT / "components", work / "components")
-            (work / "include" / "esphome").mkdir(parents=True)
-            (work / "include" / "esphome" / "components").symlink_to(work / "components")
+            shutil.copytree(ROOT / "src", work / "src")
             self.free.put(work)
 
     def run(self, mutant: Mutant, test_names: list[str]) -> str:
@@ -150,7 +153,7 @@ def _build_and_run(work: Path, test_names: list[str]) -> str:
     built = False
     for test in test_names:
         exe = work / test
-        command = compile_command(test, work / "include", work / "components", exe)
+        command = compile_command(test, work, exe)
         if subprocess.run(command, capture_output=True).returncode:
             continue
         built = True
@@ -167,9 +170,7 @@ def baseline(work: Path, test_names: list[str]) -> bool:
     that, a mutant that doesn't build or a failing test would mean nothing."""
     for test in test_names:
         exe = work / test
-        built = subprocess.run(
-            compile_command(test, work / "include", work / "components", exe), capture_output=True, text=True
-        )
+        built = subprocess.run(compile_command(test, work, exe), capture_output=True, text=True)
         if built.returncode:
             print(f"{test} doesn't build:\n{built.stderr[-3000:]}")
             return False
@@ -182,13 +183,7 @@ def baseline(work: Path, test_names: list[str]) -> bool:
 
 def collect(diff: str | None) -> tuple[list[Mutant], dict[str, list[str]]]:
     """The mutants to run, and the tests that reach each file."""
-    include = Path(tempfile.mkdtemp(prefix="daruma-include-"))
-    try:
-        (include / "esphome").mkdir()
-        (include / "esphome" / "components").symlink_to(ROOT / "components")
-        by_test = headers_by_test(include)
-    finally:
-        shutil.rmtree(include)
+    by_test = headers_by_test()
     tests_by_path: dict[str, list[str]] = {}
     for test, paths in by_test.items():
         for path in paths:

@@ -1,7 +1,7 @@
 // Host test of the clock signals (signals.h): the day part for an hour, and
 // which weekday colors a weekday picks.
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma \
 //       tests/test_signals.cpp -o /tmp/test_signals && /tmp/test_signals
 
 #include <cstdio>

@@ -1,6 +1,6 @@
 // Host test of the Weather app's report (daruma_weather/weather.h).
 //
-//   c++ -std=c++17 -Wall -Wextra -I components/daruma_weather \
+//   c++ -std=c++17 -Wall -Wextra -I src/esphome/components/daruma_weather \
 //       tests/test_weather.cpp -o /tmp/test_weather && /tmp/test_weather
 
 #include <cmath>

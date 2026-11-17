@@ -2,7 +2,7 @@
 persona: the tomato plaque or the pomodoro timer bottom left, the
 temperature badge bottom right, and the info line under both.
 
-    c++ -std=c++17 -I components/daruma tests/test_layout.cpp -o /tmp/test_layout
+    c++ -std=c++17 -I src/esphome/components/daruma tests/test_layout.cpp -o /tmp/test_layout
     uv run python -I tests/preview_line.py /tmp/test_layout OUT_DIR FONT_DIR [--before]
 
 FONT_DIR as for preview_screens.py. The regions come from layout.h
@@ -41,8 +41,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[0]
-sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(ROOT / "pixel"))
 
 import preview_screens as ps  # noqa: E402
 

@@ -426,15 +426,11 @@ def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
     tool = out / "prompt_geometry"
-    # The headers include each other as ESPHome builds see them:
-    # esphome/components/<name>/...
-    include = out / "include"
-    (include / "esphome").mkdir(parents=True, exist_ok=True)
-    link = include / "esphome" / "components"
-    if not link.exists():
-        link.symlink_to(ROOT / "components", target_is_directory=True)
+    # The headers include each other as ESPHome builds see them
+    # (esphome/components/<name>/...); src/ has that layout.
     subprocess.run(
-        ["c++", "-std=c++17", "-Wall", "-Wextra", "-I", str(include), str(GEOMETRY_SRC), "-o", str(tool)], check=True
+        ["c++", "-std=c++17", "-Wall", "-Wextra", "-I", str(ROOT / "src"), str(GEOMETRY_SRC), "-o", str(tool)],
+        check=True,
     )
     images = []
     for name, case in CASES.items():

@@ -1,5 +1,7 @@
 # ESPHome build output and git caches
 .esphome/
+# ESPHome writes this file; this root file already ignores what it lists
+examples/.gitignore
 # Your own secrets (see examples/secrets.example.yaml)
 secrets.yaml
 # Python

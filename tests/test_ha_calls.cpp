@@ -123,12 +123,31 @@ static void test_queue_limit() {
   CHECK(log.sent.size() == 1 && log.sent[0] == "c4");  // The oldest went.
 }
 
+// A test runner moves the clock on only when the gate is idle: nothing in
+// flight, and nothing ready to go at this time.
+static void test_idle() {
+  HaCalls gate;
+  gate.set_settle_ms(3000);
+  Log log;
+  CHECK(gate.idle(0));
+  gate.call("calendar", log.send("calendar"));
+  CHECK(gate.idle(0));  // HA isn't linked: the call waits for time.
+  gate.tick(1000, true);
+  CHECK(gate.idle(1000));   // Linked, but HA is still settling.
+  CHECK(!gate.idle(4000));  // Settled: the call is due.
+  gate.tick(4000, true);
+  CHECK(!gate.idle(4000));  // Sent: waiting for the answer.
+  gate.done(log.tokens[0]);
+  CHECK(gate.idle(4000));
+}
+
 int main() {
   test_waits_for_ha_then_one_at_a_time();
   test_update_waits_for_the_fetch();
   test_timeout_and_late_answer();
   test_disconnect();
   test_queue_limit();
+  test_idle();
   if (failures == 0)
     std::printf("ha calls: all passed\n");
   return failures == 0 ? 0 : 1;

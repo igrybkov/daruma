@@ -107,16 +107,20 @@ void Hub::loop() {
 
   // Frames: whatever asked for one since the last, no sooner than min_frame.
   // Idle motion (the persona, a ticking clock) only while the gate allows it.
-  if (this->display_ != nullptr && this->display_->is_ready() && this->scheduler_.ready(now)) {
-    const bool motion = (!this->frame_gate_ || this->frame_gate_()) && this->needs_redraw();
-    if (this->scheduler_.pending() || motion) {
-      this->full_frame_ = this->scheduler_.full_frame();
-      this->display_->update();
-      this->scheduler_.drawn(now, this->full_frame_);
-      // A draw outside the scheduler repaints everything.
-      this->full_frame_ = true;
-    }
+  if (this->frame_due_(now)) {
+    this->full_frame_ = this->scheduler_.full_frame();
+    this->display_->update();
+    this->scheduler_.drawn(now, this->full_frame_);
+    // A draw outside the scheduler repaints everything.
+    this->full_frame_ = true;
   }
+}
+
+bool Hub::frame_due_(uint32_t now) {
+  if (this->display_ == nullptr || !this->display_->is_ready() || !this->scheduler_.ready(now))
+    return false;
+  const bool motion = (!this->frame_gate_ || this->frame_gate_()) && this->needs_redraw();
+  return this->scheduler_.pending() || motion;
 }
 
 void Hub::dump_config() {

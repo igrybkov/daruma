@@ -15,6 +15,8 @@ Writes, in --out:
 - coverage.lcov   every line of every file, for an editor or genhtml
 - summary.md      per area (components/<name>, pixel), and the total
 - files.md        per file, and the files no test compiled or loaded
+- cobertura-cpp.xml, cobertura-python.xml
+                  Cobertura XML per language, for GitHub's code coverage
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ import argparse
 import json
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
@@ -157,6 +160,43 @@ def lcov(lines: Lines) -> str:
     return "\n".join(out) + "\n"
 
 
+def _rates(hits: list[int]) -> dict[str, str]:
+    """Cobertura's line counts and share run, from every line's hit count."""
+    run = sum(1 for c in hits if c)
+    rate = f"{run / len(hits):.4f}" if hits else "0"
+    return {"line-rate": rate, "lines-covered": str(run), "lines-valid": str(len(hits))}
+
+
+def _cobertura_class(classes: ET.Element, path: str, counts: dict[int, int]) -> None:
+    rate = _rates(list(counts.values()))["line-rate"]
+    name = path.rsplit("/", 1)[-1]
+    attrs = {"name": name, "filename": path, "line-rate": rate, "branch-rate": "0", "complexity": "0"}
+    cls = ET.SubElement(classes, "class", attrs)
+    ET.SubElement(cls, "methods")
+    lines = ET.SubElement(cls, "lines")
+    for n, c in sorted(counts.items()):
+        ET.SubElement(lines, "line", {"number": str(n), "hits": str(c), "branch": "false"})
+
+
+def cobertura(lines: Lines, lang: str) -> str:
+    """One language's lines as Cobertura XML: a package per area, a class per file."""
+    mine = {path: counts for path, counts in lines.items() if language(path) == lang}
+    root = ET.Element("coverage", {"branch-rate": "0", "complexity": "0", "version": "1", "timestamp": "0"})
+    root.attrib.update(_rates([c for counts in mine.values() for c in counts.values()]))
+    root.attrib.update({"branches-covered": "0", "branches-valid": "0"})
+    ET.SubElement(ET.SubElement(root, "sources"), "source").text = "."
+    packages = ET.SubElement(root, "packages")
+    for name in sorted({area(path) for path in mine}):
+        paths = sorted(path for path in mine if area(path) == name)
+        rate = _rates([c for path in paths for c in mine[path].values()])["line-rate"]
+        attrs = {"name": name.replace("/", "."), "line-rate": rate, "branch-rate": "0", "complexity": "0"}
+        classes = ET.SubElement(ET.SubElement(packages, "package", attrs), "classes")
+        for path in paths:
+            _cobertura_class(classes, path, mine[path])
+    ET.indent(root)
+    return '<?xml version="1.0" ?>\n' + ET.tostring(root, encoding="unicode") + "\n"
+
+
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--gcov", nargs="*", default=[], type=Path, help="folders with .gcda files")
@@ -184,6 +224,8 @@ def main() -> None:
         (args.out / "coverage.lcov").write_text(lcov(lines))
         (args.out / "summary.md").write_text(summary(lines))
         (args.out / "files.md").write_text(files(lines))
+        (args.out / "cobertura-cpp.xml").write_text(cobertura(lines, "C++"))
+        (args.out / "cobertura-python.xml").write_text(cobertura(lines, "Python"))
     print(summary(lines))
 
 

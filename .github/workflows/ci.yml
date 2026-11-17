@@ -347,8 +347,11 @@ jobs:
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
+      # The pull request's own commit, not the merge with main: GitHub's
+      # code coverage maps the line numbers onto the pull request's diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -404,8 +407,11 @@ jobs:
       DARUMA_COVERAGE: ${{ github.workspace }}/ci-coverage/python
       DARUMA_WORK: ${{ github.workspace }}/ci-work
     steps:
+      # The pull request's own commit, not the merge with main: GitHub's
+      # code coverage maps the line numbers onto the pull request's diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -456,6 +462,9 @@ jobs:
 
   coverage-report:
     name: Coverage report
+    permissions:
+      contents: read
+      code-quality: write
     needs: [coverage-host, coverage-screens]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
@@ -463,8 +472,11 @@ jobs:
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
+      # The pull request's own commit, not the merge with main: GitHub's
+      # code coverage maps the line numbers onto the pull request's diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -501,6 +513,23 @@ jobs:
           name: coverage
           path: ${{ env.COVERAGE_DIR }}/report
           retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
+      # GitHub's code coverage: a push to main records the baseline, and a
+      # pull request gets a comment with its coverage against main's. One
+      # upload per language. A pull request from a fork can't upload.
+      - name: Upload the C++ coverage to GitHub
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+        with:
+          file: ${{ env.COVERAGE_DIR }}/report/cobertura-cpp.xml
+          language: C++
+          label: coverage/cpp
+      - name: Upload the Python coverage to GitHub
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+        with:
+          file: ${{ env.COVERAGE_DIR }}/report/cobertura-python.xml
+          language: Python
+          label: coverage/python
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the

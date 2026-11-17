@@ -171,6 +171,10 @@ jobs:
     name: Compile (box3)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      # ESPHome compiles through ccache when ccache is on the PATH.
+      CCACHE_DIR: /home/runner/.cache/ccache
+      CCACHE_MAXSIZE: 2G
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -185,8 +189,41 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      # Pull requests read the caches that main saves; only main writes them.
+      # A static ccache from its release, checked against a fixed hash.
+      - name: Install ccache
+        env:
+          VERSION: 4.14.2
+          SHA256: b20ff6415151226ac5a10dfd6839700c694bd67d1871c8fddb266d366ff25bfb
+        run: |
+          name="ccache-$VERSION-linux-x86_64-musl-static"
+          curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            "https://github.com/ccache/ccache/releases/download/v$VERSION/$name.tar.xz"
+          echo "$SHA256  $RUNNER_TEMP/ccache.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP"
+          mkdir -p "$HOME/.local/bin"
+          mv "$RUNNER_TEMP/$name/ccache" "$HOME/.local/bin/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # The compiled objects, by the hash of what went in. Every run saves
+      # them, pull requests too, so the next push to a pull request starts
+      # warm. A pull request's first run starts from main's.
+      #
+      # The key has the run id because a saved cache can't be overwritten:
+      # a fixed key (per pull request, say) would keep the first run's
+      # ccache forever. The exact key never matches on restore. The
+      # restore-keys prefix then picks the newest saved ccache: the pull
+      # request's own first, else its base branch's or main's. Old entries
+      # age out of the repository's 10 GB cache by least recent use.
+      - name: Restore the ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-box3-${{ env.ESPHOME_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-box3-${{ env.ESPHOME_VERSION }}-
+      # Pull requests read the ESP-IDF and build caches that main saves;
+      # only main writes the build cache. A pull request saves the ESP-IDF
+      # cache only when main has none for this ESPHome version yet.
       - name: Restore the ESP-IDF cache
+        id: idf
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/esphome
@@ -218,9 +255,17 @@ jobs:
         working-directory: examples
         run: |
           set -o pipefail
+          ccache --zero-stats
           uv run --no-sync esphome \
             -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
             compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+      # A new key every run, so this run's objects are kept (see the restore).
+      - name: Save the ccache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-box3-${{ env.ESPHOME_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Save the persona art
         if: steps.art.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -232,10 +277,14 @@ jobs:
           {
             echo "### Firmware: examples/box3.yaml"
             .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
+            echo
+            echo '```'
+            ccache --show-stats
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin
       - name: Save the ESP-IDF cache
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || steps.idf.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/esphome

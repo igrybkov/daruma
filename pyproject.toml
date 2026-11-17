@@ -12,7 +12,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daruma-pixel"
-version = "0.0.0"
+version = "0.1.0"
 description = "Pixel-art rooms, personas and engines for Daruma device personas"
 readme = "README.md"
 license = "MIT"

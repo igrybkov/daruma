@@ -25,9 +25,7 @@ from __future__ import annotations
 
 import math
 
-
-from . import cat
-from . import pet
+from . import cat, pet
 from .cat import Cat, CatPose, Look
 from .pet import Breed, Coat, Rig, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask
@@ -115,8 +113,9 @@ def _body_marks(c: Canvas, r: Rig) -> None:
         for a in range(-150, -20, 13):
             t = math.radians(a)
             for k in (1, 2, 3):
-                c.dot(round(r.cx + r.sway + (rx + k) * math.cos(t)), round(r.chest_y + (ry + k) * math.sin(t)),
-                      BODY.base)
+                c.dot(
+                    round(r.cx + r.sway + (rx + k) * math.cos(t)), round(r.chest_y + (ry + k) * math.sin(t)), BODY.base
+                )
 
 
 def _rear_marks(c: Canvas, r: Rig) -> None:
@@ -187,15 +186,19 @@ BREED = Breed(
 
 # Per-stance body changes: a loaf is wide and low, a curl a wide ball, the
 # scared cat up on stiff legs with its fur puffed out.
-CAT = Cat(BREED, LOOK, shapes={
-    "stiff": {"leg": 6, "body_r": (15, 15), "haunch_r": 8.5, "bib_r": (9, 13)},
-    "loaf": {"body_r": (17, 10), "bib_r": (9, 8), "haunch_dx": 9, "foot_dx": 11},
-    "curl": {"body_r": (20, 10), "bib_r": (0.1, 0.1), "haunch_dx": 12, "haunch_r": 9, "foot_dx": 14},
-    "bow": {"body_r": (15, 9), "bib_r": (8, 7)},
-    # Kneading: the chest stops short of the floor, so a raised paw shows.
-    "knead_l": {"bib_r": (8, 8)},
-    "knead_r": {"bib_r": (8, 8)},
-})
+CAT = Cat(
+    BREED,
+    LOOK,
+    shapes={
+        "stiff": {"leg": 6, "body_r": (15, 15), "haunch_r": 8.5, "bib_r": (9, 13)},
+        "loaf": {"body_r": (17, 10), "bib_r": (9, 8), "haunch_dx": 9, "foot_dx": 11},
+        "curl": {"body_r": (20, 10), "bib_r": (0.1, 0.1), "haunch_dx": 12, "haunch_r": 9, "foot_dx": 14},
+        "bow": {"body_r": (15, 9), "bib_r": (8, 7)},
+        # Kneading: the chest stops short of the floor, so a raised paw shows.
+        "knead_l": {"bib_r": (8, 8)},
+        "knead_r": {"bib_r": (8, 8)},
+    },
+)
 STUDIO = Studio()
 BACKGROUND = 0x281C16  # The backdrop's darkest brown, for any margin round the scene.
 
@@ -229,8 +232,9 @@ LOVED = CatPose(eyes="happy", mouth="smile", blush=True, ears=-4, tail_shape="up
 SAD = CatPose(eyes="sad", mouth="frown", ears=48, head_dy=2, tail_shape="low", extras=("tear",))
 SCARED = CatPose(eyes="wide", mouth="o", ears=58, stance="stiff", tail_shape="puff", extras=("sweat",))
 LOAF = CatPose(eyes="half", mouth="flat", ears=8, stance="loaf", head_dy=9)
-SLEEPING = CatPose(eyes="blink", mouth="flat", ears=20, stance="curl", head_dy=11, tilt=-8, tail_shape="wrap",
-                   extras=("zzz",))
+SLEEPING = CatPose(
+    eyes="blink", mouth="flat", ears=20, stance="curl", head_dy=11, tilt=-8, tail_shape="wrap", extras=("zzz",)
+)
 LISTENING = CatPose(eyes="open", mouth="flat", ears=-10, ear_left=-6, tilt=10)
 THINKING = CatPose(eyes="up", mouth="flat", tilt=-8, extras=("dots",))
 TALKING = CatPose(eyes="happy", mouth="talk", ears=-3)
@@ -242,8 +246,7 @@ PROUD = CatPose(eyes="happy", mouth="mew", ears=-6, tail_shape="up", extras=("sp
 def watch(dot: int, **changes) -> CatPose:
     """Watching the laser dot at `dot`: eyes down on it, the head turned a little."""
     look = -1 if dot < -4 else 1 if dot > 4 else 0
-    return CatPose(eyes="down", pupils=look, mouth="flat", ears=-6, laser=dot, head_dx=look,
-                   tilt=-4 * look, **changes)
+    return CatPose(eyes="down", pupils=look, mouth="flat", ears=-6, laser=dot, head_dx=look, tilt=-4 * look, **changes)
 
 
 def sway(base: CatPose, side: int, ms: int = 260) -> list[tuple[CatPose, int]]:
@@ -307,8 +310,9 @@ ANIMATIONS: dict[str, list[tuple[CatPose, int]]] = {
         (watch(20), 900),
     ],
     # Petted: eyes shut, purring, kneading with one front paw, then the other.
-    "Petted": [(with_(PURR, stance="knead_l" if i % 2 == 0 else "knead_r", wag=0.3 if i % 2 else -0.3), 250)
-               for i in range(8)],
+    "Petted": [
+        (with_(PURR, stance="knead_l" if i % 2 == 0 else "knead_r", wag=0.3 if i % 2 else -0.3), 250) for i in range(8)
+    ],
     # Celebrate: a play bow with a wiggle, a pounce, then sits up proud.
     "Celebrate": [
         (BOW, 300),

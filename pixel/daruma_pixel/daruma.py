@@ -40,8 +40,9 @@ from dataclasses import dataclass, replace
 
 from PIL import Image, ImageDraw
 
+from .bonsai import DEFAULT_STAGE, plant  # noqa: F401  (layers API)
+from .bonsai import STAGES as PLANT_STAGES  # noqa: F401  (layers API)
 from .pixelkit import Canvas, Ramp, mask
-from .bonsai import DEFAULT_STAGE, STAGES as PLANT_STAGES, plant  # noqa: F401  (layers API)
 
 W, H = 106, 80
 CX = 53  # Doll centre, x.
@@ -103,9 +104,22 @@ def with_(pose: Pose, **changes) -> Pose:
 # Drawn for the viewer's left side; the right side is mirrored.
 
 _COLORS = {
-    "O": INK, "W": EYE_WHITE, "S": EYE_SHADE, "I": INK, "h": (255, 255, 255),
-    "B": INK, "G": GOLD, "g": GOLD_DARK, "L": GOLD_LIGHT, "R": RED.base, "r": RED.shadow,
-    "M": MOUTH, "T": TONGUE, "N": NOSE, "F": FACE.base, "f": FACE.shadow,
+    "O": INK,
+    "W": EYE_WHITE,
+    "S": EYE_SHADE,
+    "I": INK,
+    "h": (255, 255, 255),
+    "B": INK,
+    "G": GOLD,
+    "g": GOLD_DARK,
+    "L": GOLD_LIGHT,
+    "R": RED.base,
+    "r": RED.shadow,
+    "M": MOUTH,
+    "T": TONGUE,
+    "N": NOSE,
+    "F": FACE.base,
+    "f": FACE.shadow,
 }
 
 EYE = [
@@ -141,41 +155,56 @@ PUPIL_WET = {
 # blunt at the inner end (right side here), that sweeps out and tapers to
 # a feathered tip. (art, rows its bottom row sits above BROW_Y).
 BROWS = {
-    "calm": ([
-        "....BBBBB..",
-        "..BBBBBBBBB",
-        ".BBBBBBBBBB",
-        "BB.B.....BB",
-        "B..........",
-    ], 0),
-    "up": ([
-        "...BBBBB...",
-        ".BBBBBBBBB.",
-        "BBBBBBBBBBB",
-        "BB.B...BBBB",
-        "B.......BBB",
-    ], 2),
-    "worried": ([
-        ".......BBBB",
-        "....BBBBBBB",
-        "..BBBBBBBB.",
-        "BBBBBBB....",
-        "BB.B.......",
-        "B..........",
-    ], 1),
-    "down": ([
-        "B..........",
-        "BBB........",
-        "BBBBBB.....",
-        ".BBBBBBBB..",
-        "...BBBBBBBB",
-        "......BBBBB",
-    ], 0),
-    "low": ([
-        "..BBBBBBB..",
-        "BBBBBBBBBBB",
-        "BB.B...BBBB",
-    ], -1),
+    "calm": (
+        [
+            "....BBBBB..",
+            "..BBBBBBBBB",
+            ".BBBBBBBBBB",
+            "BB.B.....BB",
+            "B..........",
+        ],
+        0,
+    ),
+    "up": (
+        [
+            "...BBBBB...",
+            ".BBBBBBBBB.",
+            "BBBBBBBBBBB",
+            "BB.B...BBBB",
+            "B.......BBB",
+        ],
+        2,
+    ),
+    "worried": (
+        [
+            ".......BBBB",
+            "....BBBBBBB",
+            "..BBBBBBBB.",
+            "BBBBBBB....",
+            "BB.B.......",
+            "B..........",
+        ],
+        1,
+    ),
+    "down": (
+        [
+            "B..........",
+            "BBB........",
+            "BBBBBB.....",
+            ".BBBBBBBB..",
+            "...BBBBBBBB",
+            "......BBBBB",
+        ],
+        0,
+    ),
+    "low": (
+        [
+            "..BBBBBBB..",
+            "BBBBBBBBBBB",
+            "BB.B...BBBB",
+        ],
+        -1,
+    ),
 }
 
 # The turtle: a moustache that curls up at both ends, a swirl on each
@@ -322,8 +351,9 @@ STAMP_TURN = 14
 INK_COVER = 0.375  # Share of a pixel ink must cover to show when a stamp turns.
 
 
-def stamp(c: Canvas, f: Frame, art: list[str], ax: float, ay: float, mirror: bool = False,
-          colors: dict | None = None) -> None:
+def stamp(
+    c: Canvas, f: Frame, art: list[str], ax: float, ay: float, mirror: bool = False, colors: dict | None = None
+) -> None:
     """Draw `art` with its centre at doll-local (ax, ay)."""
     colors = colors or _COLORS
     h, w = len(art), len(art[0])
@@ -384,8 +414,9 @@ SUPER = 8  # Smooth shapes are drawn this much finer, then kept where they cover
 def _poly_mask(f: Frame, pts: list[tuple[float, float]]) -> Image.Image:
     """A smooth shape on the pixel grid. Pixel centres sit on whole canvas coordinates."""
     big = Image.new("L", (W * SUPER, H * SUPER), 0)
-    ImageDraw.Draw(big).polygon([((X + 0.5) * SUPER, (Y + 0.5) * SUPER) for X, Y in (f.pt(x, y) for x, y in pts)],
-                                fill=255)
+    ImageDraw.Draw(big).polygon(
+        [((X + 0.5) * SUPER, (Y + 0.5) * SUPER) for X, Y in (f.pt(x, y) for x, y in pts)], fill=255
+    )
     m = _smooth(big.resize((W, H), Image.BOX).point(lambda v: 255 if v >= 128 else 0).convert("1"))
     return _mirror(m) if f.tilt == 0 else m
 
@@ -396,8 +427,11 @@ def _smooth(m: Image.Image) -> Image.Image:
     src, dst = m.load(), out.load()
     for y in range(H):
         for x in range(W):
-            n = sum(1 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
-                    if 0 <= x + dx < W and 0 <= y + dy < H and src[x + dx, y + dy])
+            n = sum(
+                1
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                if 0 <= x + dx < W and 0 <= y + dy < H and src[x + dx, y + dy]
+            )
             if src[x, y] and n <= 1:
                 dst[x, y] = 0
             elif not src[x, y] and n >= 3:
@@ -670,8 +704,11 @@ def _extras(c: Canvas, f: Frame, p: Pose) -> None:
         elif e in ("zzz", "zzz2"):
             # Two letters drifting up from the head over the shoji paper,
             # where they read on any sky, clear of the bonsai on the right.
-            zs = ((CX + 12, top - 1, 4), (CX + 18, top - 9, 5)) if e == "zzz" else \
-                ((CX + 13, top - 4, 4), (CX + 19, top - 12, 5))
+            zs = (
+                ((CX + 12, top - 1, 4), (CX + 18, top - 9, 5))
+                if e == "zzz"
+                else ((CX + 13, top - 4, 4), (CX + 19, top - 12, 5))
+            )
             for zx, zy, s in zs:
                 for k in range(s):
                     c.dot(zx + k, zy, ZZZ)
@@ -914,15 +951,17 @@ def _scroll(d: ImageDraw.ImageDraw, cx: int) -> None:
     d.point((cx + 7, bottom), fill=SCROLL_ROD)
     # The enso: thick on the left where the brush came down, open at the top right.
     oy = top + 4
-    for row, line in enumerate([
-        "..XX...",
-        ".X.....",
-        "XX....X",
-        "XX....X",
-        "XX....X",
-        ".XX..X.",
-        "..XXX..",
-    ]):
+    for row, line in enumerate(
+        [
+            "..XX...",
+            ".X.....",
+            "XX....X",
+            "XX....X",
+            "XX....X",
+            ".XX..X.",
+            "..XXX..",
+        ]
+    ):
         for col, ch in enumerate(line):
             if ch == "X":
                 d.point((cx - 3 + col, oy + row), fill=INK)
@@ -952,12 +991,12 @@ RUG_COLORS = (CUSHION_EDGE, CUSHION, CUSHION_SHADOW)
 # Edge, main, shadow per day, Sunday first: the same day colors as the corgi's rug.
 RUG_BY_WEEKDAY = (
     ((184, 150, 104), (236, 228, 210), (204, 192, 170)),  # Sunday: white
-    ((204, 170, 112), (58, 92, 160), (44, 70, 126)),      # Monday: blue
-    ((236, 214, 160), (222, 182, 48), (180, 144, 32)),    # Tuesday: yellow
-    ((206, 172, 100), (62, 128, 76), (46, 98, 58)),       # Wednesday: green
-    ((206, 164, 110), (100, 62, 40), (78, 46, 30)),       # Thursday: brown
-    ((228, 190, 144), (214, 104, 146), (172, 78, 114)),   # Friday: pink
-    ((206, 166, 108), (112, 70, 150), (86, 52, 118)),     # Saturday: purple
+    ((204, 170, 112), (58, 92, 160), (44, 70, 126)),  # Monday: blue
+    ((236, 214, 160), (222, 182, 48), (180, 144, 32)),  # Tuesday: yellow
+    ((206, 172, 100), (62, 128, 76), (46, 98, 58)),  # Wednesday: green
+    ((206, 164, 110), (100, 62, 40), (78, 46, 30)),  # Thursday: brown
+    ((228, 190, 144), (214, 104, 146), (172, 78, 114)),  # Friday: pink
+    ((206, 166, 108), (112, 70, 150), (86, 52, 118)),  # Saturday: purple
 )
 BACKGROUND = 0x5C3C2C  # Outside the canvas: the beam's wood.
 

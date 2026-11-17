@@ -44,8 +44,8 @@ than dithered: a dither turns mid-tone walls and fur into noise.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 CLEAR = -1  # A see-through pixel, among RGB565 values.
 _KEEP = -2  # A patch pixel equal to its base's.
@@ -112,8 +112,8 @@ def _runs(codes: list[int], w: int, h: int, copy: int, bits: int) -> list[int]:
             n -= take
 
     for y in range(h):
-        row = codes[y * w:(y + 1) * w]
-        above = codes[(y - 1) * w:y * w] if y else None
+        row = codes[y * w : (y + 1) * w]
+        above = codes[(y - 1) * w : y * w] if y else None
         x = 0
         while x < w:
             run = 1
@@ -200,8 +200,7 @@ def _palette(pixels: list[int]) -> tuple[list[int], dict[int, int]]:
     return palette, {c: i for i, c in enumerate(palette)}
 
 
-def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "full",
-               label: str = "frames") -> FrameSet:
+def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "full", label: str = "frames") -> FrameSet:
     """Encodes pictures of one size as keyframes and patches.
 
     `sequences` lists the order frames play in, as indices into `images`:
@@ -237,8 +236,7 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
             raise ValueError(f"{label}: {n} colors at RGB565; a sprite takes at most 255")
         bits = _bits(n + 1)
         data = _runs([at[p] for p in pixels[u]], w, h, n, bits)
-        return SetFrame(-1, 0, 0, w, h, bits, at.get(CLEAR, -1), [0 if c == CLEAR else c for c in palette],
-                        data, 0)
+        return SetFrame(-1, 0, 0, w, h, bits, at.get(CLEAR, -1), [0 if c == CLEAR else c for c in palette], data, 0)
 
     def patch(u: int, base: int, depth: int) -> SetFrame:
         a, b = pixels[u], pixels[base]
@@ -256,11 +254,21 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
                 codes.append(n if a[i] == b[i] else at[a[i]])
         bits = _bits(n + 2)
         data = _runs(codes, x1 - x0, y1 - y0, n + 1, bits)
-        return SetFrame(base, x0, y0, x1 - x0, y1 - y0, bits, at.get(CLEAR, -1),
-                        [0 if c == CLEAR else c for c in palette], data, depth + 1)
+        return SetFrame(
+            base,
+            x0,
+            y0,
+            x1 - x0,
+            y1 - y0,
+            bits,
+            at.get(CLEAR, -1),
+            [0 if c == CLEAR else c for c in palette],
+            data,
+            depth + 1,
+        )
 
     def changed(u: int, v: int) -> int:
-        return sum(1 for p, q in zip(pixels[u], pixels[v]) if p != q)
+        return sum(1 for p, q in zip(pixels[u], pixels[v], strict=False) if p != q)
 
     frames: dict[int, SetFrame] = {}
 

@@ -30,7 +30,6 @@ from pathlib import Path
 
 from PIL import Image
 
-
 # name -> (background color, layers module, module with ANIMATIONS/BLINKS/WINKS)
 # Modules may be given by name; they load when that persona is built, so a persona
 # whose script is missing only fails when it is used. A name with a leading
@@ -55,7 +54,10 @@ def _persona(name: str):
     import importlib
 
     background, layers, source = PERSONAS[name]
-    load = lambda m: importlib.import_module(m, __package__) if isinstance(m, str) else m
+
+    def load(m):
+        return importlib.import_module(m, __package__) if isinstance(m, str) else m
+
     return background, load(layers), load(source)
 
 
@@ -87,7 +89,7 @@ def rgb565(img: Image.Image) -> bytes:
     raw = img.convert("RGBA").tobytes()
     out = bytearray()
     for i in range(0, len(raw), 4):
-        r, g, b, a = raw[i:i + 4]
+        r, g, b, a = raw[i : i + 4]
         out += b"\xff\xff\xff" if a < 128 else bytes((r >> 3, g >> 2, b >> 3))
     return bytes(out)
 
@@ -116,7 +118,10 @@ def check_rug(layers, bg: Image.Image) -> None:
     bottom 13 rows; a scene may put its weekday colors anywhere it says.
     """
     box = getattr(layers, "RUG_BOX", (0, bg.height - 13, bg.width, bg.height))
-    q = lambda c: (c[0] >> 3, c[1] >> 2, c[2] >> 3)
+
+    def q(c):
+        return (c[0] >> 3, c[1] >> 2, c[2] >> 3)
+
     keys = {q(c) for c in layers.RUG_COLORS}
     if len(keys) != len(layers.RUG_COLORS):
         raise ValueError("rug colors collide at RGB565")
@@ -163,8 +168,13 @@ def build(name: str) -> Persona:
             wink=frame(source.WINKS[key]) if key in source.WINKS else None,
         )
 
-    persona = Persona(background=background, backdrop=layers.background(), sprite_offset=box[:2],
-                animations=animations, window=layers.WINDOW)
+    persona = Persona(
+        background=background,
+        backdrop=layers.background(),
+        sprite_offset=box[:2],
+        animations=animations,
+        window=layers.WINDOW,
+    )
 
     if hasattr(layers, "plant"):
         stages = [layers.plant(s, False) for s in range(layers.PLANT_STAGES)]
@@ -176,7 +186,10 @@ def build(name: str) -> Persona:
 
     if hasattr(layers, "RUG_COLORS"):
         check_rug(layers, persona.backdrop)
-        hexc = lambda c: (c[0] << 16) | (c[1] << 8) | c[2]
+
+        def hexc(c):
+            return (c[0] << 16) | (c[1] << 8) | c[2]
+
         persona.recolor_from = [hexc(c) for c in layers.RUG_COLORS]
         persona.recolor_by_weekday = [[hexc(c) for c in day] for day in layers.RUG_BY_WEEKDAY]
     return persona
@@ -187,7 +200,7 @@ def previews(name: str, out: Path) -> None:
     persona = build(name)
     out.mkdir(parents=True, exist_ok=True)
     persona.backdrop.save(out / "bg.png")
-    for i, (healthy, wilted) in enumerate(zip(persona.plant_stages, persona.plant_wilted)):
+    for i, (healthy, wilted) in enumerate(zip(persona.plant_stages, persona.plant_wilted, strict=False)):
         healthy.save(out / f"plant_s{i}.png")
         wilted.save(out / f"plant_w{i}.png")
     unique: dict[int, Image.Image] = {}
@@ -199,8 +212,10 @@ def previews(name: str, out: Path) -> None:
         img.save(out / f"f{i:02d}.png")
 
     # One row per animation: each frame as the full scene, at 2x.
-    rows = [(key, [p for p, _ in frames] + [p for p in (source.BLINKS.get(key), source.WINKS.get(key)) if p])
-            for key, frames in source.ANIMATIONS.items()]
+    rows = [
+        (key, [p for p, _ in frames] + [p for p in (source.BLINKS.get(key), source.WINKS.get(key)) if p])
+        for key, frames in source.ANIMATIONS.items()
+    ]
     w, h = persona.backdrop.size
     cols = max(len(poses) for _, poses in rows)
     sheet = Image.new("RGB", (cols * w * 2, len(rows) * h * 2), (40, 40, 40))

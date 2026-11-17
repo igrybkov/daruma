@@ -4,9 +4,9 @@
 //
 //   tests/run_cpp.sh   (builds and runs it with the other C++ tests)
 
-#define DARUMA_STATE_LIST                            \
-  X(NEUTRAL, "neutral", MOOD, -1, 0, false)         \
-  X(ATTENTION, "attention", ACTIVITY, 0, 0, false)  \
+#define DARUMA_STATE_LIST \
+  X(NEUTRAL, "neutral", MOOD, -1, 0, false) \
+  X(ATTENTION, "attention", ACTIVITY, 0, 0, false) \
   X(ALARM, "alarm", ACTIVITY, 0, 0, false)
 
 #include <algorithm>
@@ -21,12 +21,12 @@ using namespace Daruma;
 
 static int failures = 0;
 
-#define CHECK(cond)                                                \
-  do {                                                             \
-    if (!(cond)) {                                                 \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);  \
-      failures++;                                                  \
-    }                                                              \
+#define CHECK(cond) \
+  do { \
+    if (!(cond)) { \
+      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+      failures++; \
+    } \
   } while (0)
 
 static Prompt make(const std::string &id, PromptStyle style, std::vector<std::string> options = {"Yes", "No"},
@@ -137,8 +137,8 @@ static void choosing() {
   CHECK(s.choose(s.top(false), 2));
   Prompt *q = s.top(false);
   CHECK(q != nullptr && q->answered && q->mark(2) == Mark::SELECTED);
-  CHECK(!s.choose(q, 3));      // Locked.
-  CHECK(!s.tick(100000));       // Its timeout stopped.
+  CHECK(!s.choose(q, 3));  // Locked.
+  CHECK(!s.tick(100000));  // Its timeout stopped.
   // HA marks it, then replaces it: no second answer for the old one.
   std::vector<Mark> marks = {Mark::NONE, Mark::NONE, Mark::WRONG, Mark::CORRECT};
   CHECK(s.update("q", nullptr, &marks, -1, 0));
@@ -201,7 +201,7 @@ static void capped() {
   for (int i = 0; i < 10; i++)
     s.show(make("p" + std::to_string(i), i == 0 ? PromptStyle::URGENT : PromptStyle::INFO), i);
   CHECK(s.size() == PromptStack::MAX_PROMPTS);
-  CHECK(s.find("p0") != nullptr);  // The urgent one stays.
+  CHECK(s.find("p0") != nullptr);                             // The urgent one stays.
   CHECK(s.find("p1") == nullptr && s.find("p2") == nullptr);  // The oldest info ones went.
   auto answers = s.take_answers();
   CHECK(answers.size() == 2 && answers[0].reason == Reason::REPLACED);
@@ -329,8 +329,8 @@ static Gesture drag(TouchTracker &tr, uint32_t at, int x, int y0, int y1, uint32
 static void list_scrolling_never_chooses() {
   const Layout l = Layout::compute(320, 240);
   const PromptMetrics m{27, 23};
-  std::vector<std::string> snacks = {"Apples", "Bagels", "Chips", "Dates", "Eclairs",
-                                     "Fudge", "Grapes", "Popcorn", "Quiche", "Raisins"};
+  std::vector<std::string> snacks = {"Apples", "Bagels", "Chips",   "Dates",  "Eclairs",
+                                     "Fudge",  "Grapes", "Popcorn", "Quiche", "Raisins"};
   Prompt p = make("snack", PromptStyle::INFO, snacks, PromptLayout::LIST);
   PromptGeometry g = prompt_layout::list(l, m, 10, -1, 0, 0, false, true, false);
   CHECK(g.scroll.w > 0 && g.first == 0);

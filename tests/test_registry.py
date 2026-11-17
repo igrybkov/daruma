@@ -1,12 +1,12 @@
 """Host test of the Daruma registry's build checks (no ESPHome needed).
 
-    python3 -m unittest discover -s tests
+python3 -m unittest discover -s tests
 """
 
 import importlib.util
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 _PATH = Path(__file__).resolve().parents[1] / "components" / "daruma" / "registry.py"
 _SPEC = importlib.util.spec_from_file_location("daruma_registry", _PATH)
@@ -14,7 +14,12 @@ registry = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = registry  # Dataclasses look their module up here.
 _SPEC.loader.exec_module(registry)
 
-State, ModuleSpec, Persona, RegistryError = registry.State, registry.ModuleSpec, registry.Persona, registry.RegistryError
+State, ModuleSpec, Persona, RegistryError = (
+    registry.State,
+    registry.ModuleSpec,
+    registry.Persona,
+    registry.RegistryError,
+)
 
 POMODORO = ModuleSpec(
     name="pomodoro",
@@ -31,15 +36,27 @@ POMODORO = ModuleSpec(
 MENU = ModuleSpec(name="menu", actions=["menu.open"], bindings={"screen.tap": "menu.open"})
 HUB = ModuleSpec(name="daruma", actions=["daruma.pet"], bindings={"screen.tap": "daruma.pet"})
 MODULES = [HUB, MENU, POMODORO]
-CORGI_ANIMS = ["Neutral", "Happy", "Sad", "Loved", "Scared", "Sleepy", "Sleeping", "listening", "thinking",
-               "talking", "Focus"]
+CORGI_ANIMS = [
+    "Neutral",
+    "Happy",
+    "Sad",
+    "Loved",
+    "Scared",
+    "Sleepy",
+    "Sleeping",
+    "listening",
+    "thinking",
+    "talking",
+    "Focus",
+]
 
 
 def inputs():
     return {
         "home": registry.Input("home", registry.BUTTON, ["press", "double", "hold"]),
-        "screen": registry.Input("screen", registry.TOUCH,
-                                 registry.expand_gestures(registry.TOUCH, ["tap", "hold", "swipe", "stroke"])),
+        "screen": registry.Input(
+            "screen", registry.TOUCH, registry.expand_gestures(registry.TOUCH, ["tap", "hold", "swipe", "stroke"])
+        ),
     }
 
 
@@ -186,8 +203,9 @@ class Bindings(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, "both bind screen.tap"):
             registry.resolve_bindings(self.inputs, self.nav, {}, modules, registry.collect_actions(modules))
         # The device yaml settles it.
-        registry.resolve_bindings(self.inputs, self.nav, {"screen.tap": {"action": "other.go"}}, modules,
-                                  registry.collect_actions(modules))
+        registry.resolve_bindings(
+            self.inputs, self.nav, {"screen.tap": {"action": "other.go"}}, modules, registry.collect_actions(modules)
+        )
 
 
 class AppsProgressThemeParams(unittest.TestCase):
@@ -239,12 +257,22 @@ class AppsProgressThemeParams(unittest.TestCase):
 
 def menu_modules():
     pomo = ModuleSpec(
-        "pomodoro", actions=["pomodoro.toggle", "pomodoro.stop", "pomodoro.break"], apps=["stats"], menu=True,
+        "pomodoro",
+        actions=["pomodoro.toggle", "pomodoro.stop", "pomodoro.break"],
+        apps=["stats"],
+        menu=True,
         buttons={"pomodoro.break": {"label": "Break", "icon": "x", "color": "pomodoro.break"}},
-        bindings={"home.press": "menu.open:pomodoro"}, menus={"pomodoro": ["pomodoro", "pomodoro.break"]})
-    return [HUB, ModuleSpec("menu", actions=["menu.open"], bindings={"screen.tap": "menu.open"}), pomo,
-            ModuleSpec("tasks", apps=["tasks"]), ModuleSpec("tasks_family", apps=["tasks_family"]),
-            ModuleSpec("calendar", apps=["calendar"])]
+        bindings={"home.press": "menu.open:pomodoro"},
+        menus={"pomodoro": ["pomodoro", "pomodoro.break"]},
+    )
+    return [
+        HUB,
+        ModuleSpec("menu", actions=["menu.open"], bindings={"screen.tap": "menu.open"}),
+        pomo,
+        ModuleSpec("tasks", apps=["tasks"]),
+        ModuleSpec("tasks_family", apps=["tasks_family"]),
+        ModuleSpec("calendar", apps=["calendar"]),
+    ]
 
 
 def resolve(device=None, modules=None):
@@ -266,8 +294,9 @@ class Menus(unittest.TestCase):
     def test_default_main_keeps_modules_without_a_menu(self):
         mods = menu_modules() + [ModuleSpec("lights", menu=True)]
         menus = resolve(modules=mods)
-        self.assertEqual(kinds(menus["main"]), [("module", "lights"), ("app", "tasks"), ("app", "calendar"),
-                                                ("more", "")])
+        self.assertEqual(
+            kinds(menus["main"]), [("module", "lights"), ("app", "tasks"), ("app", "calendar"), ("more", "")]
+        )
 
     def test_module_menu_is_a_default(self):
         menus = resolve()
@@ -331,7 +360,9 @@ class Menus(unittest.TestCase):
             resolve({"main": [{"label": "Lights", "event": "lights"}]})
 
     def test_buttons_must_be_own_actions(self):
-        mods = menu_modules() + [ModuleSpec("x", actions=["x.go"], buttons={"pomodoro.stop": {"label": "S", "icon": "s"}})]
+        mods = menu_modules() + [
+            ModuleSpec("x", actions=["x.go"], buttons={"pomodoro.stop": {"label": "S", "icon": "s"}})
+        ]
         with self.assertRaisesRegex(RegistryError, "not one of its actions"):
             resolve({}, mods)
 
@@ -350,8 +381,10 @@ class MenuBindings(unittest.TestCase):
         self.menus, _ = registry.collect_menus({"quick": ["stats"]}, self.mods)
 
     def bind(self, device):
-        return {(b.input, b.gesture): b for b in registry.resolve_bindings(
-            self.inputs, self.nav, device, self.mods, self.actions, self.menus)[0]}
+        return {
+            (b.input, b.gesture): b
+            for b in registry.resolve_bindings(self.inputs, self.nav, device, self.mods, self.actions, self.menus)[0]
+        }
 
     def test_module_default_opens_its_menu(self):
         b = self.bind({})[("home", "press")]
@@ -382,9 +415,16 @@ class MenuBindings(unittest.TestCase):
 
 # --- Tap areas and device themes ---------------------------------------------------
 
-POMO_AREA = ModuleSpec(name="pomodoro", actions=["pomodoro.toggle"], apps=["stats"], areas=["plaque"],
-                       targets={"plaque": {"app": "stats"}}, colors={"done": 1, "pending": 2},
-                       words={"ready": "Ready"}, aliases={"tomato": "done"})
+POMO_AREA = ModuleSpec(
+    name="pomodoro",
+    actions=["pomodoro.toggle"],
+    apps=["stats"],
+    areas=["plaque"],
+    targets={"plaque": {"app": "stats"}},
+    colors={"done": 1, "pending": 2},
+    words={"ready": "Ready"},
+    aliases={"tomato": "done"},
+)
 CORE_AREA = ModuleSpec(name="daruma", actions=["daruma.pet"], areas=["badge"])
 WEATHER = ModuleSpec(name="weather", apps=["weather"], targets={"badge": {"app": "weather"}})
 MENU_MOD = ModuleSpec(name="menu", actions=["menu.open", "menu.app"])
@@ -442,8 +482,12 @@ class Targets(unittest.TestCase):
 
 class DeviceThemes(unittest.TestCase):
     def test_keys_and_personas(self):
-        registry.check_device_themes({"colors": {"pomodoro.done": 1}, "words": {"pomodoro.ready": "Go"}},
-                                     {"eyes": {"colors": {"pomodoro.pending": 2}}}, ["eyes"], [POMO_AREA])
+        registry.check_device_themes(
+            {"colors": {"pomodoro.done": 1}, "words": {"pomodoro.ready": "Go"}},
+            {"eyes": {"colors": {"pomodoro.pending": 2}}},
+            ["eyes"],
+            [POMO_AREA],
+        )
 
     def test_unknown_persona(self):
         with self.assertRaisesRegex(RegistryError, "no persona has the id 'eye'.*eyes"):
@@ -465,6 +509,7 @@ class DeviceThemes(unittest.TestCase):
         bad = ModuleSpec(name="pomodoro", colors={"done": 1}, aliases={"tomato": "ripe"})
         with self.assertRaisesRegex(RegistryError, "alias 'tomato' points at 'ripe'"):
             registry.theme_aliases([bad])
+
 
 if __name__ == "__main__":
     unittest.main()

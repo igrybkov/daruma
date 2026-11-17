@@ -239,11 +239,11 @@ static FILE *fake_fopen(const char *path, const char *mode) {
 /* ---- Hooking ------------------------------------------------------------ */
 
 #ifdef __APPLE__
-#define INTERPOSE(replacement, original)                                                  \
-  __attribute__((used)) static struct {                                                   \
-    const void *replacement;                                                              \
-    const void *original;                                                                 \
-  } interpose_##original __attribute__((section("__DATA,__interpose"))) = {              \
+#define INTERPOSE(replacement, original) \
+  __attribute__((used)) static struct { \
+    const void *replacement; \
+    const void *original; \
+  } interpose_##original __attribute__((section("__DATA,__interpose"))) = { \
       (const void *) (unsigned long) &replacement, (const void *) (unsigned long) &original}
 
 INTERPOSE(fake_clock_gettime, clock_gettime);

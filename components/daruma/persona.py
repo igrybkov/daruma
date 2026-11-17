@@ -19,8 +19,8 @@ throw }`: "Jack Russell throw").
 """
 
 import esphome.codegen as cg
-from esphome.components import select, switch
 import esphome.config_validation as cv
+from esphome.components import select, switch
 from esphome.const import CONF_NAME
 
 from . import registry, states_for_build
@@ -113,7 +113,9 @@ def with_param_entities(declared: dict[str, Param]):
             entity = {CONF_NAME: f"{config[CONF_NAME]} {label}"}
             if param.kind == "bool":
                 conf[CONF_ENTITY] = switch.switch_schema(
-                    ParamSwitch, entity_category="config", icon=param.icon,
+                    ParamSwitch,
+                    entity_category="config",
+                    icon=param.icon,
                     default_restore_mode="RESTORE_DEFAULT_ON" if param.default else "RESTORE_DEFAULT_OFF",
                 )(entity)
             else:
@@ -143,7 +145,7 @@ async def persona_to_code(var, hub, char: registry.Persona, config, declared: di
     items = ", ".join(
         f"Daruma::Behavior{{{b.animation}, {cg.safe_exp(b.sound)}, {cg.safe_exp(b.say)}, "
         f"{'true' if b.shown_as == state.name else 'false'}}}"
-        for b, state in zip(behaviors, states)
+        for b, state in zip(behaviors, states, strict=False)
     )
     cg.add(var.set_behaviors(cg.RawExpression(f"std::vector<Daruma::Behavior>{{{items}}}")))
     try:

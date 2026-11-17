@@ -171,6 +171,10 @@ hook do it. To run every hook on every file:
 uvx pre-commit run --all-files
 ```
 
+The commits that formatted the whole code base are in
+`.git-blame-ignore-revs`. To make `git blame` skip them:
+`git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+
 clang-tidy needs a compile database. It reads the host tests and the
 component headers they include:
 
@@ -206,7 +210,7 @@ checks the pull request title and every commit message in it.
 | Previews | demo GIFs and contact sheets, uploaded as artifacts |
 | Pull request title | the title is a Conventional Commit |
 | Commit messages | `gitlint` on each commit of the pull request |
-| Lint | complexipy and lizard; ruff and clang-format don't block yet |
+| Lint | ruff, clang-format, complexipy and lizard |
 | clang-tidy | the host tests and the headers they include |
 
 The examples fetch Daruma with git. In CI they fetch the checkout under

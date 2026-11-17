@@ -50,7 +50,7 @@ class TaskView {
   void draw_notice_(AppView &v, int text_h);
 
   TaskList *list_;
-  int first_{0};  // First row shown.
+  int first_{0};     // First row shown.
   FocusRing focus_;  // The focused row, on boards without touch.
   // From the last draw, for taps (app-area coordinates).
   int list_top_{0};

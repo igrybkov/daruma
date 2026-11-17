@@ -81,6 +81,11 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# These persona modules take scene() and the other layers from
+# globals().update(<persona>.layers()), which ruff can't see.
+"pixel/daruma_pixel/preview.py" = ["F821"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "demos"]
 # pytest-xdist, one worker per CPU: on an M-series Mac (5 performance and

@@ -5,12 +5,12 @@
 //   c++ -std=c++17 -Wall -Wextra -I components/daruma \
 //       tests/test_input.cpp -o /tmp/test_input && /tmp/test_input
 
-#define DARUMA_STATE_LIST                                \
-  X(NEUTRAL, "neutral", MOOD, -1, 0, false)             \
-  X(HAPPY, "happy", MOOD, 0, 0, false)                  \
-  X(SLEEPING, "sleeping", MOOD, 0, 0, false)            \
-  X(LISTENING, "listening", ACTIVITY, 0, 0, false)      \
-  X(FOCUS, "focus", ACTIVITY, 0, 0, false)              \
+#define DARUMA_STATE_LIST \
+  X(NEUTRAL, "neutral", MOOD, -1, 0, false) \
+  X(HAPPY, "happy", MOOD, 0, 0, false) \
+  X(SLEEPING, "sleeping", MOOD, 0, 0, false) \
+  X(LISTENING, "listening", ACTIVITY, 0, 0, false) \
+  X(FOCUS, "focus", ACTIVITY, 0, 0, false) \
   X(PETTED, "petted", REACTION, 1, 2000, false)
 
 #include <cstdio>
@@ -24,12 +24,12 @@ using namespace Daruma;
 
 static int failures = 0;
 
-#define CHECK(cond)                                                \
-  do {                                                             \
-    if (!(cond)) {                                                 \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);  \
-      failures++;                                                  \
-    }                                                              \
+#define CHECK(cond) \
+  do { \
+    if (!(cond)) { \
+      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+      failures++; \
+    } \
   } while (0)
 
 static const uint16_t NOTHING = 0;

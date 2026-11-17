@@ -6,121 +6,108 @@
 #include "esphome/components/font/font.h"
 
 namespace Daruma {
-    namespace Utilities {
-        static int textWidth(esphome::display::Display &display, esphome::display::BaseFont *font, const std::string &text) {
-            int x1, y1, width, height;
-            display.get_text_bounds(0, 0, text.c_str(), font, esphome::display::TextAlign::TOP_LEFT, &x1, &y1, &width, &height);
-            return width;
-        }
-
-        std::vector<std::string> Text::wrap(
-            esphome::display::Display &display,
-            esphome::display::BaseFont *font,
-            const std::string &text,
-            int maxWidth
-        ) {
-            std::vector<std::string> lines;
-            size_t paragraphStart = 0;
-
-            while (paragraphStart <= text.size()) {
-                size_t paragraphEnd = text.find('\n', paragraphStart);
-                if (paragraphEnd == std::string::npos) {
-                    paragraphEnd = text.size();
-                }
-                std::string paragraph = text.substr(paragraphStart, paragraphEnd - paragraphStart);
-
-                std::string line;
-                size_t wordStart = 0;
-                while (wordStart < paragraph.size()) {
-                    size_t wordEnd = paragraph.find(' ', wordStart);
-                    if (wordEnd == std::string::npos) {
-                        wordEnd = paragraph.size();
-                    }
-                    std::string word = paragraph.substr(wordStart, wordEnd - wordStart);
-                    wordStart = wordEnd + 1;
-                    if (word.empty()) {
-                        continue;
-                    }
-
-                    std::string candidate = line.empty() ? word : line + " " + word;
-                    if (line.empty() || textWidth(display, font, candidate) <= maxWidth) {
-                        line = candidate;
-                    } else {
-                        lines.push_back(line);
-                        line = word;
-                    }
-                }
-                if (!line.empty()) {
-                    lines.push_back(line);
-                }
-
-                paragraphStart = paragraphEnd + 1;
-            }
-
-            return lines;
-        }
-
-        int Text::bubble(
-            esphome::display::Display &display,
-            esphome::display::BaseFont *font,
-            const std::string &text,
-            int y,
-            bool anchorBottom,
-            int maxLines,
-            esphome::Color background,
-            esphome::Color foreground
-        ) {
-            if (text.empty()) {
-                return 0;
-            }
-
-            const int margin = 8;
-            const int padding = 8;
-            const int boxWidth = display.get_width() - 2 * margin;
-            const int textMaxWidth = boxWidth - 2 * padding;
-
-            // The font has no U+02BC (the Ukrainian apostrophe, as in "м'ята").
-            // Show U+2019, which looks the same.
-            std::string shown = text;
-            for (size_t at; (at = shown.find("\xCA\xBC")) != std::string::npos;) {
-                shown.replace(at, 2, "\xE2\x80\x99");
-            }
-
-            std::vector<std::string> lines = wrap(display, font, shown, textMaxWidth);
-            if (lines.empty()) {
-                return 0;
-            }
-
-            if ((int)lines.size() > maxLines) {
-                lines.resize(maxLines);
-                std::string &last = lines.back();
-                // Drop whole words until the ellipsis fits.
-                while (!last.empty() && textWidth(display, font, last + "...") > textMaxWidth) {
-                    size_t cut = last.rfind(' ');
-                    last = cut == std::string::npos ? "" : last.substr(0, cut);
-                }
-                last += "...";
-            }
-
-            int x1, y1, width, lineHeight;
-            display.get_text_bounds(0, 0, "Ay", font, esphome::display::TextAlign::TOP_LEFT, &x1, &y1, &width, &lineHeight);
-            lineHeight += 2;
-
-            const int boxHeight = (int)lines.size() * lineHeight + 2 * padding - 2;
-            const int top = anchorBottom ? y - boxHeight : y;
-
-            Draw::roundedRectangle(&display, margin, top, boxWidth, boxHeight, 10, background);
-            for (size_t i = 0; i < lines.size(); i++) {
-                display.print(display.get_width() / 2, top + padding + (int)i * lineHeight, font, foreground,
-                              esphome::display::TextAlign::TOP_CENTER, lines[i].c_str(), background);
-            }
-
-            return boxHeight;
-        }
-    
-
-    }
+namespace Utilities {
+static int textWidth(esphome::display::Display &display, esphome::display::BaseFont *font, const std::string &text) {
+  int x1, y1, width, height;
+  display.get_text_bounds(0, 0, text.c_str(), font, esphome::display::TextAlign::TOP_LEFT, &x1, &y1, &width, &height);
+  return width;
 }
+
+std::vector<std::string> Text::wrap(esphome::display::Display &display, esphome::display::BaseFont *font,
+                                    const std::string &text, int maxWidth) {
+  std::vector<std::string> lines;
+  size_t paragraphStart = 0;
+
+  while (paragraphStart <= text.size()) {
+    size_t paragraphEnd = text.find('\n', paragraphStart);
+    if (paragraphEnd == std::string::npos) {
+      paragraphEnd = text.size();
+    }
+    std::string paragraph = text.substr(paragraphStart, paragraphEnd - paragraphStart);
+
+    std::string line;
+    size_t wordStart = 0;
+    while (wordStart < paragraph.size()) {
+      size_t wordEnd = paragraph.find(' ', wordStart);
+      if (wordEnd == std::string::npos) {
+        wordEnd = paragraph.size();
+      }
+      std::string word = paragraph.substr(wordStart, wordEnd - wordStart);
+      wordStart = wordEnd + 1;
+      if (word.empty()) {
+        continue;
+      }
+
+      std::string candidate = line.empty() ? word : line + " " + word;
+      if (line.empty() || textWidth(display, font, candidate) <= maxWidth) {
+        line = candidate;
+      } else {
+        lines.push_back(line);
+        line = word;
+      }
+    }
+    if (!line.empty()) {
+      lines.push_back(line);
+    }
+
+    paragraphStart = paragraphEnd + 1;
+  }
+
+  return lines;
+}
+
+int Text::bubble(esphome::display::Display &display, esphome::display::BaseFont *font, const std::string &text, int y,
+                 bool anchorBottom, int maxLines, esphome::Color background, esphome::Color foreground) {
+  if (text.empty()) {
+    return 0;
+  }
+
+  const int margin = 8;
+  const int padding = 8;
+  const int boxWidth = display.get_width() - 2 * margin;
+  const int textMaxWidth = boxWidth - 2 * padding;
+
+  // The font has no U+02BC (the Ukrainian apostrophe, as in "м'ята").
+  // Show U+2019, which looks the same.
+  std::string shown = text;
+  for (size_t at; (at = shown.find("\xCA\xBC")) != std::string::npos;) {
+    shown.replace(at, 2, "\xE2\x80\x99");
+  }
+
+  std::vector<std::string> lines = wrap(display, font, shown, textMaxWidth);
+  if (lines.empty()) {
+    return 0;
+  }
+
+  if ((int) lines.size() > maxLines) {
+    lines.resize(maxLines);
+    std::string &last = lines.back();
+    // Drop whole words until the ellipsis fits.
+    while (!last.empty() && textWidth(display, font, last + "...") > textMaxWidth) {
+      size_t cut = last.rfind(' ');
+      last = cut == std::string::npos ? "" : last.substr(0, cut);
+    }
+    last += "...";
+  }
+
+  int x1, y1, width, lineHeight;
+  display.get_text_bounds(0, 0, "Ay", font, esphome::display::TextAlign::TOP_LEFT, &x1, &y1, &width, &lineHeight);
+  lineHeight += 2;
+
+  const int boxHeight = (int) lines.size() * lineHeight + 2 * padding - 2;
+  const int top = anchorBottom ? y - boxHeight : y;
+
+  Draw::roundedRectangle(&display, margin, top, boxWidth, boxHeight, 10, background);
+  for (size_t i = 0; i < lines.size(); i++) {
+    display.print(display.get_width() / 2, top + padding + (int) i * lineHeight, font, foreground,
+                  esphome::display::TextAlign::TOP_CENTER, lines[i].c_str(), background);
+  }
+
+  return boxHeight;
+}
+
+}  // namespace Utilities
+}  // namespace Daruma
 
 namespace Daruma {
 

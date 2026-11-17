@@ -16,8 +16,8 @@
 namespace Daruma {
 
 struct UiNode {
-  std::string role;   // button, tile, row, dialog, heading, text, app
-  std::string name;   // The text it shows, or what it is ("Back")
+  std::string role;  // button, tile, row, dialog, heading, text, app
+  std::string name;  // The text it shows, or what it is ("Back")
   Rect rect;
   bool focused{false};
   std::string value;  // Extra state: a mark ("selected", "correct"), "done"

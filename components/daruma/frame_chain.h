@@ -117,7 +117,7 @@ template<template<class> class Alloc = std::allocator> class BasicFrameCanvas {
   int w_{0};
   int h_{0};
   int held_{-1};
-  std::vector<uint16_t, Alloc<uint16_t>> px_;  // RGB565
+  std::vector<uint16_t, Alloc<uint16_t>> px_;   // RGB565
   std::vector<uint8_t, Alloc<uint8_t>> clear_;  // 1 where the frame is see-through.
 };
 

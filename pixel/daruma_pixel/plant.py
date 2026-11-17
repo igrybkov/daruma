@@ -31,8 +31,10 @@ POT_LIGHT = (210, 128, 84)
 POT_LINE = (96, 46, 30)
 SOIL = (66, 42, 30)
 
-LEAF = {False: ((48, 104, 50), (78, 148, 70), (132, 194, 98)),  # dark, mid, light
-        True: ((112, 100, 46), (156, 140, 60), (192, 176, 92))}
+LEAF = {
+    False: ((48, 104, 50), (78, 148, 70), (132, 194, 98)),  # dark, mid, light
+    True: ((112, 100, 46), (156, 140, 60), (192, 176, 92)),
+}
 STEM = {False: (44, 92, 44), True: (106, 92, 44)}
 FLOWER = (248, 196, 214)
 FLOWER_EYE = (250, 220, 120)
@@ -49,7 +51,9 @@ TUFT = [
 ]
 # Vines per stage: (side, length in px down from the rim).
 VINES = [
-    [], [], [],
+    [],
+    [],
+    [],
     [(1, 9)],
     [(1, 16), (-1, 12)],
     [(1, 26), (-1, 21)],
@@ -126,10 +130,7 @@ def _vine(L: Layer, side: int, length: int, wilted: bool, phase: float) -> None:
     for i in range(length):
         y = RIM_Y + i
         # Out over the rim, then down the wall in front of the shelf with a gentle wave.
-        if i < 3:
-            x = x0 + side * i
-        else:
-            x = x0 + side * 3 + round(math.sin((i + phase) / 3.2) * 1.2)
+        x = x0 + side * i if i < 3 else x0 + side * 3 + round(math.sin((i + phase) / 3.2) * 1.2)
         L.dot(x, y, STEM[wilted])
         if i >= 3 and (i + int(phase)) % 4 == 1:
             leaf_side = side if (i // 4) % 2 else -side

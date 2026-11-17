@@ -201,8 +201,8 @@ void TaskView::draw_message_(AppView &v, const std::string &text, int text_h) {
   const int line_h = text_h + 4;
   int y = v.y + v.h / 2 - count * line_h / 2 + line_h / 2;
   for (int i = 0; i < count; i++, y += line_h) {
-    v.display.print(v.x + v.w / 2, y, v.text, i == 0 ? v.theme.ink : v.theme.muted, TextAlign::CENTER,
-                    lines[i].c_str(), v.theme.panel);
+    v.display.print(v.x + v.w / 2, y, v.text, i == 0 ? v.theme.ink : v.theme.muted, TextAlign::CENTER, lines[i].c_str(),
+                    v.theme.panel);
   }
 }
 

@@ -43,8 +43,21 @@ Theme = daruma_ns.class_("Theme")
 CONF_THEME = "theme"
 STYLES = {"outline": 0, "wood": 1, "paper": 2}
 INFO_PLACES = {"bottom": 0, "top": 1, "off": 2}
-COLORS = ("frame", "edge", "panel", "ink", "muted", "title", "accent", "dot", "dock", "dock_ink",
-          "dock_muted", "icon_color", "focus")
+COLORS = (
+    "frame",
+    "edge",
+    "panel",
+    "ink",
+    "muted",
+    "title",
+    "accent",
+    "dot",
+    "dock",
+    "dock_ink",
+    "dock_muted",
+    "icon_color",
+    "focus",
+)
 CONF_MONO = "mono"
 
 

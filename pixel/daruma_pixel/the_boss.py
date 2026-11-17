@@ -18,13 +18,26 @@ foreground, WINDOW, ANIMATIONS, BLINKS, WINKS).
 
 from __future__ import annotations
 
-
 from PIL import Image, ImageDraw
 
-
 from .desk_boss import (
-    DESK_Y, HAPPY, READING, SAD, W, H, Persona, DeskColors, Look, Pose, Rig,
-    animations, desk_hands, frames, raised_arm, shoulder, with_,
+    DESK_Y,
+    HAPPY,
+    READING,
+    SAD,
+    DeskColors,
+    H,
+    Look,
+    Persona,
+    Pose,
+    Rig,
+    W,
+    animations,
+    desk_hands,
+    frames,
+    raised_arm,
+    shoulder,
+    with_,
 )
 from .pixelkit import Canvas, Ramp, ellipse, mask, poly, subtract
 
@@ -54,8 +67,7 @@ WALL = (222, 210, 190)
 WALL_LOW = (208, 194, 172)
 TRIM = (236, 228, 212)
 CHAIR = Ramp(base=(62, 62, 70), shadow=(46, 46, 52), light=(86, 86, 96))
-DESK = DeskColors(top=(118, 78, 56), edge=(148, 104, 76), front=(92, 60, 42), line=(66, 42, 30),
-                  handle=(196, 198, 204))
+DESK = DeskColors(top=(118, 78, 56), edge=(148, 104, 76), front=(92, 60, 42), line=(66, 42, 30), handle=(196, 198, 204))
 BOARD = (248, 249, 250)
 BOARD_FRAME = (164, 168, 176)
 LEAF = Ramp(base=(64, 132, 72), shadow=(42, 98, 54), light=(104, 168, 92))
@@ -101,8 +113,9 @@ def office(img: Image.Image) -> None:
     for x, tip, lean in leaves:
         mid = (tip + DESK_Y) // 2
         leaf, ld = mask((W, H))
-        poly(ld, [(x - 1, DESK_Y), (x + 1, DESK_Y), (x + 2 + lean // 2, mid), (x + lean, tip),
-                  (x - 2 + lean // 2, mid)])
+        poly(
+            ld, [(x - 1, DESK_Y), (x + 1, DESK_Y), (x + 2 + lean // 2, mid), (x + lean, tip), (x - 2 + lean // 2, mid)]
+        )
         c.paint(leaf, LEAF)
         for y in range(tip + 5, DESK_Y - 2, 5):  # Darker bands across the leaf.
             t = (y - tip) / (DESK_Y - tip)
@@ -132,8 +145,11 @@ def desk_props(img: Image.Image, p: Pose) -> None:
     cup, d = mask((W, H))
     d.rectangle((1, DESK_Y - 6, 5, DESK_Y - 1), fill=1)
     c.paint(cup, Ramp(base=(70, 74, 84), shadow=(52, 54, 62)), shade=False)
-    for x, top, color in ((2, DESK_Y - 10, (60, 110, 196)), (4, DESK_Y - 9, (214, 64, 64)),
-                          (3, DESK_Y - 11, (40, 40, 44))):
+    for x, top, color in (
+        (2, DESK_Y - 10, (60, 110, 196)),
+        (4, DESK_Y - 9, (214, 64, 64)),
+        (3, DESK_Y - 11, (40, 40, 44)),
+    ):
         for y in range(top, DESK_Y - 6):
             c.dot(x, y, color)
     c.outline(OUTLINE)
@@ -208,7 +224,19 @@ def hair(c: Canvas, r: Rig) -> None:
     face, d2 = mask((W, H))
     fx, fy = hp(0, -1.5)
     ellipse(d2, fx, fy, 7.4 * F, 9.6 * F)
-    poly(d2, [hp(-7.4, -3), hp(-6.6, -7), hp(-4.5, -9), hp(-1.5, -9.8), hp(1.5, -9.8), hp(4.5, -9), hp(6.6, -7), hp(7.4, -3)])
+    poly(
+        d2,
+        [
+            hp(-7.4, -3),
+            hp(-6.6, -7),
+            hp(-4.5, -9),
+            hp(-1.5, -9.8),
+            hp(1.5, -9.8),
+            hp(4.5, -9),
+            hp(6.6, -7),
+            hp(7.4, -3),
+        ],
+    )
     c.paint(subtract(cap, face), hr)
     c.line([r.hp(0, -10.4), r.hp(0, -14.2)], hr.light)  # Center part.
     for side in (-1, 1):  # Sheen sweeping back from the part.
@@ -366,12 +394,33 @@ def sip(c: Canvas, r: Rig) -> None:
 
 
 LOOK = Look(
-    outline=OUTLINE, skin=SKIN, hair=HAIR, suit=SUIT, shirt=BLOUSE, tie=None, blush=BLUSH, watch=WATCH,
-    wall=WALL, chair=CHAIR, desk=DESK, decor=office, desk_props=desk_props,
-    neckline=blouse, head=head, hair_style=hair,
-    eye=eye, brow=brow, nose=nose, mouth=mouth, glasses=frames(FRAMES),
+    outline=OUTLINE,
+    skin=SKIN,
+    hair=HAIR,
+    suit=SUIT,
+    shirt=BLOUSE,
+    tie=None,
+    blush=BLUSH,
+    watch=WATCH,
+    wall=WALL,
+    chair=CHAIR,
+    desk=DESK,
+    decor=office,
+    desk_props=desk_props,
+    neckline=blouse,
+    head=head,
+    hair_style=hair,
+    eye=eye,
+    brow=brow,
+    nose=nose,
+    mouth=mouth,
+    glasses=frames(FRAMES),
     gestures={"watch": check_watch, "mug": sip},
-    head_scale=1.15, neck_y=39, eye_at=(3.8, -2), mouth_drop=7, tear_at=(-3.8, 0.5),
+    head_scale=1.15,
+    neck_y=39,
+    eye_at=(3.8, -2),
+    mouth_drop=7,
+    tear_at=(-3.8, 0.5),
 )
 
 _boss = Persona(LOOK)

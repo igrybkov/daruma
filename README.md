@@ -23,7 +23,7 @@ message and a doorbell card. See them all in the
 Not just a pet: focus sessions, tasks, calendar, weather and questions
 from Home Assistant.
 
-![Daruma at work: a focus block reaches the day's goal, a task is checked off, the calendar, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
+![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 
 ## Why Daruma
 
@@ -41,8 +41,8 @@ more personas, apps of your own, longer animations.
   tomatoes for the day, this week's bars and a streak.
 - **Tasks**: today's tasks from a Home Assistant to-do list, or from a
   script that returns any task list. Tap one to check it off.
-- **Calendar**: an agenda of the next days from your calendars, and the
-  next event on the persona's screen.
+- **Calendar**: the Agenda of your coming events, and the next event on
+  the persona's screen.
 - **Weather**: now, today's high and low, rain, wind and the next hours.
 - **Prompts**: Home Assistant puts a card on the screen and gets the
   answer back: a doorbell with Unlock and Talk, a quiz with a countdown,

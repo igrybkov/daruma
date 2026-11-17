@@ -1,6 +1,6 @@
 # Calendar app for Daruma. Needs core.yaml and menu.yaml.
 #
-# Opens on an agenda of the next days ("Days ahead", 14 by default): a
+# Opens on the Agenda, the coming days ("Days ahead", 14 by default): a
 # heading per day ("Today", "Tomorrow", "Wed 19 Nov"), only for days with
 # events, except Today, which shows "Nothing" when it is free. Under each
 # heading: the start time (or "All day") and the title. The event in

@@ -1,6 +1,6 @@
 #pragma once
 
-// Draws the agenda (the next days' events under day headings) into an app
+// Draws the Agenda (the coming days' events under day headings) into an app
 // area and maps taps and the focus back to its rows. Knows nothing about
 // fetching; CalendarApp hands it an AgendaViewState.
 

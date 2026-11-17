@@ -287,7 +287,7 @@ Built in:
 |---|---|---|
 | Pomodoro page | [pomodoro.yaml](../packages/pomodoro.yaml) | the timer, today against the goal, this week, the streak |
 | Tasks | [app_tasks.yaml](../packages/app_tasks.yaml) | today's tasks from a to-do list or a script; tap to check one off |
-| Calendar | [app_calendar.yaml](../packages/app_calendar.yaml) | an agenda of the next days, and a day view |
+| Calendar | [app_calendar.yaml](../packages/app_calendar.yaml) | the Agenda of your coming events, and a day view |
 | Weather | [app_weather.yaml](../packages/app_weather.yaml) | now, today's high and low, rain, wind, the next hours |
 
 - **Order.** `daruma: apps: [tasks, calendar, weather, stats]` sets the

@@ -48,12 +48,29 @@ screen, show a message or a prompt, add a caption, compare a snapshot,
 expect a state or an event. [demos/scenario.py](../demos/scenario.py)
 lists every step.
 
+A caption holds the steps it explains. It shows under the screen while
+those steps run:
+
+```yaml
+  - caption: "Focus: one tap starts 25 minutes"
+    steps:
+      - wait: 0.6
+      - tap: {text: Focus}
+      - wait: 3
+```
+
+The GIFs mark every touch: a ring where a finger lands, a trail for a
+swipe, and a label for the board's buttons. The ring shows a moment before
+the tap, so give it a short `wait` first. The marks are drawn on the GIF's
+frames only (`with_touches` in [demos/media.py](../demos/media.py)); the
+golden pictures never see them.
+
 | Scenario | Shows |
 |---|---|
 | `highlight` | a short loop for the README's grid: idle, a pet, a celebration (`gif_scale: 1`) |
 | `emotions` | every mood and reaction, with captions |
 | `activities` | every activity: the voice assistant, the pomodoro's states, the menu and the Weather app in the persona's theme, a message, a doorbell card |
-| `work` | the device at work, for the README: a focus block to the day's goal, Tasks, Calendar, Weather and a question from Home Assistant (Daruma only) |
+| `work` | the device at work, for the README: a focus block to the day's goal, Tasks, the Calendar's Agenda, Weather and a question from Home Assistant (Daruma only) |
 | `tour` | a real day: idle, a pet, two focus blocks, the daily goal |
 | `apps` | the menu, Tasks with a task checked off, Calendar |
 | `prompts` | a doorbell card and a quiz |
@@ -67,8 +84,9 @@ from any module, needs a step in a showcase scenario:
 
 ```yaml
   - caption: Watered
-  - show: watered
-  - wait: 2.5
+    steps:
+      - show: watered
+      - wait: 2.5
 ```
 
 `show:` works for any state: it forces a mood, holds an activity or plays

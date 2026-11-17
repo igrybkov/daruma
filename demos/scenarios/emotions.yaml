@@ -10,49 +10,63 @@ setup:
   - wait: 1
 steps:
   - caption: Idle
-  - show: neutral
-  - wait: 3.5
+    steps:
+      - show: neutral
+      - wait: 3.5
   - caption: Wink
-  - action: {name: wink}
-  - wait: 1.5
+    steps:
+      - action: {name: wink}
+      - wait: 1.5
   - caption: Petted
-  - pet: true
-  - expect: {state: petted}
-  - wait: 2.5
+    steps:
+      - pet: true
+      - expect: {state: petted}
+      - wait: 2.5
   # Moods: what the persona shows for minutes at a time.
   - caption: Happy
-  - show: happy
-  - wait: 2.5
+    steps:
+      - show: happy
+      - wait: 2.5
   - caption: Loved
-  - show: loved
-  - wait: 2.5
+    steps:
+      - show: loved
+      - wait: 2.5
   - caption: Sad
-  - show: sad
-  - wait: 2.5
+    steps:
+      - show: sad
+      - wait: 2.5
   - caption: Scared
-  - show: scared
-  - wait: 2
+    steps:
+      - show: scared
+      - wait: 2
   - caption: Sleepy
-  - show: sleepy
-  - wait: 3
+    steps:
+      - show: sleepy
+      - wait: 3
   - caption: Sleeping
-  - show: sleeping
-  - wait: 3
-  - show: ""
-  - wait: 0.5
+    steps:
+      - show: sleeping
+      - wait: 3
+      - show: ""
+      - wait: 0.5
   # Reactions: one-shot animations over whatever shows.
   - caption: Startled
-  - show: startled
-  - wait: 2.2
+    steps:
+      - show: startled
+      - wait: 2.2
   - caption: Celebrate
-  - show: celebrate
-  - wait: 3.5
+    steps:
+      - show: celebrate
+      - wait: 3.5
   - caption: Paint
-  - show: paint
-  - wait: 3
+    steps:
+      - show: paint
+      - wait: 3
   - caption: A task done
-  - show: task_done
-  - wait: 2.5
+    steps:
+      - show: task_done
+      - wait: 2.5
   - caption: All tasks done
-  - show: tasks_done
-  - wait: 3.5
+    steps:
+      - show: tasks_done
+      - wait: 3.5

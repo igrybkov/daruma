@@ -316,6 +316,9 @@ class Device:
         self.frames_dir: Path | None = None
         self.skipped: list[tuple[int, int]] = []  # (from, to) ms of the recording left out
         self.captions: list[tuple[int, str]] = []  # (ms of the recording, text) from caption()
+        # Taps, swipes and presses while recording, for record.py's touch marks
+        # (media.with_touches): {"ms", "kind", "points", "ms_long"}.
+        self.touches: list[dict[str, Any]] = []
         self._proc: subprocess.Popen | None = None
         self._loop = asyncio.new_event_loop()
         self._client = None
@@ -566,19 +569,27 @@ class Device:
         # Gestures fire on lift-off; give the hub a frame to act and draw.
         self.advance(0.15)
 
+    def _touch(self, kind: str, points: list[tuple[int, int]], ms_long: int = 0) -> None:
+        if self.frames_dir is not None:
+            self.touches.append({"ms": self._rec_ms(), "kind": kind, "points": points, "ms_long": ms_long})
+
     def tap(self, x: int, y: int) -> None:
+        self._touch("tap", [(x, y)])
         self._call("desktop_tap", x=int(x), y=int(y))
         self._until_input_done()
 
     def hold(self, x: int, y: int, seconds: float) -> None:
+        self._touch("hold", [(x, y)], int(seconds * 1000))
         self._call("desktop_hold", x=int(x), y=int(y), ms=int(seconds * 1000))
         self._until_input_done()
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, seconds: float = 0.25) -> None:
+        self._touch("swipe", [(x1, y1), (x2, y2)], int(seconds * 1000))
         self._call("desktop_swipe", x1=int(x1), y1=int(y1), x2=int(x2), y2=int(y2), ms=int(seconds * 1000))
         self._until_input_done()
 
     def stroke(self, x: int, y: int) -> None:
+        self._touch("stroke", [(x, y)])
         self._call("desktop_stroke", x=int(x), y=int(y))
         self._until_input_done()
 
@@ -628,6 +639,7 @@ class Device:
 
     def press(self, input_name: str, seconds: float = 0.08) -> None:
         """Press a board input ("home", "top") for `seconds`."""
+        self._touch(f"press:{input_name}", [], int(seconds * 1000))
         self._call("desktop_press", input=input_name, ms=int(seconds * 1000))
         self._until_input_done()
 
@@ -704,6 +716,7 @@ class Device:
         self.frames_dir = frames_dir
         self.skipped = []
         self.captions = []
+        self.touches = []
         self._record_start_ns = self.clock.ns
         self._call("desktop_record_start", dir=str(frames_dir))
         self._settle()

@@ -6,13 +6,13 @@
 #   tests/in_docker.sh uv run --no-sync pytest demos -k corgi
 #   tests/in_docker.sh bash                     a shell
 #
-# The repository is mounted at /repo. Its .venv and .venv-esphome are
-# Docker volumes, so the Linux environments never mix with the host's.
+# The repository is mounted at /repo. Its .venv is a Docker volume, so the
+# Linux environment never mixes with the host's.
 # Caches (uv, Python, PlatformIO) and the build folder (DARUMA_WORK) live
 # in the volume daruma-linux-cache, so a second run starts warm. Remove the
 # volumes to start cold:
 #
-#   docker volume rm daruma-linux-cache daruma-linux-venv daruma-linux-venv-esphome
+#   docker volume rm daruma-linux-cache daruma-linux-venv
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -45,6 +45,5 @@ if [ -t 0 ] && [ -t 1 ]; then tty=(-it); fi
 exec docker run --rm "${tty[@]}" \
   -v "$repo:/repo" \
   -v daruma-linux-venv:/repo/.venv \
-  -v daruma-linux-venv-esphome:/repo/.venv-esphome \
   -v daruma-linux-cache:/cache \
   "$image" "$@"

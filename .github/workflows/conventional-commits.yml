@@ -1,9 +1,9 @@
 name: Conventional Commits
 
-# Release notes and versions come from commit messages, so every commit
-# in a pull request and the pull request title must be Conventional
-# Commits. A squash merge uses the title, or the commit's own message
-# when there is only one commit.
+# Release notes and versions come from commit messages, so the pull
+# request title must be a Conventional Commit too: a squash merge uses it.
+# CI's Lint job checks the commit messages. This runs on its own so a
+# title edit rechecks only the title.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -40,27 +40,3 @@ jobs:
             chore
             revert
 
-  commits:
-    name: Commit messages
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          enable-cache: false
-      # Only this pull request's commits: older history on main predates
-      # the rule.
-      - name: Lint the commit messages
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          uv sync --locked --only-group lint --no-install-project
-          uv run --no-sync gitlint --commits "$BASE..$HEAD"

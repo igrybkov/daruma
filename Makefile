@@ -5,7 +5,7 @@
 #   make -n <goal>  print the commands without running them
 #
 # Plain GNU make; macOS's make 3.81 works. The tools come from uv.lock:
-# the dev groups live in .venv, ESPHome in .venv-esphome (pyproject.toml).
+# ESPHome and the dev tools all live in .venv (pyproject.toml).
 # Variables that are empty by default add a flag only when you set them,
 # so each tool keeps its own default.
 
@@ -29,15 +29,12 @@ BUILD_REF ?= ci-head## The scratch branch that config and compile point at HEAD 
 # DARUMA_WORK is the scratch folder of record.py (--out) and pytest. Empty
 # means each uses its default temp folder.
 DARUMA_WORK ?=
-# The Python of .venv-esphome; the screen test harness uses the same one.
-DARUMA_PYTHON ?= $(shell cat .python-version)
 # The ESPHome API port of `make desktop`.
 DARUMA_PORT ?=
 
 # uv run syncs .venv first; UV_NO_SYNC=1 skips that.
 UV_RUN := uv run
-ESPHOME_ENV := .venv-esphome
-ESPHOME := $(CURDIR)/$(ESPHOME_ENV)/bin/esphome
+ESPHOME := $(CURDIR)/.venv/bin/esphome
 # The examples fetch Daruma with git. These point them at this checkout.
 DARUMA_URL := file://$(CURDIR)
 ESPHOME_SUBS := -s daruma_url "$(DARUMA_URL)" -s daruma_ref "$(BUILD_REF)"
@@ -87,21 +84,17 @@ help: ## Show the goals and variables
 
 # --- Setup ---------------------------------------------------------------
 
-setup: ## Install the tools: the dev groups and ESPHome (GROUP= for one group)
+setup: ## Install the tools: ESPHome and the dev groups (GROUP= for one group)
 ifeq ($(GROUP),)
 	uv sync --locked
-	@$(MAKE) --no-print-directory esphome-env
-else ifeq ($(GROUP),esphome)
-	@$(MAKE) --no-print-directory esphome-env
 else
 	uv sync --locked --only-group $(GROUP) --no-install-project
 endif
 
-# ESPHome pins an older aioesphomeapi than the screen tests, so it gets its
-# own environment. A fast no-op when it is up to date.
+# ESPHome in .venv, next to whatever else is there. A fast no-op when it
+# is up to date.
 esphome-env:
-	env -u VIRTUAL_ENV UV_PROJECT_ENVIRONMENT=$(ESPHOME_ENV) \
-	  uv sync --locked --only-group esphome --no-install-project --python $(DARUMA_PYTHON) --quiet
+	uv sync --locked --inexact --only-group esphome --no-install-project --quiet
 
 esphome-version: ## Print the ESPHome version the builds use
 	@sed -n 's/^esphome = \["esphome==\(.*\)"\]$$/\1/p' pyproject.toml
@@ -124,13 +117,19 @@ examples/secrets.yaml:
 # The examples fetch BUILD_REF from this checkout, so commit first: an
 # uncommitted change is not in the build. ESPHome refreshes a git package
 # only once a day, so the old clone goes first.
+#
+# Every example is checked, even after one fails; the failed ones are
+# listed at the end. One at a time: the first check draws the persona art
+# and the rest reuse it. In GitHub Actions each example gets a log group.
 config: secrets esphome-env ## Check the config of every example, or EXAMPLE=box3
 	git branch -f $(BUILD_REF) HEAD
 	rm -rf examples/.esphome/packages
-	@set -e; cd examples; for ex in $(CONFIG_EXAMPLES); do \
-	  echo "== esphome config $$ex.yaml"; \
-	  $(ESPHOME) $(ESPHOME_SUBS) config $$ex.yaml > /dev/null; \
-	done
+	@cd examples; failed=""; log=$$(mktemp); for ex in $(CONFIG_EXAMPLES); do \
+	  if [ -n "$$GITHUB_ACTIONS" ]; then echo "::group::esphome config $$ex.yaml"; else echo "== esphome config $$ex.yaml"; fi; \
+	  $(ESPHOME) $(ESPHOME_SUBS) config $$ex.yaml > "$$log" 2>&1 || { tail -n 60 "$$log"; failed="$$failed $$ex"; }; \
+	  if [ -n "$$GITHUB_ACTIONS" ]; then echo "::endgroup::"; fi; \
+	done; rm -f "$$log"; \
+	if [ -n "$$failed" ]; then echo "Config failed:$$failed"; exit 1; fi
 
 compile: secrets esphome-env ## Compile an example's firmware (default EXAMPLE=box3); commit first
 	git branch -f $(BUILD_REF) HEAD

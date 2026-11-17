@@ -44,6 +44,7 @@ import shutil
 import socket
 import struct
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -53,11 +54,9 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
 # Another ESPHome to build with, for a try (a pip spec such as "esphome==<version>"). By
-# default the build runs the version locked in uv.lock (the "esphome" group).
+# default the build runs the version locked in uv.lock (the "esphome" group),
+# from the environment the harness runs in.
 ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME")
-# That group's environment. It can't share the test environment: ESPHome
-# pins another aioesphomeapi.
-ESPHOME_ENV = REPO_DIR / ".venv-esphome"
 # uvx ignores .python-version, so the build passes it on.
 PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
@@ -196,30 +195,10 @@ def build(
 
 
 def _esphome_command() -> tuple[list[str], dict[str, str]]:
-    """The command that runs ESPHome, and its environment.
-
-    By default it brings .venv-esphome in line with uv.lock first: a fast
-    no-op when it already is.
-    """
+    """The command that runs ESPHome, and its environment."""
     if ESPHOME_SPEC:
         return ["uvx", "--python", PYTHON, "--from", ESPHOME_SPEC, "esphome"], dict(os.environ)
-    env = dict(os.environ, UV_PROJECT_ENVIRONMENT=str(ESPHOME_ENV))
-    env.pop("VIRTUAL_ENV", None)  # The test environment's, when the harness runs under uv run.
-    sync = [
-        "uv",
-        "sync",
-        "--project",
-        str(REPO_DIR),
-        "--frozen",
-        "--only-group",
-        "esphome",
-        "--no-install-project",
-        "--python",
-        PYTHON,
-        "--quiet",
-    ]
-    subprocess.run(sync, env=env, check=True)
-    return [str(ESPHOME_ENV / "bin" / "esphome")], env
+    return [sys.executable, "-m", "esphome"], dict(os.environ)
 
 
 # Screen sizes, with font sizes to match (as examples/variant_*.yaml).

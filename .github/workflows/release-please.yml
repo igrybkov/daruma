@@ -7,6 +7,8 @@ name: Release Please
 on:
   push:
     branches: [main]
+  # Run it by hand from main, for example after a failed run.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}
@@ -17,6 +19,7 @@ permissions: {}
 jobs:
   release-please:
     name: Release Please
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:

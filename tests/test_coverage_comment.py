@@ -39,6 +39,37 @@ def test_changed_lines_skips_a_pure_deletion() -> None:
     assert cc.changed_lines(diff) == {"pixel/daruma_pixel/p.py": set()}
 
 
+# git diff -U0 --find-renames: a pure move, then a move with one edited line.
+RENAMES = """\
+diff --git a/components/x/moved.h b/src/esphome/components/x/moved.h
+similarity index 100%
+rename from components/x/moved.h
+rename to src/esphome/components/x/moved.h
+diff --git a/components/x/edited.py b/src/esphome/components/x/edited.py
+similarity index 97%
+rename from components/x/edited.py
+rename to src/esphome/components/x/edited.py
+index 1111111..2222222 100644
+--- a/components/x/edited.py
++++ b/src/esphome/components/x/edited.py
+@@ -7 +7 @@ def f():
+-    old()
++    new_()
+"""
+
+
+def test_changed_lines_counts_only_the_edits_of_moved_files() -> None:
+    assert cc.changed_lines(RENAMES) == {"src/esphome/components/x/edited.py": {7}}
+
+
+def test_changed_lines_keeps_no_path_from_the_file_before() -> None:
+    # The pure move has no +++ line; its hunk-free section must not reuse
+    # the previous file's path.
+    diff = DIFF.split("diff --git a/components/x/gone.py")[0] + RENAMES.split("diff --git a/components/x/edited.py")[0]
+    diff += "@@ -1 +1 @@\n-a\n+b\n"
+    assert cc.changed_lines(diff) == {"components/x/a.cpp": {4, 5, 6, 13}}
+
+
 def test_ranges() -> None:
     assert cc.ranges([1, 2, 3, 7, 9, 10]) == "1-3, 7, 9-10"
 

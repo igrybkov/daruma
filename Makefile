@@ -117,13 +117,19 @@ examples/secrets.yaml:
 # The examples fetch BUILD_REF from this checkout, so commit first: an
 # uncommitted change is not in the build. ESPHome refreshes a git package
 # only once a day, so the old clone goes first.
+#
+# Every example is checked, even after one fails; the failed ones are
+# listed at the end. One at a time: the first check draws the persona art
+# and the rest reuse it. In GitHub Actions each example gets a log group.
 config: secrets esphome-env ## Check the config of every example, or EXAMPLE=box3
 	git branch -f $(BUILD_REF) HEAD
 	rm -rf examples/.esphome/packages
-	@set -e; cd examples; for ex in $(CONFIG_EXAMPLES); do \
-	  echo "== esphome config $$ex.yaml"; \
-	  $(ESPHOME) $(ESPHOME_SUBS) config $$ex.yaml > /dev/null; \
-	done
+	@cd examples; failed=""; log=$$(mktemp); for ex in $(CONFIG_EXAMPLES); do \
+	  if [ -n "$$GITHUB_ACTIONS" ]; then echo "::group::esphome config $$ex.yaml"; else echo "== esphome config $$ex.yaml"; fi; \
+	  $(ESPHOME) $(ESPHOME_SUBS) config $$ex.yaml > "$$log" 2>&1 || { tail -n 60 "$$log"; failed="$$failed $$ex"; }; \
+	  if [ -n "$$GITHUB_ACTIONS" ]; then echo "::endgroup::"; fi; \
+	done; rm -f "$$log"; \
+	if [ -n "$$failed" ]; then echo "Config failed:$$failed"; exit 1; fi
 
 compile: secrets esphome-env ## Compile an example's firmware (default EXAMPLE=box3); commit first
 	git branch -f $(BUILD_REF) HEAD

@@ -45,6 +45,9 @@ more personas, apps of your own, longer animations.
 - **Calendar**: the Agenda of your coming events, and the next event on
   the persona's screen.
 - **Weather**: now, today's high and low, rain, wind and the next hours.
+- **Media**: a remote for the speakers and TVs in the device's room. The
+  cover, the track, play, pause, skip and volume, for every player there.
+  Put the buttons in a menu, or on a button of the device.
 - **Prompts**: Home Assistant puts a card on the screen and gets the
   answer back: a doorbell with Unlock and Talk, a quiz with a countdown,
   a yes/no question. Start with the
@@ -92,7 +95,8 @@ ESPHome 2026.10.2 or later.
 5. Add the device in Home Assistant, and turn on "Allow the device to
    perform Home Assistant actions" in its options.
 6. On the device's page in Home Assistant, pick your to-do list,
-   calendars and weather entity.
+   calendars and weather entity. Put the device in an area, so the Media
+   app finds the players in that room.
 
 [docs/install.md](docs/install.md) has every step in detail, with links to
 the ESPHome and Home Assistant docs.

@@ -1,0 +1,381 @@
+# Media app for Daruma: a remote for the Home Assistant media players in
+# the device's room. Needs core.yaml and menu.yaml.
+#
+# The cover, the title, the artist and the album, how far the track is,
+# and a row of buttons: previous, play or pause, next, quieter, louder. A
+# button the player can't use is grayed out; a player that is off shows a
+# power button. Tap the bar to jump in the track, where the player can
+# seek. With several players, dots under the title show which one is on
+# screen: swipe left or right, or tap the dots or the cover, for the next.
+# A player that plays comes first when the app opens.
+#
+# Players: the "Media players" setting in HA (a text entity, kept across
+# reboots). Empty, the default: every media player in the device's own
+# area in HA. Or a comma-separated list of media player entity ids and
+# area names or ids: "media_player.kitchen, Living Room". `players` below
+# is only the value before the first edit.
+#
+# Covers come from HA over HTTP: HA serves each player's picture through
+# its own media proxy. The "Home Assistant URL" setting says where HA is,
+# such as "http://homeassistant.local:8123". Empty, the default: the
+# address HA connects to the device from, on port 8123. Set it when HA
+# answers on another address, port or https. Without a cover, a music note
+# shows.
+#
+# Bindings and menus: the actions <app_id>.play_pause, .next, .previous,
+# .volume_up and .volume_down work on the player on screen (the playing
+# one, while the app is closed). Each has a menu button, for example:
+#
+#   daruma:
+#     menus:
+#       music: [media.previous, media.play_pause, media.next, media]
+#     bindings:
+#       top.double: media.play_pause
+#
+# The play button shows Pause while a player plays; a button the player
+# can't use stays out of menus.
+#
+# Data: one HA action, through the hub's gate for HA calls (ha_calls.h).
+# HA renders every player into the reply's template. The action that
+# carries the template is recorder.get_statistics, for a statistic that is
+# not there: it answers fast, and every HA with the recorder has it. While
+# the app is open: when it opens, every `refresh`, and a moment after each
+# button. While it is closed: every `idle_refresh`, for the tile on the app
+# board and the buttons in menus ("0s": only while open). The position
+# runs on between replies.
+#
+# Needs "Allow the device to perform Home Assistant actions" on in the
+# ESPHome integration's options in HA.
+#
+# Words: the text_* values below are the English defaults of the theme
+# words <app_id>.loading, .offline, .error, .empty_room, .empty, .off,
+# .idle, .playing, .paused, .volume ({level}), .players and .button_play,
+# .button_pause, .button_stop, .button_power, .button_previous,
+# .button_next, .button_quieter, .button_louder. Colors: <app_id>.play
+# (the play button and the bars), .cover (the box without a cover) and
+# .note (the music note in it).
+#
+# Include it once as is, or with vars for another set of players:
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - packages/app_media.yaml
+#         - path: packages/app_media.yaml
+#           vars: { app_id: media_office, app_name: Office, players: Office }
+
+defaults:
+  app_id: media
+  app_name: Media
+  # Entity ids and areas, comma-separated; empty for the device's own area.
+  players: ""
+  # Where HA serves the covers; empty for HA's own address on port 8123.
+  ha_url: ""
+  color: "8E5BD6"
+  # The cover's box in screen pixels; covers are scaled to fit it.
+  cover_size: "96"
+  # At most this many players, and text cut to this many characters.
+  max_players: "8"
+  title_chars: "80"
+  refresh: 5s
+  idle_refresh: 60s
+  # One press of louder or quieter, on HA's 0 to 1 scale.
+  volume_step: "0.05"
+  text_loading: "Loading…"
+  text_offline: "Can't reach Home Assistant"
+  text_error: "Can't load the players"
+  text_empty_room: "No media players in this room"
+  text_empty: "No media players found"
+  text_off: "Off"
+  text_idle: "Nothing playing"
+  text_playing: "Playing"
+  text_paused: "Paused"
+  text_volume: "{level}%"
+  text_players: "Players"
+  text_play: "Play"
+  text_pause: "Pause"
+  text_stop: "Stop"
+  text_power: "Turn on"
+  text_previous: "Previous"
+  text_next: "Next"
+  text_quieter: "Quieter"
+  text_louder: "Louder"
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [daruma_media]
+
+daruma_media:
+  - id: ${app_id}_app
+    refresh_interval: ${refresh}
+    idle_refresh: ${idle_refresh}
+    volume_step: ${volume_step}
+    cover_size: ${cover_size}
+
+color:
+  - id: ${app_id}_color
+    hex: "${color}"
+
+# Covers come over HTTP from HA.
+http_request:
+  timeout: 5s
+
+image:
+  - platform: online_image
+    id: ${app_id}_cover
+    # Set at run time, for the player on screen.
+    url: http://localhost/cover
+    format: AUTO
+    type: RGB565
+    resize: ${cover_size}x${cover_size}
+    on_download_finished:
+      - lambda: id(${app_id}_app).on_cover(true);
+    on_error:
+      - lambda: id(${app_id}_app).on_cover(false);
+
+# Settings, without polling: they have no lambda to poll, and every
+# polling interval draws from the random numbers the personas use.
+text:
+  - platform: template
+    name: "${ 'Media players' if app_id == 'media' else app_name ~ ' players' }"
+    id: ${app_id}_players
+    icon: "mdi:speaker-multiple"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 120
+    initial_value: "${players}"
+    update_interval: never
+    on_value:
+      - lambda: id(${app_id}_app).set_players(x);
+  - platform: template
+    name: "${ 'Home Assistant URL' if app_id == 'media' else app_name ~ ' Home Assistant URL' }"
+    id: ${app_id}_ha_url
+    icon: "mdi:home-assistant"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 100
+    initial_value: "${ha_url}"
+    update_interval: never
+    on_value:
+      - lambda: id(${app_id}_app).set_base_url(x);
+
+esphome:
+  on_boot:
+    # The settings as stored, once every component has set up.
+    - priority: -100
+      then:
+        - lambda: |-
+            id(${app_id}_app).set_players(id(${app_id}_players).state);
+            id(${app_id}_app).set_base_url(id(${app_id}_ha_url).state);
+
+daruma:
+  modules:
+    - name: ${app_id}
+      apps:
+        - id: ${app_id}
+          name: ${app_name}
+      actions:
+        ${app_id}.play_pause:
+          - lambda: id(${app_id}_app).press(Daruma::MediaButton::MIDDLE);
+        ${app_id}.next:
+          - lambda: id(${app_id}_app).press(Daruma::MediaButton::NEXT);
+        ${app_id}.previous:
+          - lambda: id(${app_id}_app).press(Daruma::MediaButton::PREVIOUS);
+        ${app_id}.volume_up:
+          - lambda: id(${app_id}_app).press(Daruma::MediaButton::LOUDER);
+        ${app_id}.volume_down:
+          - lambda: id(${app_id}_app).press(Daruma::MediaButton::QUIETER);
+      buttons:
+        ${app_id}.play_pause: { label: "${text_play}", icon: "\U000F040A", color: "${app_id}.play" }
+        ${app_id}.next: { label: "${text_next}", icon: "\U000F04AD" }
+        ${app_id}.previous: { label: "${text_previous}", icon: "\U000F04AE" }
+        ${app_id}.volume_up: { label: "${text_louder}", icon: "\U000F075D" }
+        ${app_id}.volume_down: { label: "${text_quieter}", icon: "\U000F075E" }
+      theme:
+        colors:
+          play: "${color}"
+          cover: "3A3F4B"
+          note: "B9A6E8"
+        words:
+          loading: "${text_loading}"
+          offline: "${text_offline}"
+          error: "${text_error}"
+          empty_room: "${text_empty_room}"
+          empty: "${text_empty}"
+          "off": "${text_off}"
+          idle: "${text_idle}"
+          playing: "${text_playing}"
+          paused: "${text_paused}"
+          volume: "${text_volume}"
+          players: "${text_players}"
+          button_play: "${text_play}"
+          button_pause: "${text_pause}"
+          button_stop: "${text_stop}"
+          button_power: "${text_power}"
+          button_previous: "${text_previous}"
+          button_next: "${text_next}"
+          button_quieter: "${text_quieter}"
+          button_louder: "${text_louder}"
+      setup: |-
+        auto *m = id(${app_id}_app);
+        m->set_theme_prefix("${app_id}");
+        m->set_cover_image(id(${app_id}_cover));
+        // Through the hub's gate for HA calls with replies (ha_calls.h).
+        m->set_fetcher([](int request, const std::string &players, const std::string &area) {
+          id(daruma_hub).ha_calls().call("${app_id} players", [=](uint32_t call) {
+            id(${app_id}_fetch).execute(call, request, players, area);
+          });
+        });
+        m->set_commander([](const std::string &action, const std::string &entity, float value) {
+          id(${app_id}_command).execute(action, entity, value);
+        });
+        m->set_cover_loader([](const std::string &url) {
+          id(${app_id}_cover).set_url(url);
+          id(${app_id}_cover).update();
+        });
+
+        Daruma::App app;
+        app.id = "${app_id}";
+        app.name = "${app_name}";
+        app.icon = "\U000F075A";  // music
+        app.color = id(${app_id}_color);
+        m->add_to(hub, app);
+
+script:
+  # The players, as HA sees them now. The reply goes back with the same
+  # request number. Runs from the hub's gate (ha_calls.h): `call` goes
+  # back to it with the answer.
+  - id: ${app_id}_fetch
+    mode: parallel
+    parameters:
+      call: int
+      request: int
+      players: string
+      area: string
+    then:
+      - homeassistant.action:
+          # Only a carrier for the template: a statistic that is not there.
+          action: recorder.get_statistics
+          data:
+            statistic_ids: daruma.media_players
+            start_time: "2000-01-01T00:00:00+00:00"
+            period: hour
+            types: mean
+          capture_response: true
+          # {"a": the device's area, "p": [[entity, name, state, title,
+          # artist, album, picture, duration, position, volume, features],
+          # ...]}, sorted by name. The position is the one now. Missing
+          # values are null. Without a players setting, the players are
+          # those in the device's area: the device is found in HA by its
+          # MAC address, else by its name. `area` skips that search.
+          response_template: !lambda |-
+            auto quote = [](const std::string &s) {
+              std::string out = "'";
+              for (char c : s) {
+                if ((unsigned char) c < 0x20)
+                  continue;
+                if (c == '\\' || c == '\'')
+                  out += '\\';
+                out += c;
+              }
+              return out + "'";
+            };
+            std::string mac = get_mac_address_pretty();
+            std::transform(mac.begin(), mac.end(), mac.begin(), [](unsigned char c) { return std::tolower(c); });
+            return "{%- set want = " + quote(players) + " -%}{%- set hint = " + quote(area) +
+                   " -%}{%- set mac = " + quote(mac) + " -%}{%- set name = " + quote(App.get_friendly_name()) +
+                   " -%}" + R"JINJA(
+            {%- set ns = namespace(area=hint, ids=[], rows=[]) -%}
+            {%- set wanted = want.split(',') | map('trim') | reject('eq', '') | list -%}
+            {%- if not wanted and not ns.area -%}
+              {%- for e in integration_entities('esphome') -%}
+                {%- set d = device_id(e) -%}
+                {%- if not ns.area and d and ('mac', mac) in (device_attr(d, 'connections') or []) -%}
+                  {%- set ns.area = area_id(d) or '' -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {%- set d = device_id(name) if not ns.area and name else none -%}
+              {%- if d -%}{%- set ns.area = area_id(d) or '' -%}{%- endif -%}
+            {%- endif -%}
+            {%- for t in (wanted if wanted else ([ns.area] if ns.area else [])) -%}
+              {%- if t.startswith('media_player.') -%}
+                {%- set ns.ids = ns.ids + [t] -%}
+              {%- elif '.' not in t -%}
+                {%- set ns.ids = ns.ids + (area_entities(t) | select('match', 'media_player[.]') | list) -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- for e in ns.ids | unique | list -%}
+              {%- set s = states(e) -%}
+              {%- if s not in ['unavailable', 'unknown'] -%}
+                {%- set pos = state_attr(e, 'media_position') -%}
+                {%- set at = state_attr(e, 'media_position_updated_at') -%}
+                {%- if pos is number and at and s == 'playing' -%}
+                  {%- set pos = pos + as_timestamp(now()) - as_timestamp(at, as_timestamp(now())) -%}
+                {%- endif -%}
+                {%- set dur = state_attr(e, 'media_duration') -%}
+                {%- set vol = state_attr(e, 'volume_level') -%}
+                {%- set ns.rows = ns.rows + [[e,
+                    ((state_attr(e, 'friendly_name') or e) | string)[:${title_chars}],
+                    s,
+                    ((state_attr(e, 'media_title') or '') | string)[:${title_chars}],
+                    ((state_attr(e, 'media_artist') or state_attr(e, 'media_album_artist') or '') | string)[:${title_chars}],
+                    ((state_attr(e, 'media_album_name') or state_attr(e, 'app_name') or state_attr(e, 'source') or '') | string)[:${title_chars}],
+                    state_attr(e, 'entity_picture_local') or state_attr(e, 'entity_picture') or '',
+                    dur if dur is number else none,
+                    pos if pos is number else none,
+                    vol if vol is number else none,
+                    state_attr(e, 'supported_features') | int(0)]] -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {{ {'a': ns.area or '', 'p': (ns.rows | sort(attribute='1'))[:${max_players}]} | to_json }})JINJA";
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_reply(request, response);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(${app_id}_app).on_error(request, error);
+
+  # One button: a media_player action on one player. volume_set and
+  # media_seek carry the value; the rest only the entity.
+  - id: ${app_id}_command
+    mode: queued
+    max_runs: 8
+    parameters:
+      action: string
+      entity: string
+      value: float
+    then:
+      - if:
+          condition:
+            lambda: return action == "media_player.volume_set";
+          then:
+            - homeassistant.action:
+                action: media_player.volume_set
+                data:
+                  entity_id: !lambda return entity;
+                  volume_level: !lambda return str_sprintf("%.2f", value);
+          else:
+            - if:
+                condition:
+                  lambda: return action == "media_player.media_seek";
+                then:
+                  - homeassistant.action:
+                      action: media_player.media_seek
+                      data:
+                        entity_id: !lambda return entity;
+                        seek_position: !lambda return str_sprintf("%.0f", value);
+                else:
+                  - homeassistant.action:
+                      action: !lambda return action;
+                      data:
+                        entity_id: !lambda return entity;

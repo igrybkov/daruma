@@ -45,6 +45,7 @@ import socket
 import struct
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -324,7 +325,9 @@ class Node:
 class Event:
     """Something the device told Home Assistant."""
 
-    type: str  # an HA event ("esphome.daruma_prompt") or "entity:<name>"
+    # An HA event ("esphome.daruma_prompt"), "entity:<name>", or an HA
+    # action the device called, "action:<domain.service>".
+    type: str
     data: dict[str, Any]
     at: float  # device seconds
 
@@ -428,6 +431,41 @@ def _prompt_fields(
     }
 
 
+class CoverServer:
+    """Serves the made-up album covers (demo_data.cover) over HTTP, as HA's
+    media proxy serves a player's picture."""
+
+    def __init__(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        from demo_data import cover
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 - the name http.server calls
+                found = cover(self.path.split("?")[0].removeprefix("/cover/"))
+                if found is None:
+                    self.send_error(404)
+                    return
+                body, content_type = found
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.base = f"http://127.0.0.1:{self._server.server_address[1]}"
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    def close(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+
+
 class Device:
     """One running desktop device. Use as a context manager."""
 
@@ -483,6 +521,7 @@ class Device:
         self._status: dict[str, Any] = {}
         self._record_start_ns = 0
         self._paused_at: int | None = None
+        self._covers: CoverServer | None = None
 
     # --- life cycle ---------------------------------------------------------
 
@@ -499,6 +538,9 @@ class Device:
         shutil.rmtree(prefs, ignore_errors=True)
         prefs.mkdir()
         _wait_port_free(self.port)
+        self._covers = CoverServer()
+        if not self.data.cover_base:
+            self.data.cover_base = self._covers.base
         self.clock = Clock(self.workdir / "clock", self.seed, self.epoch)
         env = dict(os.environ)
         env.update(
@@ -542,6 +584,9 @@ class Device:
             self._log.close()
         if hasattr(self, "clock"):
             self.clock.close()
+        if self._covers is not None:
+            self._covers.close()
+            self._covers = None
         self._loop.close()
 
     def _run(self, coro, timeout: float = 30):
@@ -597,6 +642,7 @@ class Device:
                 data[k] = call.variables.get(m.group(1), v) if m else v
             self.events.append(Event(call.service, data, self.now()))
             return
+        self.events.append(Event(f"action:{call.service}", dict(call.data), self.now()))
         ok, response = self.data.reply(call.service, dict(call.data), self.wall_time())
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
@@ -1017,6 +1063,10 @@ class DeviceAssertions:
             seen = [(e.type, e.data) for e in self.device.events]
             raise AssertionError(f"No event {event} {data} within {timeout} s; seen: {seen}")
         return found
+
+    def to_call_action(self, action: str, /, timeout: float = 5.0, **data: Any) -> Event:
+        """An HA action the device called ("media_player.media_pause") with these data values."""
+        return self.to_fire_event(f"action:{action}", timeout=timeout, **data)
 
     def to_have_entity(self, name: str, value: Any, timeout: float = 5.0) -> None:
         def ok() -> bool:

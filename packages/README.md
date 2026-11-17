@@ -85,6 +85,7 @@ package too. The last column says which.
 | [app_tasks.yaml](app_tasks.yaml) | An app with today's tasks, from a Home Assistant to-do list. You can check tasks off. List it once for each to-do list. | menu |
 | [app_calendar.yaml](app_calendar.yaml) | An app with your coming calendar events. List it once for each group of calendars. | menu |
 | [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |
+| [app_media.yaml](app_media.yaml) | A remote for the media players in the device's room: the album cover, the track, and buttons to play, pause, skip and change the volume. List it once for each set of players. | menu |
 
 ## More
 

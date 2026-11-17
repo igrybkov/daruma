@@ -1,5 +1,5 @@
-# Build check: two copies each of the Tasks and Calendar apps, each copy
-# with its own app_id, entities and switch. Compile-only. It includes
+# Build check: two copies each of the Tasks, Calendar and Media apps, each
+# copy with its own app_id, entities and switch. Compile-only. It includes
 # box3.yaml, so keep the two in one folder with your secrets.yaml:
 #
 #   esphome compile variant_apps.yaml
@@ -22,10 +22,12 @@ packages:
         vars: { app_id: tasks_family, app_name: Family, source: todo, entity: todo.family }
       - path: packages/app_calendar.yaml
         vars: { app_id: calendar_work, app_name: Work, calendars: calendar.work }
+      - path: packages/app_media.yaml
+        vars: { app_id: media_office, app_name: Office, players: "Office, media_player.desk" }
 
 daruma:
-  # Added after the device's list (tasks, calendar, weather, stats).
-  apps: [tasks_family, calendar_work]
+  # Added after the device's list (tasks, calendar, weather, media, stats).
+  apps: [tasks_family, calendar_work, media_office]
   # App copies by their app id, another menu, an HA event button, and more
   # than five items (four show, then Next).
   menus:
@@ -36,5 +38,8 @@ daruma:
       - pomodoro.break
       - { label: Lights, icon: "\U000F0335", event: desk_lights }
       - more
+    # A remote for the room's players, from the Media app's actions.
+    music: [media.previous, media.play_pause, media.next, media.volume_down, media.volume_up, media]
   bindings:
     home.double: { action: menu.open, menu: family }
+    top.hold: media.play_pause

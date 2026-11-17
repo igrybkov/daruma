@@ -36,10 +36,16 @@ host:
 # rounds once instead of twice. Text blending is such a sum, so fused or
 # not changes a pixel's color here and there. Off everywhere, every
 # compiler draws the same pictures.
+#
+# No SIMD in the JPEG decoder (album covers): its x86-64 SSE path writes
+# blue where ESPHome reads red, and its ARM path is another code path
+# again. The plain C path is the one the BOX-3 runs, and the same on every
+# computer.
 esphome:
   platformio_options:
     build_flags:
       - -ffp-contract=off
+      - -DNO_SIMD
 
 logger:
   level: DEBUG

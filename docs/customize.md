@@ -289,13 +289,15 @@ Built in:
 | Tasks | [app_tasks.yaml](../packages/app_tasks.yaml) | today's tasks from a to-do list or a script; tap to check one off |
 | Calendar | [app_calendar.yaml](../packages/app_calendar.yaml) | the Agenda of your coming events, and a day view |
 | Weather | [app_weather.yaml](../packages/app_weather.yaml) | now, today's high and low, rain, wind, the next hours |
+| Media | [app_media.yaml](../packages/app_media.yaml) | a remote for the media players in the device's room: the cover, the track, play, pause, skip, volume |
 
 - **Order.** `daruma: apps: [tasks, calendar, weather, stats]` sets the
   order on the app board.
 - **On and off.** Each app gets an "App: Name" switch in Home Assistant.
   An app that is off leaves the board and stops fetching.
-- **Copies.** Include `app_tasks.yaml` or `app_calendar.yaml` again with
-  another `app_id` for a second list or calendar set:
+- **Copies.** Include `app_tasks.yaml`, `app_calendar.yaml` or
+  `app_media.yaml` again with another `app_id` for a second list, calendar
+  set or set of players:
 
   ```yaml
       - path: packages/app_calendar.yaml

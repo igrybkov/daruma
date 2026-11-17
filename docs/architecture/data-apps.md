@@ -3,7 +3,7 @@
 > Incomplete. Moved from the old ARCHITECTURE.md. Add what you learn
 > when a task needs more, and keep it under 300 lines.
 
-Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event line. Read [modules.md](modules.md) first.
+Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event line. Read [modules.md](modules.md) first. The Media app shows data too, but it is a remote first: see [The device as a controller](controller.md).
 
 - **Tasks sources.** "To-do list" (`todo.get_items`, check-off with
   `todo.update_item`) and "Script": an HA script that returns

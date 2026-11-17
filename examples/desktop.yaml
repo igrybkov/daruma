@@ -8,8 +8,9 @@
 #   demos/record.py                     demo GIFs of every persona
 #   pytest demos                        screen tests (see docs/testing.md)
 #
-# Calendar and Tasks ask "Home Assistant" for data through the API. The
-# demo runner answers with made-up events and tasks.
+# Calendar, Tasks, Weather and Media ask "Home Assistant" for data through
+# the API. The demo runner answers with made-up events, tasks, weather and
+# players.
 
 substitutions:
   name: daruma-desktop
@@ -49,10 +50,13 @@ packages:
   app_weather: !include
     file: ../packages/app_weather.yaml
     vars: { entity: weather.demo }
+  # The demo runner answers as the players of the device's room, with
+  # covers it serves itself.
+  app_media: !include ../packages/app_media.yaml
   prompts: !include ../packages/prompts.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats]
+  apps: [tasks, calendar, weather, stats, media]
   progress:
     pomodoro: 1
   # A tap on the persona opens the default main menu (Tasks, Calendar,

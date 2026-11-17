@@ -144,3 +144,11 @@ font:
       - "\U000F059D"  # weather-windy
       - "\U000F059E"  # weather-windy-variant
       - "\U000F05D6"  # alert-circle-outline (exceptional)
+      # Media app (app_media.yaml, daruma_media/media_app.cpp); play,
+      # pause, stop and skip-next are above.
+      - "\U000F075A"  # music (the Media app, and a missing cover)
+      - "\U000F04AE"  # skip-previous
+      - "\U000F0425"  # power
+      - "\U000F075E"  # volume-minus
+      - "\U000F075D"  # volume-plus
+      - "\U000F057E"  # volume-high

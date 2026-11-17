@@ -17,7 +17,9 @@
  *     halfway through one;
  *   - settimeofday does nothing (the time component may call it);
  *   - select() and nanosleep() wait at most 2 ms of real time, so the main
- *     loop keeps turning while the clock stands still;
+ *     loop keeps turning while the clock stands still. The main loop never
+ *     waits a second (its loop interval is 16 ms), so a select() that does
+ *     is a blocking read, such as the HTTP client's, and waits for real;
  *   - /dev/urandom gives a fixed stream from the seed, which seeds
  *     random_uint32().
  * The same steps then give the same frames, run after run.
@@ -184,7 +186,7 @@ static int fake_settimeofday(const struct timeval *tv, const void *tz) {
 }
 
 static int fake_select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *tv) {
-  if (shared() != NULL && tv != NULL && (tv->tv_sec > 0 || tv->tv_usec > MAX_WAIT_NS / 1000)) {
+  if (shared() != NULL && tv != NULL && tv->tv_sec == 0 && tv->tv_usec > MAX_WAIT_NS / 1000) {
     struct timeval capped = {0, MAX_WAIT_NS / 1000};
     return orig_select(n, r, w, e, &capped);
   }

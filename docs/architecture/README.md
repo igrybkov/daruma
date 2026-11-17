@@ -60,7 +60,7 @@ file to create.
 | You want to | Topic |
 |---|---|
 | Bind a button, a gesture, a double or long press, or a tap on part of the picture | [Input and bindings](input.md) |
-| Make the device control something else: a music player, a tag scan, keys on a computer | The device as a controller: TBD (`controller.md`) |
+| Make the device control something else: a music player, a tag scan, keys on a computer | [The device as a controller](controller.md) |
 | Add or change a sound, or mute sounds | [Sounds](sounds.md) |
 | Change the voice assistant, the wake word or the microphone | Voice: TBD (`voice.md`) |
 

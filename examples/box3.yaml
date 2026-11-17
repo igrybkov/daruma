@@ -36,6 +36,8 @@
 #                          (include per set of calendars)
 #   app_weather.yaml       Weather app: today's report from an HA weather
 #                          entity (a tap on the temperature badge opens it)
+#   app_media.yaml         Media app: a remote for the media players in the
+#                          device's area in HA, with covers
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
 #
 # Inputs (board_box3.yaml): home (the red circle), top (the top-left
@@ -61,8 +63,9 @@ substitutions:
   friendly_name: Daruma
   # Optional starting values for the apps. You pick the real ones on the
   # device's page in Home Assistant ("Tasks source", "Tasks entity",
-  # "Calendars", "Weather entity"); the device keeps them across reboots,
-  # and a saved value wins over these.
+  # "Calendars", "Weather entity", "Media players"); the device keeps them
+  # across reboots, and a saved value wins over these. Media players are
+  # those in the device's area in HA until you list others.
   # Tasks: a to-do entity, or a script made from the "Daruma: task list
   # from a sensor" blueprint (then source: script).
   tasks_source: todo
@@ -110,6 +113,7 @@ packages:
       - path: packages/app_weather.yaml
         vars:
           entity: ${weather_entity}
+      - packages/app_media.yaml
       - packages/prompts.yaml
 
 wifi:
@@ -125,7 +129,7 @@ api:
 
 daruma:
   # The app board, in this order. Each app gets an "App: <Name>" switch.
-  apps: [tasks, calendar, weather, stats]
+  apps: [tasks, calendar, weather, media, stats]
   # What grows the plant (or the bonsai), and how much each counts.
   progress:
     pomodoro: 1

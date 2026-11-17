@@ -129,8 +129,13 @@ uv run pytest "demos/scenarios/tour.yaml::tour[pixel-corgi]"
   25-minute focus block takes a second.
 - **The runner plays Home Assistant.** It talks to the build over the
   ESPHome API, sets entities, calls actions, and answers the calendar,
-  to-do and weather requests with made-up data
-  ([demos/demo_data.py](../demos/demo_data.py)).
+  to-do, weather and media player requests with made-up data
+  ([demos/demo_data.py](../demos/demo_data.py)). Its three media players
+  change when the device sends them a command, and it serves their album
+  covers over HTTP itself. Every HA action the device calls is in
+  `device.events` as `action:<domain.service>`;
+  `expect(device).to_call_action("media_player.media_pause", entity_id=...)`
+  checks one.
 - **Tests read like browser tests.** Find parts on screen by text or role
   and tap them:
 
@@ -186,7 +191,8 @@ make test       # both
 They cover the registry and the build checks, the pixel art (every
 persona's layers add up, props stay put during reactions, frames round
 trip through the patch encoder), gestures, layout, prompts, the
-pomodoro's rules, the calendar's agenda and the weather words.
+pomodoro's rules, the calendar's agenda, the weather words and the
+media remote's rules.
 `DARUMA_SKIP_PERSONAS=1` skips the tests that build every persona.
 
 The C++ tests run through pytest too. `tests/conftest.py` collects each

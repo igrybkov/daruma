@@ -26,6 +26,7 @@ packages:
       - packages/pomodoro.yaml
       - packages/app_tasks.yaml
       - packages/app_calendar.yaml
+      - packages/app_media.yaml
       - packages/prompts.yaml
 
 wifi:
@@ -45,7 +46,7 @@ daruma:
     min_frame: 5s
     partial_refresh: true
     full_refresh_every: 20
-  apps: [tasks, calendar, stats]
+  apps: [tasks, calendar, media, stats]
   # Navigation (board_box3_buttons.yaml) uses top.press, top.double,
   # home.press, home.double and home.hold; on the device's own screen they
   # run these instead.

@@ -124,13 +124,44 @@ def _clear_but_esphome(folder: Path) -> None:
             child.unlink()
 
 
-def _persona_name(package: Path) -> str:
+def persona_name(package: Path) -> str:
     """The persona name a package adds to the Persona select: its first `name:`."""
     for line in package.read_text().splitlines():
         m = re.match(r"\s+name:\s*\"?([^\"#]+?)\"?\s*(#.*)?$", line)
         if m:
             return m.group(1)
     raise DeviceError(f"No persona name in {package}")
+
+
+def desktop_personas() -> list[str]:
+    """The personas of the desktop build, read from examples/desktop.yaml
+    without a build: each `persona_*` package, by the `persona_name` it
+    passes, or else by its package's name."""
+    import yaml
+
+    class Loader(yaml.SafeLoader):
+        pass
+
+    def tagged(loader: yaml.SafeLoader, suffix: str, node: yaml.Node) -> Any:
+        """Any ESPHome tag (!include, !extend, !lambda) as plain data; a
+        scalar !include as {"file": ...}."""
+        if isinstance(node, yaml.MappingNode):
+            return loader.construct_mapping(node, deep=True)
+        if isinstance(node, yaml.SequenceNode):
+            return loader.construct_sequence(node, deep=True)
+        value = loader.construct_scalar(node)
+        return {"file": value} if suffix == "include" else value
+
+    Loader.add_multi_constructor("!", tagged)
+    config = REPO_DIR / "examples" / DEVICE_YAML
+    packages = yaml.load(config.read_text(), Loader=Loader)["packages"]
+    names = []
+    for key, package in packages.items():
+        if not key.startswith("persona_"):
+            continue
+        name = (package.get("vars") or {}).get("persona_name")
+        names.append(name or persona_name(config.parent / package["file"]))
+    return names
 
 
 def build_clock_lib(out: Path) -> Path:
@@ -206,7 +237,7 @@ def _write_config(config_dir: Path, name: str, private_packages: list[str] | Non
     for i, pkg in enumerate(private_packages or []):
         pkg = Path(pkg).resolve()
         lines.append(f"  private_{i}: !include {pkg}")
-        private.add(_persona_name(pkg))
+        private.add(persona_name(pkg))
     if COVERAGE:
         # Lists merge by joining, so this adds to the board's build flags.
         lines += ["esphome:", "  platformio_options:", "    build_flags:", "      - --coverage"]
@@ -1036,12 +1067,16 @@ class DeviceAssertions:
         with Image.open(golden) as g:
             expected = g.convert("RGB")
         if expected.size != actual.size:
+            out.mkdir(parents=True, exist_ok=True)
+            actual.save(out / f"{name}-actual.png")
+            expected.save(out / f"{name}-expected.png")
             raise AssertionError(f"{name}: size {actual.size}, golden {expected.size}")
         diff = ImageChops.difference(actual, expected)
         bad = _count_over(diff, tolerance)
         if bad > max_diff_pixels:
             out.mkdir(parents=True, exist_ok=True)
             actual.save(out / f"{name}-actual.png")
+            expected.save(out / f"{name}-expected.png")
             mark = diff.point(lambda v: 255 if v > tolerance else 0).convert("L")
             red = Image.new("RGB", actual.size, (255, 0, 0))
             Image.composite(red, Image.blend(expected, Image.new("RGB", actual.size), 0.6), mark).save(

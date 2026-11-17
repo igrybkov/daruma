@@ -6,8 +6,7 @@
 `gifs` writes one <scenario>-sheet.png per scenario: a row per persona, with
 frames taken at even steps through its GIF. `diffs` finds every
 <name>-actual.png under the results root and writes expected | actual | diff
-side by side. The expected picture is <name>.png next to it (pytest), or the
-golden picture of its run (record.py: runs/<persona>-<scenario>/results).
+side by side, from the <name>-expected.png and <name>-diff.png next to it.
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageSequence
 
-GOLDEN_DIR = Path(__file__).resolve().parent.parent / "tests" / "golden"
 FRAMES = 6
 LABEL = 18
 GAP = 4
@@ -61,16 +59,6 @@ def gif_sheets(gif_dir: Path, out: Path) -> None:
         print(f"{scenario}-sheet.png: {len(rows)} personas")
 
 
-def _expected(actual: Path, name: str) -> Path | None:
-    beside = actual.with_name(f"{name}.png")
-    if beside.exists():
-        return beside
-    run = actual.parent.parent.name  # runs/<persona>-<scenario>/results
-    persona, _, scenario = run.rpartition("-")
-    golden = GOLDEN_DIR / persona / scenario / f"{name}.png"
-    return golden if golden.exists() else None
-
-
 def diff_pictures(root: Path, out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     seen: set[Path] = set()
@@ -80,10 +68,12 @@ def diff_pictures(root: Path, out: Path) -> None:
             continue
         seen.add(actual.resolve())
         name = actual.name.removesuffix("-actual.png")
-        diff = actual.with_name(f"{name}-diff.png")
-        expected = _expected(actual, name)
-        cells = [("expected", expected), ("actual", actual), ("diff", diff if diff.exists() else None)]
-        row = [(label, [Image.open(p).convert("RGB")]) for label, p in cells if p is not None]
+        cells = [
+            ("expected", actual.with_name(f"{name}-expected.png")),
+            ("actual", actual),
+            ("diff", actual.with_name(f"{name}-diff.png")),
+        ]
+        row = [(label, [Image.open(p).convert("RGB")]) for label, p in cells if p.exists()]
         frames = [frame for _, fs in row for frame in fs]
         labels = " | ".join(label for label, _ in row)
         target = out / f"{actual.parent.parent.name}-{name}.png"

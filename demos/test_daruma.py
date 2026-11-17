@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 import scenario as scenarios
-from harness import expect
+from harness import desktop_personas, expect
 
 
 def test_showcase_covers_every_state(device):
@@ -19,6 +19,13 @@ def test_showcase_covers_every_state(device):
     assert not missing, f"no showcase scenario shows {missing}; add them to {[s.path.name for s in showcase]}"
     unknown = sorted(covered - set(known))
     assert not unknown, f"the showcase scenarios name states the build does not know: {unknown}"
+
+
+def test_persona_list_matches_the_build(device):
+    """The scenario tests read the personas from examples/desktop.yaml
+    without a build. The build's Persona select has the same ones."""
+    public = [p for p in device.personas() if p not in device.build.private_personas]
+    assert sorted(desktop_personas()) == sorted(public)
 
 
 def test_pet_shows_petted(device):

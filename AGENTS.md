@@ -76,7 +76,7 @@ make mutate-diff          # lines changed since origin/main; CI runs it
 make mutate               # everything, as a report
 
 # Screen tests on the desktop build (same pictures on macOS and Linux)
-make screens              # golden, then test-screens
+make screens              # golden and test-screens, in one pytest run
 make docker-test          # both, in Ubuntu 24.04 as CI runs them
 
 # Record GIFs, accept new golden pictures

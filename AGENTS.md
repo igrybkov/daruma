@@ -52,7 +52,9 @@ compile time.
 |---|---|
 | [`packages/`](packages/README.md) | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
 | `src/esphome/components/` | ESPHome components in C++ and Python; `daruma/registry.py` holds the states and the build checks |
-| `pixel/daruma_pixel/` | the pixel-art library: engines (`pet.py`, `desk_boss.py`), scenes, breeds, `personas.py` |
+| `pixel/daruma-pixel/` | the drawing layer, `daruma_pixel`: pixelkit, scenes and spots, effects, the persona framework (`personas.py`) |
+| `pixel/shapes-*/` | shapes, `daruma_shapes.<family>`: pets (the pet rig, dogs, cats), rooms, plants, office |
+| `pixel/persona-*/` | one package per pixel persona, `daruma_personas.<name>`: its looks, colors and animations |
 | `art/` | picture sets for `daruma_images` |
 | `sounds/` | `preview.cpp`: writes the built-in sounds as WAV files to listen to |
 | [`examples/`](examples/README.md) | `box3.yaml` (a device), `desktop.yaml` (a window on a computer), build variants |
@@ -137,5 +139,10 @@ make check
 - **Slow tests.** The host tests build every persona and take minutes.
   `DARUMA_SKIP_PERSONAS=1` skips those while you iterate; run them all
   before you finish.
-- **Pixel scripts** run with their own folder and `pixel/` on `sys.path`.
-  Import the library as `daruma_pixel.X`.
+- **Pixel packages** are uv workspace members (`pixel/*/`), installed
+  editable by `uv sync`. A device build installs nothing: it puts every
+  `pixel/*/src` on `sys.path`. `daruma_shapes` and `daruma_personas` are
+  namespace packages, so they have no `__init__.py` at the top.
+- **Pixel layers.** A persona imports shapes and the drawing layer, never
+  another persona. A shape never imports a persona. The drawing layer
+  imports neither. `tests/test_pixel_layers.py` checks it.

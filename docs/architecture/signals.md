@@ -89,7 +89,7 @@ As built (`src/esphome/components/daruma/persona.py`):
 
 In `daruma_sprites`.
 
-- `pixel_art: goal: {started: ..., done: ...}` names the script's persona for
+- `pixel_art: goal: {started: ..., done: ...}` names the module's persona for
   each goal stage. The daruma has one per number of painted eyes. The
   personas must share the room, the window, the plant and the rug colors.
 - Behaviors see each animation name once. The device keeps a map per

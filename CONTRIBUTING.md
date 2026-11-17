@@ -65,7 +65,7 @@ substitutions:
 |---|---|
 | `packages/` | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
 | `src/esphome/components/` | ESPHome components. `daruma/` is the hub; `daruma/registry.py` holds the states and the build checks. `daruma_*` are personas and modules. |
-| `pixel/daruma_pixel/` | the pixel-art library, run at build time: engines, scenes, breeds, `personas.py` |
+| `pixel/` | the pixel art, drawn at build time. uv workspace members: `daruma-pixel/` (the drawing layer), `shapes-*/` (pets, rooms, plants, office) and `persona-*/` (one per persona) |
 | `art/` | picture sets for `daruma_images` |
 | `examples/` | `box3.yaml` (a device), `desktop.yaml` (a window on a computer), build variants |
 | `demos/` | the desktop test harness, scenarios, the GIF recorder, pytest tests |
@@ -80,8 +80,9 @@ How the parts fit: [docs/architecture/](docs/architecture/README.md).
 Follow [docs/agents/new-persona.md](docs/agents/new-persona.md). It works
 for people too. To contribute the persona, also:
 
-1. Add an entry to `PERSONAS` in `pixel/daruma_pixel/personas.py` (pixel
-   art only).
+1. Give the persona package a `PERSONA = Spec(...)` (pixel art only; see
+   `pixel/daruma-pixel/src/daruma_pixel/personas.py`). Nothing else lists
+   it: the persona is found in the `daruma_personas` namespace.
 2. Add `packages/persona_<name>.yaml`. Copy the header comment style of
    the others.
 3. Add the package to `examples/box3.yaml` and `examples/desktop.yaml`.

@@ -1,0 +1,16 @@
+# A uv workspace member. daruma_shapes is a namespace package (PEP 420): each
+# member adds its own part, so there is no daruma_shapes/__init__.py.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daruma-shapes-rooms"
+version = "0.0.0"
+description = "Pixel rooms for Daruma personas: the cozy room, the living room and its couch, the portrait studio"
+requires-python = ">=3.12"
+dependencies = ["daruma-pixel"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daruma_shapes"]

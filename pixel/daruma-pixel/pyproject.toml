@@ -1,0 +1,22 @@
+# The drawing layer on its own, for scripts and previews outside an ESPHome
+# build:
+#
+#   pip install "git+https://github.com/igrybkov/daruma#subdirectory=pixel/daruma-pixel"
+#
+# ESPHome builds install nothing: daruma_sprites puts every pixel/*/src on
+# the import path.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daruma-pixel"
+version = "0.0.0"
+description = "The drawing layer of Daruma's pixel personas: pixelkit, scenes and spots, effects, the persona framework"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = ["pillow>=10"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daruma_pixel"]

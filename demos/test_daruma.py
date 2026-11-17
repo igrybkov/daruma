@@ -354,7 +354,7 @@ def test_jack_russell_petted_while_guarding(device):
 SATURDAY_EVENING = 1794707970
 # A spot on the corgi's rug left of its paws, below the bottom band's top.
 RUG_SPOT = (224, 212)
-# The rug's main color per day (room.py RUG_BY_WEEKDAY), and plain red.
+# The rug's main color per day (scene.py WEEKDAY_COLORS), and plain red.
 RUG_MAIN = {
     "plain": (150, 58, 58),
     "Sunday": (236, 228, 210),

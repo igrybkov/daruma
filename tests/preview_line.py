@@ -277,7 +277,8 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     layouts = json.loads(subprocess.run([binary, "--json"], check=True, capture_output=True, text=True).stdout)
 
-    from daruma_pixel import daruma_persona, personas
+    from daruma_personas import daruma as daruma_persona
+    from daruma_pixel import personas
 
     def timer_font(size):
         f = ImageFont.truetype(str(font_dir / "Manrope[wght].ttf"), size)

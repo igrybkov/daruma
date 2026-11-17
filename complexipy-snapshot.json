@@ -68,10 +68,6 @@
     "file_name": "__init__.py",
     "functions": [
       {
-        "name": "_validate_layers",
-        "complexity": 16
-      },
-      {
         "name": "_from_script",
         "complexity": 21
       },
@@ -82,7 +78,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/bonsai.py",
+    "path": "pixel/shapes-plants/src/daruma_shapes/plants/bonsai.py",
     "file_name": "bonsai.py",
     "functions": [
       {
@@ -96,7 +92,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/cat.py",
+    "path": "pixel/shapes-pets/src/daruma_shapes/pets/cat.py",
     "file_name": "cat.py",
     "functions": [
       {
@@ -118,7 +114,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/cat_grass.py",
+    "path": "pixel/shapes-plants/src/daruma_shapes/plants/cat_grass.py",
     "file_name": "cat_grass.py",
     "functions": [
       {
@@ -128,8 +124,18 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/daruma.py",
-    "file_name": "daruma.py",
+    "path": "pixel/persona-corgi/src/daruma_personas/corgi/preview.py",
+    "file_name": "preview.py",
+    "functions": [
+      {
+        "name": "tomato",
+        "complexity": 19
+      }
+    ]
+  },
+  {
+    "path": "pixel/persona-daruma/src/daruma_personas/daruma/doll.py",
+    "file_name": "doll.py",
     "functions": [
       {
         "name": "stamp",
@@ -142,8 +148,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/daruma_persona.py",
-    "file_name": "daruma_persona.py",
+    "path": "pixel/persona-daruma/src/daruma_personas/daruma/__init__.py",
+    "file_name": "__init__.py",
     "functions": [
       {
         "name": "diff_patch",
@@ -152,8 +158,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/desk_boss.py",
-    "file_name": "desk_boss.py",
+    "path": "pixel/shapes-office/src/daruma_shapes/office/boss.py",
+    "file_name": "boss.py",
     "functions": [
       {
         "name": "shirt_and_tie",
@@ -170,7 +176,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/dog.py",
+    "path": "pixel/shapes-pets/src/daruma_shapes/pets/dog.py",
     "file_name": "dog.py",
     "functions": [
       {
@@ -180,8 +186,18 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/jack_russell.py",
-    "file_name": "jack_russell.py",
+    "path": "pixel/daruma-pixel/src/daruma_pixel/effects.py",
+    "file_name": "effects.py",
+    "functions": [
+      {
+        "name": "extras",
+        "complexity": 58
+      }
+    ]
+  },
+  {
+    "path": "pixel/persona-jack-russell/src/daruma_personas/jack_russell/__init__.py",
+    "file_name": "__init__.py",
     "functions": [
       {
         "name": "curled",
@@ -190,16 +206,12 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/living_room.py",
+    "path": "pixel/shapes-rooms/src/daruma_shapes/rooms/living_room.py",
     "file_name": "living_room.py",
     "functions": [
       {
         "name": "_window",
         "complexity": 16
-      },
-      {
-        "name": "_couch",
-        "complexity": 19
       },
       {
         "name": "_throw",
@@ -208,8 +220,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/pet.py",
-    "file_name": "pet.py",
+    "path": "pixel/shapes-pets/src/daruma_shapes/pets/rig.py",
+    "file_name": "rig.py",
     "functions": [
       {
         "name": "_book",
@@ -226,15 +238,11 @@
       {
         "name": "_eye",
         "complexity": 45
-      },
-      {
-        "name": "extras",
-        "complexity": 58
       }
     ]
   },
   {
-    "path": "pixel/daruma_pixel/pixelkit.py",
+    "path": "pixel/daruma-pixel/src/daruma_pixel/pixelkit.py",
     "file_name": "pixelkit.py",
     "functions": [
       {
@@ -248,8 +256,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/plant.py",
-    "file_name": "plant.py",
+    "path": "pixel/shapes-plants/src/daruma_shapes/plants/pothos.py",
+    "file_name": "pothos.py",
     "functions": [
       {
         "name": "_pot",
@@ -262,18 +270,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/preview.py",
-    "file_name": "preview.py",
-    "functions": [
-      {
-        "name": "tomato",
-        "complexity": 19
-      }
-    ]
-  },
-  {
-    "path": "pixel/daruma_pixel/room.py",
-    "file_name": "room.py",
+    "path": "pixel/shapes-rooms/src/daruma_shapes/rooms/cozy_room.py",
+    "file_name": "cozy_room.py",
     "functions": [
       {
         "name": "room",
@@ -282,7 +280,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/spider_plant.py",
+    "path": "pixel/shapes-plants/src/daruma_shapes/plants/spider_plant.py",
     "file_name": "spider_plant.py",
     "functions": [
       {
@@ -292,7 +290,7 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/studio.py",
+    "path": "pixel/shapes-rooms/src/daruma_shapes/rooms/studio.py",
     "file_name": "studio.py",
     "functions": [
       {
@@ -302,8 +300,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/tabby_cat.py",
-    "file_name": "tabby_cat.py",
+    "path": "pixel/persona-tabby-cat/src/daruma_personas/tabby_cat/__init__.py",
+    "file_name": "__init__.py",
     "functions": [
       {
         "name": "_rear_marks",
@@ -316,8 +314,8 @@
     ]
   },
   {
-    "path": "pixel/daruma_pixel/the_boss.py",
-    "file_name": "the_boss.py",
+    "path": "pixel/persona-the-boss/src/daruma_personas/the_boss/__init__.py",
+    "file_name": "__init__.py",
     "functions": [
       {
         "name": "eye",

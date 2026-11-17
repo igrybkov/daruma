@@ -1,4 +1,4 @@
-"""daruma_preview.py sizes the daruma's frames with the firmware's own encoder."""
+"""The daruma's preview (daruma_personas.daruma.preview) sizes its frames with the firmware's own encoder."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ pytest.importorskip("PIL")
 
 
 def test_the_preview_loads_the_firmware_encoder() -> None:
-    from daruma_pixel import daruma_preview
+    from daruma_personas.daruma import preview
 
-    encoder = daruma_preview._encoder()
+    encoder = preview._encoder()
     assert Path(encoder.__file__).resolve() == Path(sprite_codec.__file__).resolve()
     assert callable(encoder.encode_image)

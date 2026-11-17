@@ -14,38 +14,54 @@ rules.
 
 | It is | Use | Model to copy |
 |---|---|---|
-| a four-legged pet sitting up | a breed on `pet` | `pixel/daruma_pixel/jack_russell.py` (dog), `tabby_cat.py` (cat) |
-| a person at a desk | a look on `desk_boss` | `pixel/daruma_pixel/the_boss.py` |
-| anything else in pixel art | a module of your own | `pixel/daruma_pixel/daruma.py`, `daruma_moods.py`, `daruma_persona.py` |
+| a four-legged pet sitting up | a breed on the pet rig (`daruma_shapes.pets`) | `pixel/persona-jack-russell/` (dog), `pixel/persona-tabby-cat/` (cat) |
+| a person at a desk | a look on the office (`daruma_shapes.office`) | `pixel/persona-the-boss/` |
+| anything else in pixel art | an actor of your own | `pixel/persona-daruma/` (the doll, its moods, the persona) |
 | existing pictures | `daruma_images` | `packages/persona_images.yaml`, `art/flat_corgi/` |
 | something abstract | `daruma_eyes` with a color | `packages/persona_eyes.yaml` |
 
 A pixel persona is the richest: a room, a window with the sky, a prop
 that grows with progress, a rug that changes by weekday. Read the model
-module fully before you write one.
+package fully before you write one.
+
+The pixel art has three layers. `daruma_pixel` draws. The shapes
+(`daruma_shapes.pets`, `.rooms`, `.plants`, `.office`) are generic: a cat
+fits any room. A persona package picks shapes, colors and animations. If
+your persona needs a shape another persona could use too, such as a new
+room or plant, put it in a shapes package. Keep what only this persona
+looks like in its own package. A persona never imports another persona.
 
 ## Where it lives
 
-- **In a fork of this repository**, to contribute it: the art in
-  `pixel/daruma_pixel/<name>.py`, an entry in `PERSONAS` in
-  `pixel/daruma_pixel/personas.py`, a package
-  `packages/persona_<name>.yaml`, and a line in `examples/box3.yaml` and
-  `examples/desktop.yaml`. Then follow [CONTRIBUTING.md](../../CONTRIBUTING.md).
-- **In the person's own files**: the art and a small build script next to
-  their device file or in a repository of their own. Follow
-  [private-packages.md](../private-packages.md). The script imports
-  the library (`from daruma_pixel import personas, pet`) and adds itself to
-  `personas.PERSONAS`.
+- **In a fork of this repository**, to contribute it: copy a persona
+  package, for example `pixel/persona-jack-russell/` to
+  `pixel/persona-<name>/`. Rename the package folder to
+  `src/daruma_personas/<name>/` and the project name in its
+  `pyproject.toml`. Add the member to the `pixel` group and to
+  `[tool.uv.sources]` in the root `pyproject.toml`, then run `uv sync`.
+  Its `__init__.py` holds the layers and `PERSONA = Spec(...)`. Add a
+  package `packages/persona_<name>.yaml`, and a line in
+  `examples/box3.yaml` and `examples/desktop.yaml`. Then follow
+  [CONTRIBUTING.md](../../CONTRIBUTING.md).
+- **In the person's own files**: the art module next to their device file
+  or in a repository of their own. Follow
+  [private-packages.md](../private-packages.md). The art module imports
+  the pixel packages by name (`from daruma_shapes.pets import dog`) and
+  declares itself with `PERSONA = Spec(...)`.
 
 ## Steps
 
 1. **Design on paper first.** Colors (a few ramps: base, shadow, light,
    line), the silhouette, and how it shows each mood. Decide its scene and
    its focus prop: the corgi reads a book, the Jack Russell holds a ball,
-   the daruma burns incense.
-2. **Write the art module.** It offers `background()`,
+   the daruma burns incense. Pick the scene's spots it uses: where the
+   actor sits ("floor", "seat") and where its progress prop stands
+   ("shelf", "sill", "hook"). Actors and props draw at the spot you pass
+   in; they never assume a scene.
+2. **Write the persona package.** Its `__init__.py` offers `background()`,
    `foreground(pose)`, `scene(pose)`, `WINDOW`, `ANIMATIONS`, `BLINKS`,
-   `WINKS`, and `PROPS` when an activity has props. `Neutral` is required.
+   `WINKS`, `PROPS` when an activity has props, and
+   `PERSONA = Spec("<name>", background=0x...)`. `Neutral` is required.
    Animation names match states in any case (`focus` finds `Focus`).
    Cover at least: Neutral, Happy, Sad, Loved, Scared, Sleepy, Sleeping,
    listening, thinking, talking, Focus, Petted, Celebrate. Every other

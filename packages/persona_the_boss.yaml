@@ -4,14 +4,14 @@
 # Boss' to the Persona select. Her office has no window or growing plant: the
 # sky and progress signals do not show.
 #
-# Drawn by Python while the firmware compiles (pixel/daruma_pixel/the_boss.py
-# on desk_boss.py, through personas.py); edit the art there and compile.
-# Previews: see personas.py.
+# Drawn by Python while the firmware compiles (pixel/persona-the-boss: at the
+# desk from daruma_shapes.office); edit the art there and compile. Previews:
+# see daruma_pixel.personas.
 
 daruma_sprites:
   - id: the_boss
     name: The Boss
-    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: the_boss }
+    pixel_art: { module: daruma_personas.the_boss, persona: the_boss }
     behaviors:
       focus: { animation: Focus }
     # Menu and apps: her cream office paper on a warm wall, with teal ink and

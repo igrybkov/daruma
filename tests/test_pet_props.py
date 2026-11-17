@@ -1,4 +1,4 @@
-"""Host test: a reaction over an activity keeps the pet whole (pixel/daruma_pixel/pet.py personas).
+"""Host test: a reaction over an activity keeps the pet whole (personas on the pet rig, daruma_shapes.pets.rig).
 
     uv run pytest tests/test_pet_props.py
 
@@ -29,8 +29,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 import esphome_components  # noqa: E402, F401
 import yaml  # noqa: E402
-from daruma_pixel import personas, pet  # noqa: E402
 from esphome.components.daruma import registry  # noqa: E402
+
+from daruma_pixel import personas  # noqa: E402
+from daruma_shapes.pets import rig as pet  # noqa: E402
 
 # Props, by a color only that prop has.
 PROP_MARKS = {"glasses": pet.LENS_GLINT, "book": pet.BOOK.base, "ball": pet.BALL.base}
@@ -75,9 +77,8 @@ def persona_config(persona: str) -> dict:
 def pet_personas() -> list[str]:
     """Personas drawn on the pet rig: their layers module has a pet.Pet."""
     out = []
-    for name in personas.PERSONAS:
-        _, layers, _ = personas._persona(name)
-        if isinstance(getattr(layers, "_pet", None), pet.Pet):
+    for name, spec in personas.discover().items():
+        if isinstance(getattr(spec.layers, "_pet", None), pet.Pet):
             out.append(name)
     return out
 
@@ -120,7 +121,7 @@ class RigTest(unittest.TestCase):
     """The checks below catch what they should, on frames drawn here."""
 
     def test_a_free_butt_wag_moves_the_body_under_a_still_head(self):
-        from daruma_pixel import corgi
+        from daruma_personas.corgi import breed as corgi
 
         base = corgi.render(pet.READING)
         wag = corgi.render(pet.with_(pet.LOVED, wag=1.0))
@@ -131,7 +132,7 @@ class RigTest(unittest.TestCase):
         self.assertNotIn("book", marks(wag))
 
     def test_a_wag_with_a_book_moves_head_and_body_together(self):
-        from daruma_pixel import corgi
+        from daruma_personas.corgi import breed as corgi
 
         base = corgi.render(pet.READING)
         wag = corgi.render(pet.with_(pet.READING, wag=1.0))
@@ -156,7 +157,8 @@ class ReactionsOverActivities(unittest.TestCase):
         self.assertIn("corgi", names)
         self.assertIn("jack_russell", names)
         for name in names:
-            _, layers, source = personas._persona(name)
+            spec = personas.spec(name)
+            layers, source = spec.layers, spec.animations
             anims = list(source.ANIMATIONS)
             conf = persona_config(name)
             char = registry.Persona(

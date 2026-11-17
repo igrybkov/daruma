@@ -112,7 +112,7 @@ def resolve_file(value: str) -> str:
 
     Like ESPHome's own file options (cv.file_): relative to the config
     folder first, then to the YAML file the value is written in. So a
-    package fetched from git can name files next to it (`../pixel/daruma_pixel/personas.py`)
+    package fetched from git can name files next to it (`../pixel/persona-corgi/...`)
     wherever the device yaml is. Must run on the value as loaded, while it
     still knows its YAML file."""
     import esphome.config_validation as cv

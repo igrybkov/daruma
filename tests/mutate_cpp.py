@@ -9,7 +9,7 @@ includes that file, and runs them. A change that still builds and that
 no test notices "survived": the tests would miss that bug. A change that
 doesn't build doesn't count.
 
-The files are the ones the C++ host tests include (tests/run_cpp.sh),
+The files are the ones the C++ host tests include (tests/conftest.py),
 found with the compiler. test_frames.cpp needs a fixture, so its headers
 are left out. --diff fails when a mutant on a changed line survives.
 Mark a line `// pragma: no mutate` when no test can tell the change apart.
@@ -31,7 +31,7 @@ from pathlib import Path
 
 from changed_lines import ROOT, changed_lines
 
-# The same flags as tests/run_cpp.sh, without the warnings.
+# The same flags as tests/conftest.py, without the warnings.
 FLAGS = ["-std=c++17", "-w"]
 INCLUDES = ["components/daruma", "components/daruma_weather"]
 SKIP_TESTS = {"test_frames"}

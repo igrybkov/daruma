@@ -171,6 +171,16 @@ trip through the patch encoder), gestures, layout, prompts, the
 pomodoro's rules, the calendar's agenda and the weather words.
 `DARUMA_SKIP_PERSONAS=1` skips the tests that build every persona.
 
+The C++ tests run through pytest too. `tests/conftest.py` collects each
+`tests/test_*.cpp` as one test: pytest builds it and runs it. The
+`cpp` marker picks them out. To run one test, name it:
+
+```sh
+uv run pytest tests/test_registry.py   # one Python file
+uv run pytest tests/test_layout.cpp    # one C++ test
+uv run pytest tests -m cpp             # every C++ test
+```
+
 ## Coverage
 
 CI measures which lines the tests run, in jobs beside the tests. The
@@ -201,7 +211,7 @@ table per area. Then the job fails if a rule failed. On a push to main
 it only writes the report. On Linux with gcc, the same steps run locally:
 
 - C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
-  the programs and their data, in `tests/run_cpp.sh` and `test_frames.py`.
+  the programs and their data, in `tests/conftest.py` and `test_frames.py`.
 - Python host tests: `pytest tests --cov=components --cov=pixel`.
 - Screen tests: `DARUMA_COVERAGE=<folder>` builds the desktop program
   with `--coverage`, in a build folder of its own, and runs ESPHome's code

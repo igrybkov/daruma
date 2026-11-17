@@ -68,6 +68,10 @@ commands.
 # Host tests: no ESPHome build needed
 make test                 # test-py and test-cpp
 
+# Mutation tests: would a test catch a bug in this code?
+make mutate-diff          # lines changed since origin/main; CI runs it
+make mutate               # everything, as a report
+
 # Screen tests on the desktop build (same pictures on macOS and Linux)
 make screens              # golden, then test-screens
 make docker-test          # both, in Ubuntu 24.04 as CI runs them

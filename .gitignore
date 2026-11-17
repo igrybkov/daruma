@@ -14,3 +14,4 @@ __pycache__/
 build/
 *.egg-info/
 .complexipy_cache/
+mutants/

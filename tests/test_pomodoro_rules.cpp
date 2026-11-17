@@ -34,6 +34,7 @@ int main() {
   {
     Now n;
     CHECK(same(buttons(n), {Button::FOCUS, Button::CUSTOM}));
+    CHECK(shows(n, Button::FOCUS) && shows(n, Button::CUSTOM));
     CHECK(!shows(n, Button::BREAK));
     CHECK(!shows(n, Button::STOP));
   }
@@ -62,9 +63,12 @@ int main() {
     const Now n = idle_after(60);
     CHECK(break_window(n));
     CHECK(same(buttons(n), {Button::FOCUS, Button::CUSTOM, Button::BREAK, Button::LONG_BREAK}));
+    CHECK(shows(n, Button::BREAK) && shows(n, Button::LONG_BREAK));
   }
   // The window is the break the focus earned: 5 min short, 15 min long.
+  // It opens the moment the focus ends.
   {
+    CHECK(break_window(idle_after(0)));
     CHECK(break_window(idle_after(5 * 60 - 1)));
     CHECK(!break_window(idle_after(5 * 60)));
     CHECK(break_window(idle_after(10 * 60, true)));
@@ -74,6 +78,10 @@ int main() {
     // Other settings move it.
     n.short_break_s = 10 * 60;
     CHECK(break_window(n));
+    // A focus earns the short break unless it says otherwise.
+    Now plain;
+    plain.since_focus_end = 6 * 60;
+    CHECK(!break_window(plain));
   }
   // Never outside idle, and never without a finished focus.
   {
@@ -90,6 +98,9 @@ int main() {
     CHECK(!earns_long(5, 4));
     CHECK(earns_long(8, 4));
     CHECK(!earns_long(4, 0));
+    // Every pomodoro, when the setting is 1.
+    CHECK(earns_long(1, 1));
+    CHECK(earns_long(2, 1));
   }
   if (failures == 0)
     std::printf("pomodoro rules: all passed\n");

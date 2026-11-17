@@ -70,12 +70,12 @@ static void higher_style_wins_and_lower_comes_back() {
 static void focus_holds_back_info_only() {
   PromptStack s;
   s.show(make("news", PromptStyle::INFO), 0);
-  CHECK(top_id(s, true) == "");
+  CHECK(top_id(s, true).empty());
   CHECK(top_id(s, false) == "news");
   s.show(make("quiz", PromptStyle::GAME), 10);
   CHECK(top_id(s, true) == "quiz");
   s.close("quiz");
-  CHECK(top_id(s, true) == "");
+  CHECK(top_id(s, true).empty());
   // The held prompt's timeout has not started: it never was on screen.
   s.find("news")->timeout_ms = 1000;
   CHECK(!s.tick(100000));

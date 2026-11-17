@@ -1,0 +1,424 @@
+[
+  {
+    "path": "components/daruma/__init__.py",
+    "file_name": "__init__.py",
+    "functions": [
+      {
+        "name": "to_code",
+        "complexity": 17
+      }
+    ]
+  },
+  {
+    "path": "components/daruma/registry.py",
+    "file_name": "registry.py",
+    "functions": [
+      {
+        "name": "collect_states",
+        "complexity": 22
+      },
+      {
+        "name": "resolve_menus",
+        "complexity": 24
+      },
+      {
+        "name": "resolve_persona",
+        "complexity": 25
+      },
+      {
+        "name": "resolve_bindings",
+        "complexity": 29
+      },
+      {
+        "name": "resolve_targets",
+        "complexity": 29
+      }
+    ]
+  },
+  {
+    "path": "components/daruma/sounds.py",
+    "file_name": "sounds.py",
+    "functions": [
+      {
+        "name": "_expand",
+        "complexity": 17
+      }
+    ]
+  },
+  {
+    "path": "components/daruma/sprite_codec.py",
+    "file_name": "sprite_codec.py",
+    "functions": [
+      {
+        "name": "_runs",
+        "complexity": 28
+      },
+      {
+        "name": "decode_set",
+        "complexity": 42
+      },
+      {
+        "name": "encode_set",
+        "complexity": 48
+      }
+    ]
+  },
+  {
+    "path": "components/daruma_sprites/__init__.py",
+    "file_name": "__init__.py",
+    "functions": [
+      {
+        "name": "_validate_layers",
+        "complexity": 16
+      },
+      {
+        "name": "_from_script",
+        "complexity": 21
+      },
+      {
+        "name": "to_code",
+        "complexity": 23
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/bonsai.py",
+    "file_name": "bonsai.py",
+    "functions": [
+      {
+        "name": "_trunk",
+        "complexity": 21
+      },
+      {
+        "name": "_pad",
+        "complexity": 37
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/cat.py",
+    "file_name": "cat.py",
+    "functions": [
+      {
+        "name": "Cat::render",
+        "complexity": 19
+      },
+      {
+        "name": "mouth_fn",
+        "complexity": 24
+      },
+      {
+        "name": "tail_path",
+        "complexity": 30
+      },
+      {
+        "name": "eye",
+        "complexity": 70
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/cat_grass.py",
+    "file_name": "cat_grass.py",
+    "functions": [
+      {
+        "name": "_pot",
+        "complexity": 21
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/daruma.py",
+    "file_name": "daruma.py",
+    "functions": [
+      {
+        "name": "stamp",
+        "complexity": 49
+      },
+      {
+        "name": "_extras",
+        "complexity": 63
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/daruma_persona.py",
+    "file_name": "daruma_persona.py",
+    "functions": [
+      {
+        "name": "diff_patch",
+        "complexity": 17
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/desk_boss.py",
+    "file_name": "desk_boss.py",
+    "functions": [
+      {
+        "name": "shirt_and_tie",
+        "complexity": 17
+      },
+      {
+        "name": "raised_arm",
+        "complexity": 18
+      },
+      {
+        "name": "Persona::body",
+        "complexity": 23
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/dog.py",
+    "file_name": "dog.py",
+    "functions": [
+      {
+        "name": "mouth",
+        "complexity": 42
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/jack_russell.py",
+    "file_name": "jack_russell.py",
+    "functions": [
+      {
+        "name": "curled",
+        "complexity": 22
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/living_room.py",
+    "file_name": "living_room.py",
+    "functions": [
+      {
+        "name": "_window",
+        "complexity": 16
+      },
+      {
+        "name": "_couch",
+        "complexity": 19
+      },
+      {
+        "name": "_throw",
+        "complexity": 25
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/pet.py",
+    "file_name": "pet.py",
+    "functions": [
+      {
+        "name": "_book",
+        "complexity": 17
+      },
+      {
+        "name": "_front_legs",
+        "complexity": 17
+      },
+      {
+        "name": "render",
+        "complexity": 32
+      },
+      {
+        "name": "_eye",
+        "complexity": 45
+      },
+      {
+        "name": "extras",
+        "complexity": 58
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/pixelkit.py",
+    "file_name": "pixelkit.py",
+    "functions": [
+      {
+        "name": "Canvas::outline",
+        "complexity": 16
+      },
+      {
+        "name": "Canvas::paint",
+        "complexity": 30
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/plant.py",
+    "file_name": "plant.py",
+    "functions": [
+      {
+        "name": "_pot",
+        "complexity": 20
+      },
+      {
+        "name": "_tuft",
+        "complexity": 27
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/preview.py",
+    "file_name": "preview.py",
+    "functions": [
+      {
+        "name": "tomato",
+        "complexity": 19
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/room.py",
+    "file_name": "room.py",
+    "functions": [
+      {
+        "name": "room",
+        "complexity": 16
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/spider_plant.py",
+    "file_name": "spider_plant.py",
+    "functions": [
+      {
+        "name": "_pot",
+        "complexity": 23
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/studio.py",
+    "file_name": "studio.py",
+    "functions": [
+      {
+        "name": "studio",
+        "complexity": 29
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/tabby_cat.py",
+    "file_name": "tabby_cat.py",
+    "functions": [
+      {
+        "name": "_rear_marks",
+        "complexity": 16
+      },
+      {
+        "name": "_body_marks",
+        "complexity": 18
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/the_boss.py",
+    "file_name": "the_boss.py",
+    "functions": [
+      {
+        "name": "eye",
+        "complexity": 19
+      },
+      {
+        "name": "mouth",
+        "complexity": 44
+      }
+    ]
+  },
+  {
+    "path": "demos/record.py",
+    "file_name": "record.py",
+    "functions": [
+      {
+        "name": "main",
+        "complexity": 49
+      }
+    ]
+  },
+  {
+    "path": "demos/scenario.py",
+    "file_name": "scenario.py",
+    "functions": [
+      {
+        "name": "run_step",
+        "complexity": 37
+      }
+    ]
+  },
+  {
+    "path": "tests/preview_agenda.py",
+    "file_name": "preview_agenda.py",
+    "functions": [
+      {
+        "name": "agenda",
+        "complexity": 28
+      }
+    ]
+  },
+  {
+    "path": "tests/preview_line.py",
+    "file_name": "preview_line.py",
+    "functions": [
+      {
+        "name": "main",
+        "complexity": 19
+      },
+      {
+        "name": "after",
+        "complexity": 47
+      }
+    ]
+  },
+  {
+    "path": "tests/preview_screens.py",
+    "file_name": "preview_screens.py",
+    "functions": [
+      {
+        "name": "tasks",
+        "complexity": 19
+      },
+      {
+        "name": "dock",
+        "complexity": 27
+      }
+    ]
+  },
+  {
+    "path": "tests/prompt_preview.py",
+    "file_name": "prompt_preview.py",
+    "functions": [
+      {
+        "name": "Canvas::wrap",
+        "complexity": 16
+      },
+      {
+        "name": "render",
+        "complexity": 38
+      }
+    ]
+  },
+  {
+    "path": "tests/test_pet_props.py",
+    "file_name": "test_pet_props.py",
+    "functions": [
+      {
+        "name": "ReactionsOverActivities::test_props_stay_and_the_head_moves_with_the_body",
+        "complexity": 17
+      }
+    ]
+  },
+  {
+    "path": "tests/test_props.py",
+    "file_name": "test_props.py",
+    "functions": [
+      {
+        "name": "Props::test_reactions_keep_the_activity_props",
+        "complexity": 47
+      }
+    ]
+  }
+]

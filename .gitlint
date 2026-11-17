@@ -1,0 +1,22 @@
+# Commit message rules: Conventional Commits titles.
+#
+#   uvx pre-commit install            checks each commit as you make it
+#   uvx --from gitlint-core==0.19.1 gitlint --commits origin/main..HEAD
+#
+# CI runs the second command on every pull request.
+
+[general]
+contrib=contrib-title-conventional-commits
+regex-style-search=True
+# A body is optional: "chore(deps): update x to y" says it all.
+ignore=body-is-missing,body-min-length
+
+# Long URLs, and trailers that carry one (for example a session link).
+[ignore-body-lines]
+regex=^([A-Za-z-]+: )?https?://\S+$
+
+[title-max-length]
+line-length=100
+
+[contrib-title-conventional-commits]
+types=feat,fix,docs,style,refactor,perf,test,build,ci,chore,revert

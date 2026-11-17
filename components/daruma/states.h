@@ -50,6 +50,8 @@ inline const StateInfo &state_info(StateId id) {
 
 inline constexpr int state_count() {
   return 0
+// An X-macro that adds 1 per state: the bare "+1" is the point.
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define X(id, name, kind, fallback, ms, celebrates) +1
       DARUMA_STATE_LIST
 #undef X

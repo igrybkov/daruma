@@ -1,0 +1,39 @@
+# clang-tidy for the host C++ tests and the component headers they
+# include. CI runs it (tests/compile_db.sh, then clang-tidy -p
+# build/clang-tidy); its version is pinned in ci.yml.
+Checks: >-
+  bugprone-*,
+  performance-*,
+  modernize-use-override,
+  modernize-use-nullptr,
+  modernize-use-emplace,
+  modernize-redundant-void-arg,
+  readability-function-cognitive-complexity,
+  readability-container-size-empty,
+  readability-redundant-string-init,
+  readability-redundant-member-init,
+  readability-else-after-return,
+  readability-misleading-indentation,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-integer-division,
+  -bugprone-signed-bitwise,
+  -performance-enum-size
+# Why the exclusions:
+# - easily-swappable-parameters: drawing calls take (x, y, w, h) by design.
+# - narrowing-conversions, implicit-widening, integer-division: pixel and
+#   timer math on small integers, as in ESPHome's own components.
+# - signed-bitwise: bit masks and packed pixels on int are on purpose.
+# - performance-enum-size: enum widths follow the ESPHome API types.
+# Every check fails the job, except cognitive complexity: it reports
+# functions above the limit, and lizard (CI and pre-commit) is the gate.
+WarningsAsErrors: '*,-readability-function-cognitive-complexity'
+HeaderFilterRegex: '.*/components/.*'
+CheckOptions:
+  # The same metric and limit as complexipy for Python (cognitive
+  # complexity, 15).
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 15
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true

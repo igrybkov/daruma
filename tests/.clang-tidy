@@ -1,0 +1,7 @@
+# The host tests: small programs that read fixtures and stop at the
+# first failed check. These checks don't fit them.
+InheritParentConfig: true
+Checks: >-
+  -bugprone-exception-escape,
+  -bugprone-throwing-static-initialization,
+  -bugprone-unchecked-string-to-number-conversion

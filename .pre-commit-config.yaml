@@ -1,0 +1,35 @@
+# Local hooks. One-time setup: uvx pre-commit install
+# CI runs the same hooks at the same versions (ci.yml, job "Lint").
+default_install_hook_types: [pre-commit, commit-msg]
+repos:
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.5
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v23.1.5
+    hooks:
+      - id: clang-format
+        types_or: [c++, c]
+  # Cognitive complexity of Python functions; settings and baseline in
+  # pyproject.toml and complexipy-snapshot.json.
+  - repo: https://github.com/rohaquinlop/complexipy-pre-commit
+    rev: v9.0.0
+    hooks:
+      - id: complexipy
+  # Cyclomatic complexity of C and C++ functions; the baseline is
+  # whitelizard.txt.
+  - repo: local
+    hooks:
+      - id: lizard
+        name: lizard
+        entry: lizard -C 15 -w
+        language: python
+        additional_dependencies: [lizard==1.26.1]
+        types_or: [c++, c]

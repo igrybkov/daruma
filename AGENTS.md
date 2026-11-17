@@ -8,6 +8,9 @@ ESP32-S3-BOX-3, driven by Home Assistant.
 
 ## Playbooks
 
+- Change the code: find your kind of work in
+  [docs/architecture/README.md](docs/architecture/README.md) and read that
+  topic first.
 - Install Daruma on a person's device: [docs/agents/install.md](docs/agents/install.md).
 - Make a new persona: [docs/agents/new-persona.md](docs/agents/new-persona.md).
 - Contribute a change back: [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -25,8 +28,8 @@ ESP32-S3-BOX-3, driven by Home Assistant.
 
 ## Architecture in brief
 
-Four layers, bottom up. [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the
-detail.
+Four layers, bottom up. The topics in
+[docs/architecture/](docs/architecture/README.md) have the detail.
 
 - **Board** (`packages/board_*.yaml`): the hardware, and names for its
   inputs.

@@ -222,7 +222,7 @@ Everything is a part you can swap, change or add to. The manual,
 | [Screens and boards](docs/customize.md#other-screens-and-boards) | wide, square, black and white, buttons only |
 | [Your own repository](docs/private-packages.md) | keep personas and apps in a repository of your own, private or public |
 
-How it fits together: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+How it fits together: [docs/architecture/](docs/architecture/README.md).
 
 ## Contributing
 

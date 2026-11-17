@@ -2,8 +2,8 @@
 
 Daruma is a starting point. Take what you like, change the rest, and send
 back what others could use. This page shows what you can change and where.
-It is written for people and for coding agents. For the reasons behind the
-design, see [ARCHITECTURE.md](ARCHITECTURE.md).
+It is written for people and for coding agents. For how it works inside,
+see [architecture/](architecture/README.md).
 
 - [Where changes go](#where-changes-go)
 - [States: what the device can show](#states-what-the-device-can-show)
@@ -131,7 +131,7 @@ The pixel personas are Python. While the firmware compiles, a script draws
 every frame of every animation. The device stores the frames as
 keyframes and small patches, so the animation frames of a pixel persona
 take 11 to 17 KB of flash (see the table in
-[ARCHITECTURE.md](ARCHITECTURE.md#screen-sizes)).
+[Rendering](architecture/rendering.md)).
 
 The library is the Python package `daruma_pixel`
 ([pixel/daruma_pixel/](../pixel/daruma_pixel/)). It has two engines:
@@ -427,7 +427,7 @@ animation show `loved`. Add `plants.watered` to a menu, or bind it.
 A module in C++ adds screens, layers and apps. The model to follow is
 the pomodoro ([pomodoro.yaml](../packages/pomodoro.yaml)): its states,
 actions, buttons, menus, tap areas and theme keys are all in its
-`daruma: modules:` entry. [ARCHITECTURE.md](ARCHITECTURE.md#modules-and-apps)
+`daruma: modules:` entry. [Modules](architecture/modules.md)
 lists everything a module may contribute.
 
 ## Prompts from Home Assistant

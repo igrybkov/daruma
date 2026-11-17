@@ -73,7 +73,7 @@ substitutions:
 | `docs/` | manuals: install, customize, testing, prompts, architecture; `docs/agents/` holds agent playbooks |
 | `blueprints/` | Home Assistant blueprints |
 
-How the parts fit: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+How the parts fit: [docs/architecture/](docs/architecture/README.md).
 
 ## Add a persona
 
@@ -115,7 +115,7 @@ model: one component, one package, one theme. Read
 A module adds states, actions, buttons, bindings or a progress source.
 Many need only YAML. See
 [customize.md, Your own module](docs/customize.md#your-own-module) and
-[ARCHITECTURE.md, Modules and apps](docs/ARCHITECTURE.md#modules-and-apps).
+[Modules](docs/architecture/modules.md).
 
 - A new state needs a `fallback:`, so every persona can show it.
 - A new state needs a step in a showcase scenario

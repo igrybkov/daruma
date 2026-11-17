@@ -1,0 +1,6 @@
+# Commits that only reformat code. `git blame` skips them after:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub's blame view reads this file too.
+
+# style: format Python and C++
+c834944fc2e682a6170643a6a7b70b8bb49f75ff

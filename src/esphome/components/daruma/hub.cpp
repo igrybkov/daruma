@@ -116,6 +116,16 @@ void Hub::loop() {
   }
 }
 
+std::string Hub::busy(uint32_t now) {
+  if (this->ha_calls_.busy())
+    return "an answer from HA to " + this->ha_calls_.in_flight();
+  if (!this->ha_calls_.idle(now))
+    return "an HA call to send: " + this->ha_calls_.next();
+  if (this->frame_due_(now))
+    return "a frame to draw";
+  return "";
+}
+
 bool Hub::frame_due_(uint32_t now) {
   if (this->display_ == nullptr || !this->display_->is_ready() || !this->scheduler_.ready(now))
     return false;

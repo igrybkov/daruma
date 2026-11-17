@@ -50,16 +50,16 @@ compile time.
 
 | Path | What |
 |---|---|
-| `packages/` | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
+| [`packages/`](packages/README.md) | ESPHome packages: boards, `core.yaml`, `persona_*.yaml`, apps, `menu.yaml`, `pomodoro.yaml`, `prompts.yaml` |
 | `components/` | ESPHome components in C++ and Python; `daruma/registry.py` holds the states and the build checks |
 | `pixel/daruma_pixel/` | the pixel-art library: engines (`pet.py`, `desk_boss.py`), scenes, breeds, `personas.py` |
 | `art/` | picture sets for `daruma_images` |
 | `sounds/` | `preview.cpp`: writes the built-in sounds as WAV files to listen to |
-| `examples/` | `box3.yaml` (a device), `desktop.yaml` (a window on a computer), build variants |
+| [`examples/`](examples/README.md) | `box3.yaml` (a device), `desktop.yaml` (a window on a computer), build variants |
 | `demos/` | the desktop test harness, scenarios, the GIF recorder |
 | `tests/` | host tests (Python and C++) and golden pictures |
 | `docs/` | install, customization, testing, prompts, private packages, architecture, agent playbooks |
-| `blueprints/` | Home Assistant blueprints |
+| [`blueprints/`](blueprints/README.md) | Home Assistant blueprints |
 
 ## Commands
 

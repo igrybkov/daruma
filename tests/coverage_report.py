@@ -1,7 +1,8 @@
 """One coverage report from the data of CI's coverage jobs.
 
     python tests/coverage_report.py --gcov build/ --save cpp.json
-    python tests/coverage_report.py --lines cpp-*.json --python python.json --out coverage
+    python tests/coverage_report.py --lines cpp-*.json --python python.json \
+        --tested-python python-tested.json --out coverage
 
 C++ comes from gcc's --coverage data: --gcov reads every .gcda file in a
 folder with gcc's gcov (JSON output, so gcc 10 or later). Each coverage job
@@ -11,11 +12,18 @@ each file is mapped back to its place in this repository by its path. Line
 counts of the same file add up. Only this repository's components/ and
 pixel/ count.
 
+Python has two numbers. --python holds every run: the host tests, and
+ESPHome's config checks and code generation in the builds. Those run
+whether a test checks them or not. --tested-python holds the host tests
+alone. A Python line counts as tested only when the host tests run it.
+
 Writes, in --out:
 - coverage.lcov   every line of every file, for an editor or genhtml
 - summary.md      per area (components/<name>, pixel), and the total
 - files.md        per file, and the files no test compiled or loaded
 - lines.json      every line's count, for tests/coverage_comment.py
+- tested.json     every Python line of lines.json, counted from the host
+                  tests alone (when the --tested-python file exists)
 - cobertura-cpp.xml, cobertura-python.xml
                   Cobertura XML per language, for tools that read it
 """
@@ -113,18 +121,39 @@ def tally(lines: Lines) -> dict[tuple[str, str], list[int]]:
     return sums
 
 
-def summary(lines: Lines) -> str:
+def tested_lines(lines: Lines, host: Lines) -> Lines:
+    """Every Python line of `lines`, with its count from the host tests alone.
+
+    The lines are the same as in `lines`, so both Python numbers share one
+    total. A file only the builds load counts as not tested.
+    """
+    return {
+        path: {n: host.get(path, {}).get(n, 0) for n in counts}
+        for path, counts in lines.items()
+        if language(path) == "Python"
+    }
+
+
+def _summary_cells(sums: dict, tested: dict, a: str) -> list[str]:
+    total, run = sums.get((a, "C++"), [0, 0])
+    cells = [str(total) if total else "-", percent(run, total)]
+    total, run = sums.get((a, "Python"), [0, 0])
+    cells += [str(total) if total else "-", percent(tested.get((a, "Python"), [0, 0])[1], total)]
+    return [*cells, percent(run, total)]
+
+
+def summary(lines: Lines, tested: Lines | None = None) -> str:
     sums = tally(lines)
+    tested_sums = tally(tested) if tested is not None else {}
     areas = sorted({a for a, _ in sums} - {"Total"}) + ["Total"]
     rows = [
-        "| Area | C++ lines | C++ run | Python lines | Python run |",
-        "|---|---:|---:|---:|---:|",
+        "| Area | C++ lines | C++ run | Python lines | Python tested | Python run in builds |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for a in areas:
-        cells = []
-        for lang in ("C++", "Python"):
-            total, run = sums.get((a, lang), [0, 0])
-            cells += [str(total) if total else "-", percent(run, total)]
+        cells = _summary_cells(sums, tested_sums, a)
+        if tested is None and cells[2] != "-":
+            cells[3] = "?"
         name = f"**{a}**" if a == "Total" else f"`{a}`"
         rows.append(f"| {name} | " + " | ".join(cells) + " |")
     return "\n".join(rows) + "\n"
@@ -203,9 +232,22 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--gcov", nargs="*", default=[], type=Path, help="folders with .gcda files")
     ap.add_argument("--lines", nargs="*", default=[], type=Path, help="files that --save wrote")
     ap.add_argument("--python", nargs="*", default=[], type=Path, help="coverage.py JSON files")
+    ap.add_argument("--tested-python", type=Path, help="coverage.py JSON of the host tests alone")
     ap.add_argument("--save", type=Path, help="write the lines read, for a later --lines")
     ap.add_argument("--out", type=Path, help="write the report here")
     return ap.parse_args()
+
+
+def write_report(out: Path, lines: Lines, tested: Lines | None) -> None:
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "coverage.lcov").write_text(lcov(lines))
+    (out / "lines.json").write_text(json.dumps(lines))
+    if tested is not None:
+        (out / "tested.json").write_text(json.dumps(tested))
+    (out / "summary.md").write_text(summary(lines, tested))
+    (out / "files.md").write_text(files(lines))
+    (out / "cobertura-cpp.xml").write_text(cobertura(lines, "C++"))
+    (out / "cobertura-python.xml").write_text(cobertura(lines, "Python"))
 
 
 def main() -> None:
@@ -217,18 +259,17 @@ def main() -> None:
         read_saved(f, lines)
     for f in args.python:
         read_python(f, lines)
+    tested = None
+    if args.tested_python and args.tested_python.exists():
+        host: Lines = {}
+        read_python(args.tested_python, host)
+        tested = tested_lines(lines, host)
     if args.save:
         args.save.parent.mkdir(parents=True, exist_ok=True)
         args.save.write_text(json.dumps(lines))
     if args.out:
-        args.out.mkdir(parents=True, exist_ok=True)
-        (args.out / "coverage.lcov").write_text(lcov(lines))
-        (args.out / "lines.json").write_text(json.dumps(lines))
-        (args.out / "summary.md").write_text(summary(lines))
-        (args.out / "files.md").write_text(files(lines))
-        (args.out / "cobertura-cpp.xml").write_text(cobertura(lines, "C++"))
-        (args.out / "cobertura-python.xml").write_text(cobertura(lines, "Python"))
-    print(summary(lines))
+        write_report(args.out, lines, tested)
+    print(summary(lines, tested))
 
 
 if __name__ == "__main__":

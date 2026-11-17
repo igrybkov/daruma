@@ -203,6 +203,8 @@ one fails, and fails at the end.
 | Lint | `gitlint` on each commit of the pull request; ruff, clang-format, complexipy, lizard; clang-tidy on the host tests and the headers they include |
 | ESPHome | `make config` (every file in `examples/`), then `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
 | Screen tests | tests 3 and 4 above, in one job with one build |
+| Coverage (host tests, golden pictures, screen tests) | the tests again, measuring which lines they run |
+| Coverage report | joins that data; on a pull request, posts a coverage comment and checks the coverage rules |
 | Previews (standard, wide-square) | demo GIFs and contact sheets, uploaded as artifacts; two jobs side by side |
 | Pull request title | the title is a Conventional Commit |
 
@@ -221,6 +223,12 @@ build. Both need `examples/secrets.yaml`. They write it with
 random API key. It never overwrites the file. CI copies
 `secrets.ci.yaml` instead: its fixed public key lets the compiler cache
 reuse `main.cpp`. Never flash a build with either.
+
+The coverage rules: at least 80% of the lines a pull request changes
+must run in the tests, and no total may fall more than 0.5 points below
+main's. For Python, only the host tests count. Builds run the config
+checks and code generation without a test checking them.
+[Coverage](docs/testing.md#coverage) explains the rules and the comment.
 
 When a screen test fails, the job uploads its frames, diffs and logs as
 an artifact, with expected, actual and diff side by side. Download it

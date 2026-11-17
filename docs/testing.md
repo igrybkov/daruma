@@ -175,12 +175,30 @@ pomodoro's rules, the calendar's agenda and the weather words.
 
 CI measures which lines the tests run, in jobs beside the tests. The
 "Coverage report" job puts a table per area in its summary, and the
-`coverage` artifact holds `files.md` (per file) and `coverage.lcov`. On
-a pull request it posts one comment, updated on every push: how many of
-the changed lines the tests run, the changed lines no test runs, and
-each total against main's newest run
-([tests/coverage_comment.py](../tests/coverage_comment.py)). It never
-fails the build. On Linux with gcc, the same steps run locally:
+`coverage` artifact holds `files.md` (per file) and `coverage.lcov`.
+
+Python has two numbers:
+
+- **Tested**: the lines the Python host tests run.
+- **Run in builds**: also the lines that run in any build. Every build
+  runs the components' config checks and code generation, whether a test
+  checks them or not. So this number is higher than what the tests check.
+
+On a pull request, the job checks two rules
+([tests/coverage_comment.py](../tests/coverage_comment.py)):
+
+- **Changed lines**: at least 80% of the lines the pull request changes
+  must run. Only lines that coverage measures count. A changed Python
+  line counts only when a host test runs it. A pull request that changes
+  no measured line passes.
+- **No drop**: the C++ total and the Python tested total may each fall at
+  most 0.5 percentage points below main's newest run. When main has no
+  number to compare, the rule passes.
+
+The job posts one comment, updated on every push. It shows each rule's
+result with its numbers, the changed lines no test runs, the totals and a
+table per area. Then the job fails if a rule failed. On a push to main
+it only writes the report. On Linux with gcc, the same steps run locally:
 
 - C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
   the programs and their data, in `tests/run_cpp.sh` and `test_frames.py`.
@@ -189,7 +207,9 @@ fails the build. On Linux with gcc, the same steps run locally:
   with `--coverage`, in a build folder of its own, and runs ESPHome's code
   generation under coverage.py, which writes its data to that folder.
 - [tests/coverage_report.py](../tests/coverage_report.py) reads the
-  `.gcda` files with gcov and joins them with coverage.py's JSON.
+  `.gcda` files with gcov and joins them with coverage.py's JSON. Give it
+  the host tests' Python data alone with `--tested-python` for the tested
+  number.
 
 ## Preview pixel art
 

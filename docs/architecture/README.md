@@ -1,7 +1,8 @@
 # Architecture by kind of work
 
 Start here before you change the code. Find your task in the tables
-below. Read that one topic in full, and skip the rest.
+below and read that topic first. Follow its links when the task reaches
+further. You don't need to read the whole folder.
 
 Each topic covers one kind of work, not one layer. A tail for the corgi
 and a new cat share a topic. A music remote and an NFC reader share

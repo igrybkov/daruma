@@ -17,7 +17,8 @@ permissions:
 # Every Python tool comes from uv.lock: each job syncs the dependency
 # groups it needs (pyproject.toml) and runs them with uv run --no-sync.
 jobs:
-  host-python:
+  # The C++ host tests take seconds, so they run in the pinned job.
+  host:
     name: Host tests (Python ${{ matrix.python }})
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -49,25 +50,20 @@ jobs:
       # in one process. 2 was a little ahead in every round.
       - name: Run the host tests
         run: uv run --no-sync pytest tests -n 2
-
-  host-cpp:
-    name: Host tests (C++)
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Run the C++ tests
+        if: ${{ !cancelled() && matrix.python == 'pinned' }}
         run: tests/run_cpp.sh
 
+  # Every check runs, even after one fails, so one run shows them all.
   lint:
     name: Lint
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
+      # The whole history, for the commit messages of a pull request.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -75,100 +71,50 @@ jobs:
           cache-dependency-glob: |
             uv.lock
             .python-version
-      - name: Install the lint tools
-        run: uv sync --locked --only-group lint --no-install-project
+      - name: Install the lint tools and clang-tidy
+        run: uv sync --locked --only-group lint --only-group tidy --no-install-project
       - name: Restore the pre-commit cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml', '.python-version') }}
+      # Release notes and versions come from commit messages, so every
+      # commit in a pull request must be a Conventional Commit. Only this
+      # pull request's commits: older history on main predates the rule.
+      - name: Commit messages (gitlint)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: uv run --no-sync gitlint --commits "$BASE..$HEAD"
       # The hooks and their versions come from .pre-commit-config.yaml, so
       # CI and a contributor's machine run the same tools.
       - name: Complexity (complexipy, lizard)
+        if: ${{ !cancelled() }}
         run: |
           uv run --no-sync pre-commit run complexipy --all-files
           uv run --no-sync pre-commit run lizard --all-files
       - name: Python lint (ruff check)
+        if: ${{ !cancelled() }}
         run: uv run --no-sync pre-commit run ruff-check --all-files --show-diff-on-failure
       - name: Python format (ruff format)
+        if: ${{ !cancelled() }}
         run: uv run --no-sync pre-commit run ruff-format --all-files --show-diff-on-failure
       - name: C++ format (clang-format)
+        if: ${{ !cancelled() }}
         run: uv run --no-sync pre-commit run clang-format --all-files --show-diff-on-failure
-
-  clang-tidy:
-    name: clang-tidy
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            uv.lock
-            .python-version
       # The host tests and the component headers they include. The
       # components' .cpp files need ESPHome's headers, so they aren't here.
-      - name: Write the compile database
-        run: tests/compile_db.sh
-      - name: Install clang-tidy
-        run: uv sync --locked --only-group tidy --no-install-project
-      - name: Run clang-tidy
-        run: uv run --no-sync clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
+      - name: C++ lint (clang-tidy)
+        if: ${{ !cancelled() }}
+        run: |
+          tests/compile_db.sh
+          uv run --no-sync clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
 
-  config:
-    name: Config (${{ matrix.example }})
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        example: [box3, variant_apps, variant_mono, variant_square, variant_wide, desktop]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            uv.lock
-            .python-version
-      - name: Install ESPHome
-        run: |
-          uv sync --locked --only-group esphome --no-install-project
-          echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      - name: Install SDL2
-        if: matrix.example == 'desktop'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libsdl2-dev
-      # The persona art the compile job saves (see there).
-      - name: Restore the persona art
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: examples/.esphome/daruma_pixel_art
-          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
-      # The public CI secrets. Their API key is fixed: ESPHome compiles it
-      # into main.cpp, so the compiler cache can reuse that file. The
-      # ci-head branch names this commit, for the examples' git package.
-      - name: Prepare the build
-        run: |
-          cp examples/secrets.ci.yaml examples/secrets.yaml
-          git branch -f ci-head HEAD
-      # The examples fetch Daruma with git. Point them at this checkout.
-      - name: Check the config
-        working-directory: examples
-        run: |
-          uv run --no-sync esphome \
-            -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
-            config ${{ matrix.example }}.yaml > "$RUNNER_TEMP/config.log" 2>&1 \
-            || { tail -n 60 "$RUNNER_TEMP/config.log"; exit 1; }
-
-  compile:
-    name: Compile (box3)
+  # The config of every example, then the box3 firmware. The compile runs
+  # when a config fails too, so one run shows both.
+  esphome:
+    name: ESPHome
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
@@ -189,6 +135,11 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
+      # For the config of the desktop example.
+      - name: Install SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev
       # A static ccache from its release, checked against a fixed hash.
       - name: Install ccache
         env:
@@ -240,9 +191,9 @@ jobs:
             examples/.esphome/storage
           key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
           restore-keys: esphome-build-box3-${{ env.ESPHOME_VERSION }}-
-      # Drawing the persona art takes most of the config check. This job
-      # saves it for the config jobs, also on pull requests: the key names
-      # the exact scripts, and the folder is a few MB.
+      # Drawing the persona art takes most of a config check. Pull requests
+      # save it too: the key names the exact scripts, and the folder is a
+      # few MB.
       - name: Restore the persona art
         id: art
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -256,7 +207,13 @@ jobs:
         run: |
           cp examples/secrets.ci.yaml examples/secrets.yaml
           git branch -f ci-head HEAD
+      # Every example, one after another; the failed ones are listed at
+      # the end. The examples fetch Daruma with git: make points them at
+      # this checkout.
+      - name: Check the configs
+        run: make config
       - name: Compile
+        if: ${{ !cancelled() }}
         working-directory: examples
         run: |
           set -o pipefail
@@ -381,22 +338,16 @@ jobs:
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the
-  # full showcase; the others record highlight only, so they share a job.
+  # full showcase; the wide and square screens record highlight only.
   previews:
-    name: Previews (${{ matrix.name }})
+    name: Previews
     runs-on: ubuntu-26.04
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: standard
-            variants: standard
-          - name: wide-square
-            variants: wide square
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       DARUMA_WORK: ${{ github.workspace }}/ci-work
-      VARIANTS: ${{ matrix.variants }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -426,7 +377,7 @@ jobs:
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Record the GIFs
         run: |
-          for variant in $VARIANTS; do
+          for variant in standard wide square; do
             want="highlight"
             if [ "$variant" = standard ]; then want="highlight work emotions activities"; fi
             have=""
@@ -434,8 +385,10 @@ jobs:
               if [ -f "demos/scenarios/$s.yaml" ]; then have="${have:+$have,}$s"; fi
             done
             echo "$variant: $have" >> "$RUNNER_TEMP/scenarios.txt"
+            echo "::group::$variant"
             uv run --no-sync python demos/record.py --variant "$variant" --scenario "$have" \
               --out "$DARUMA_WORK" --docs "$DARUMA_WORK/preview/gifs" --jobs 4
+            echo "::endgroup::"
           done
       - name: Make the contact sheets
         run: >-
@@ -445,38 +398,29 @@ jobs:
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: preview-${{ matrix.name }}
+          name: previews
           path: ${{ env.DARUMA_WORK }}/preview
           retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
       - name: Describe the previews
         env:
-          NAME: ${{ matrix.name }}
           URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
           dir="$DARUMA_WORK/preview"
           {
-            echo "### Previews: $NAME"
-            echo "[preview-$NAME]($URL): $(du -sh "$dir" | cut -f1)."
+            echo "### Previews"
+            echo "[previews]($URL): $(du -sh "$dir" | cut -f1)."
             sed 's/^/- /; s/,/, /g' "$RUNNER_TEMP/scenarios.txt"
             echo "$(find "$dir/gifs" -name '*.gif' | wc -l | tr -d ' ') GIFs, one contact sheet per scenario."
           } >> "$GITHUB_STEP_SUMMARY"
-
-  preview-comment:
-    name: Preview comment
-    needs: previews
-    # A pull request from a fork gets a read-only token, so no comment.
-    if: >-
-      always() && github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    permissions:
-      pull-requests: write
-    steps:
-      - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+      # A pull request from a fork gets a read-only token, so no comment.
+      - name: Comment on the pull request
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: previews
           message: |
-            **Previews** for ${{ github.event.pull_request.head.sha }}: demo GIFs and contact sheets from the desktop build, in the [run's artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (`preview-standard`, `preview-wide-square`). Failed screen tests add `screens`, with expected, actual and diff side by side.
+            **Previews** for ${{ github.event.pull_request.head.sha }}: demo GIFs and contact sheets from the desktop build, in the [run's artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (`previews`). Failed screen tests add `screens`, with expected, actual and diff side by side.
 
             They come from the desktop build of the same packages, so they match the device's screens. They are not recorded on the ESP32.

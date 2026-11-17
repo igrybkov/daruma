@@ -24,8 +24,10 @@ stored compressed (daruma/sprite.py); see-through pixels (alpha < 128)
 let the layers behind show.
 
 Or the whole persona comes from Python at build time: `pixel_art` names a
-script and a persona in it, and the script's build(persona) returns the room,
-frames, plant, rug colors and animations (see pixel/daruma_pixel/personas.py).
+persona and the module (by dotted name) or script (by path) that has it.
+A module declares its personas with a Spec (pixel/daruma_pixel/personas.py),
+or has a build(persona) of its own; either gives the room, frames, plant,
+rug colors and animations.
 
 Animations are named freely. A state finds the one named like it (any
 case: `focus` finds `Focus`), or the one its `behaviors:` names, or its
@@ -96,6 +98,7 @@ CONF_IMAGE = "image"
 CONF_ART = "art"
 CONF_PIXEL_ART = "pixel_art"
 CONF_SCRIPT = "script"
+CONF_MODULE = "module"
 CONF_PERSONA = "persona"
 CONF_ANIMATIONS = "animations"
 CONF_FRAMES = "frames"
@@ -210,13 +213,18 @@ def _pictures(config):
     return names
 
 
-PIXEL_ART_SCHEMA = cv.Schema(
-    {
-        cv.Required(CONF_SCRIPT): cv.string_strict,
-        cv.Required(CONF_PERSONA): cv.string_strict,
-        # The script's persona per goal stage after none (CONF_PERSONA).
-        cv.Optional(CONF_GOAL): cv.Schema({cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}),
-    }
+PIXEL_ART_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            # A Python file, or a module by dotted name (daruma_pixel.corgi_persona).
+            cv.Optional(CONF_SCRIPT): cv.string_strict,
+            cv.Optional(CONF_MODULE): cv.string_strict,
+            cv.Required(CONF_PERSONA): cv.string_strict,
+            # The script's persona per goal stage after none (CONF_PERSONA).
+            cv.Optional(CONF_GOAL): cv.Schema({cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}),
+        }
+    ),
+    cv.has_exactly_one_key(CONF_SCRIPT, CONF_MODULE),
 )
 
 # Keys the pixel_art script fills in; a config sets either them or pixel_art.
@@ -248,10 +256,7 @@ def _validate_layers(config):
         for key in _FROM_SCRIPT:
             if key in config:
                 raise cv.Invalid(f"{key} comes from the pixel_art script; drop it here")
-        try:
-            script = Path(resolve_file(config[CONF_PIXEL_ART][CONF_SCRIPT]))
-        except cv.Invalid as err:
-            raise cv.Invalid(f"No pixel_art script: {err}") from err
+        script = _pixel_art_file(config[CONF_PIXEL_ART])
         config[CONF_PIXEL_ART][CONF_SCRIPT] = str(script)
         # The script imports the modules next to it and the pixel library, so
         # a bundle needs all of them.
@@ -308,6 +313,25 @@ PIXEL_LIBRARY = Path(__file__).resolve().parents[4] / "pixel"
 PIXEL_PACKAGE = "daruma_pixel"
 
 
+def _pixel_art_file(art) -> Path:
+    """The file of a pixel_art script, or of its module: a dotted name found
+    with the pixel library on the import path."""
+    if CONF_MODULE not in art:
+        try:
+            return Path(resolve_file(art[CONF_SCRIPT]))
+        except cv.Invalid as err:
+            raise cv.Invalid(f"No pixel_art script: {err}") from err
+    if str(PIXEL_LIBRARY) not in sys.path:
+        sys.path.insert(0, str(PIXEL_LIBRARY))
+    try:
+        spec = importlib.util.find_spec(art[CONF_MODULE])
+    except ImportError:
+        spec = None
+    if spec is None or not spec.origin:
+        raise cv.Invalid(f"No pixel_art module {art[CONF_MODULE]}")
+    return Path(spec.origin)
+
+
 def _library_module(script: Path) -> str | None:
     """The module name of a script inside the library (daruma_pixel.personas), or None."""
     try:
@@ -357,7 +381,7 @@ def _build(script: Path, name: str):
                 return pickle.load(f)
         except Exception:  # A stale or unreadable cache: draw again.
             pass
-    persona = module.build(name)
+    persona = _draw(module, name)
     if cache is not None:
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
@@ -370,6 +394,15 @@ def _build(script: Path, name: str):
         except Exception:  # Not picklable or not writable: no cache, same result.
             pass
     return persona
+
+
+def _draw(module, name: str):
+    """The module's own build(name), or personas.build() from its Spec."""
+    if hasattr(module, "build"):
+        return module.build(name)
+    from daruma_pixel import personas
+
+    return personas.build(name, module)
 
 
 def _cache_path(script: Path, name: str) -> Path | None:

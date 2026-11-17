@@ -27,15 +27,14 @@ module fully before you write one.
 ## Where it lives
 
 - **In a fork of this repository**, to contribute it: the art in
-  `pixel/daruma_pixel/<name>.py`, an entry in `PERSONAS` in
-  `pixel/daruma_pixel/personas.py`, a package
+  `pixel/daruma_pixel/<name>.py` with a `PERSONA = Spec(...)`, a package
   `packages/persona_<name>.yaml`, and a line in `examples/box3.yaml` and
   `examples/desktop.yaml`. Then follow [CONTRIBUTING.md](../../CONTRIBUTING.md).
-- **In the person's own files**: the art and a small build script next to
+- **In the person's own files**: the art module next to
   their device file or in a repository of their own. Follow
-  [private-packages.md](../private-packages.md). The script imports
-  the library (`from daruma_pixel import personas, pet`) and adds itself to
-  `personas.PERSONAS`.
+  [private-packages.md](../private-packages.md). The art module imports
+  the library (`from daruma_pixel import pet`) and declares itself with
+  `PERSONA = personas.Spec(...)`.
 
 ## Steps
 
@@ -45,7 +44,8 @@ module fully before you write one.
    the daruma burns incense.
 2. **Write the art module.** It offers `background()`,
    `foreground(pose)`, `scene(pose)`, `WINDOW`, `ANIMATIONS`, `BLINKS`,
-   `WINKS`, and `PROPS` when an activity has props. `Neutral` is required.
+   `WINKS`, `PROPS` when an activity has props, and
+   `PERSONA = Spec("<name>", background=0x...)`. `Neutral` is required.
    Animation names match states in any case (`focus` finds `Focus`).
    Cover at least: Neutral, Happy, Sad, Loved, Scared, Sleepy, Sleeping,
    listening, thinking, talking, Focus, Petted, Celebrate. Every other

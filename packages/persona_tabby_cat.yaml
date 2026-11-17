@@ -21,7 +21,7 @@
 daruma_sprites:
   - id: tabby_cat
     name: Tabby cat
-    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: tabby_cat }
+    pixel_art: { module: daruma_pixel.tabby_cat, persona: tabby_cat }
     params:
       rug: { value: weekday, expose: true }
     # Menu and apps: cream cards on the backdrop's brown, with the drape's

@@ -11,7 +11,7 @@ ESPHome fetches each package repository into its cache. Daruma's
 components then resolve every path in a package next to that package's own
 file, wherever the cache is:
 
-- `pixel_art: { script: ../pixel/my_persona.py }` finds the script in your
+- `pixel_art: { script: ../pixel/my_persona.py }` finds the persona module in your
   checkout.
 - `art: ../art/my_set` finds a picture folder in your checkout.
 - `path: ../src/esphome/components` finds your own components, if you have any.
@@ -34,8 +34,7 @@ my-daruma-private/
   packages/
     persona_my_persona.yaml     the persona: a daruma_sprites entry
   pixel/
-    my_personas.py      adds the persona to the library and builds it
-    my_persona.py            the look: colors and shapes on a library engine
+    my_persona.py       the look on a library engine, and its PERSONA
   art/                    picture sets, if you have picture personas
   .gitignore              .esphome/, secrets.yaml
 ```
@@ -63,18 +62,16 @@ WINKS = {...}
 look on `desk_boss`. `pixel/daruma_pixel/jack_russell.py` is a breed on
 `pet`.
 
-### The build script
+### The persona declaration
+
+The art module says it is a persona with one line at its end. The
+component builds it from that; no build script is needed.
 
 ```python
-# pixel/my_personas.py
-from daruma_pixel import personas
+# pixel/my_persona.py, at the end
+from daruma_pixel.personas import Spec
 
-# name -> (background color, layers module, module with ANIMATIONS/BLINKS/WINKS)
-personas.PERSONAS["my_persona"] = (0x203040, "my_persona", "my_persona")
-
-
-def build(name):
-    return personas.build(name)
+PERSONA = Spec("my_persona", background=0x203040)
 ```
 
 ### The persona package
@@ -84,7 +81,7 @@ def build(name):
 daruma_sprites:
   - id: my_persona
     name: My persona
-    pixel_art: { script: ../pixel/my_personas.py, persona: my_persona }
+    pixel_art: { script: ../pixel/my_persona.py, persona: my_persona }
     theme:
       style: paper
       frame: "203040"
@@ -96,7 +93,7 @@ A picture persona works the same way: a `daruma_images` entry with
 
 ### Rules for a package others can use too
 
-- **Unique names.** Persona ids, `personas.PERSONAS` keys and component names must
+- **Unique names.** Persona ids, `Spec` names and component names must
   not clash with Daruma's or another package's. Prefix them.
 - **Prefixed modules.** Daruma's modules sit in the `daruma_pixel`
   package, so yours cannot replace them. But the modules of every package
@@ -239,9 +236,10 @@ uv run pytest demos -m scenario --scenario tour --update-golden \
 
 To look at the frames only, install the library from your Daruma clone
 (or from GitHub, `git+https://github.com/igrybkov/daruma`) and run your
-build script, from your repository's root:
+persona module, from your repository's root:
 
 ```sh
 uv run --with /path/to/daruma python -c "import sys; sys.path.insert(0, 'pixel'); \
-import my_personas; print(len(my_personas.build('my_persona').animations), 'animations')"
+from daruma_pixel import personas; \
+print(len(personas.build('my_persona', 'my_persona').animations), 'animations')"
 ```

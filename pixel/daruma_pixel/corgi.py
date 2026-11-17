@@ -4,7 +4,8 @@ Red and white: red head with tall erect ears and pink insides, a white
 blaze down to a white muzzle, a white chest and legs, red sides and deeper
 red haunches. No tail, so it wags its whole rear end (pet.py, "butt").
 
-Its room, layers and moods are in preview.py and moods.py.
+The persona (its room and layers) is corgi_persona.py; its moods are
+corgi_moods.py.
 """
 
 from __future__ import annotations

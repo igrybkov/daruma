@@ -1,8 +1,8 @@
 """Daruma's pixel-art library: the rooms, personas and engines its pixel
 personas are drawn with, at build time.
 
-    personas      build(name) -> Persona: every layer and frame the device needs;
-               PERSONAS maps a persona name to its modules
+    personas   build(name) -> Persona: every layer and frame the device needs;
+               Spec says what a persona is; discover() finds them all
     scene      the Scene interface: what is behind a persona
     effects    hearts, zzz, sweat, tears, dots and sparkles round any actor
     pixelkit   shapes on a low-res canvas, outlines and shading

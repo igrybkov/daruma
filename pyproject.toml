@@ -105,11 +105,6 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 # src/esphome holds only this repository's components; esphome is ESPHome.
 known-third-party = ["esphome"]
 
-[tool.ruff.lint.per-file-ignores]
-# These persona modules take scene() and the other layers from
-# globals().update(<persona>.layers()), which ruff can't see.
-"pixel/daruma_pixel/preview.py" = ["F821"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests", "demos"]
 # daruma_pixel, also where it is not installed (CI syncs with

@@ -80,8 +80,8 @@ How the parts fit: [docs/architecture/](docs/architecture/README.md).
 Follow [docs/agents/new-persona.md](docs/agents/new-persona.md). It works
 for people too. To contribute the persona, also:
 
-1. Add an entry to `PERSONAS` in `pixel/daruma_pixel/personas.py` (pixel
-   art only).
+1. Give the persona module a `PERSONA = Spec(...)` (pixel art only; see
+   `pixel/daruma_pixel/personas.py`). Nothing else lists it.
 2. Add `packages/persona_<name>.yaml`. Copy the header comment style of
    the others.
 3. Add the package to `examples/box3.yaml` and `examples/desktop.yaml`.

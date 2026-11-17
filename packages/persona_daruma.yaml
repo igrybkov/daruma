@@ -23,7 +23,7 @@ daruma_sprites:
   - id: daruma_doll
     name: Daruma
     pixel_art:
-      script: ../pixel/daruma_pixel/daruma_persona.py
+      module: daruma_pixel.daruma_persona
       persona: daruma0
       goal:
         started: daruma1

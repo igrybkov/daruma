@@ -16,7 +16,8 @@ sleeps curled up on the seat (curled(), its own drawing: the rig only sits).
 Its scene is its own living room (living_room.py): a green velvet couch it
 sits on, an arched window, a hanging spider plant and a weekday throw.
 
-This module has the same names as every persona module (see personas.py).
+This module is the persona: it has the names every persona module has
+(see personas.Spec).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from PIL import Image
 
 from . import dog, effects, pet
 from .living_room import LivingRoom
+from .personas import Spec
 from .pet import Coat, Pet, Pose, Rig, wag_cycle, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly, rotate
 
@@ -199,7 +201,11 @@ class CouchPet(Pet):
 _pet = CouchPet(BREED, ROOM)
 # Where focus's prop stands (tests/test_props.py): the ball in its mouth.
 PROPS = {"focus": [(49, 30, 58, 39)]}
-globals().update(_pet.layers())  # background, foreground, scene, WINDOW, plant, the rug colors
+background, foreground, scene = _pet.background, _pet.foreground, _pet.scene
+WINDOW = ROOM.window
+_extra = ROOM.layers()
+plant, PLANT_STAGES, DEFAULT_STAGE = _extra["plant"], _extra["PLANT_STAGES"], _extra["DEFAULT_STAGE"]
+RUG_COLORS, RUG_BY_WEEKDAY, RUG_BOX = _extra["RUG_COLORS"], _extra["RUG_BY_WEEKDAY"], _extra["RUG_BOX"]
 
 # --- Moods and animations -------------------------------------------------------
 
@@ -290,3 +296,5 @@ WINKS: dict[str, Pose] = {
     "Happy": with_(HAPPY, eyes="wink", mouth="smile"),
     "Celebrate": with_(SIT_PRETTY, eyes="wink"),
 }
+
+PERSONA = Spec("jack_russell", background=BACKGROUND)

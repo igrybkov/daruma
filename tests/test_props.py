@@ -78,8 +78,11 @@ def pixel_personas() -> list[tuple[str, dict]]:
 
 
 def _script(conf: dict):
-    # Scripts are named relative to their package file. A library script is
-    # imported as a module of daruma_pixel, so its relative imports work.
+    # A `module:` is imported by name. Scripts are named relative to their
+    # package file; a library script is imported as a module of daruma_pixel,
+    # so its relative imports work.
+    if "module" in conf["pixel_art"]:
+        return importlib.import_module(conf["pixel_art"]["module"])
     path = (_PACKAGES / conf["pixel_art"]["script"]).resolve()
     library = _LIBRARY.resolve()
     if path.is_relative_to(library):
@@ -115,18 +118,22 @@ def _stage_names(conf: dict) -> list:
     return [conf["pixel_art"]["persona"]] + [conf["pixel_art"].get("goal", {}).get(k) for k in GOAL_KEYS]
 
 
+def _build(script, name: str):
+    """The persona `name` of a pixel_art module, as daruma_sprites builds it."""
+    if hasattr(script, "build"):
+        return script.build(name)
+    from daruma_pixel import personas
+
+    return personas.build(name, script)
+
+
 def _props(conf: dict):
-    """(PROPS of a persona's layers module, the persona if it had to be drawn).
+    """PROPS of the main persona's layers, from its Spec: no drawing needed."""
+    from daruma_pixel import personas
 
-    Most scripts register their personas on import, so the PROPS come
-    without drawing. One that registers as it builds is drawn here, once.
-    """
     script = _script(conf)
-    from daruma_pixel import personas  # The script registers its personas with it.
-
-    name = _stage_names(conf)[0]
-    drawn = None if name in personas.PERSONAS else script.build(name)
-    return getattr(personas._persona(name)[1], "PROPS", None), drawn
+    spec = personas.spec(_stage_names(conf)[0], None if hasattr(script, "build") else script)
+    return getattr(spec.layers, "PROPS", None)
 
 
 class Props(unittest.TestCase):
@@ -134,15 +141,13 @@ class Props(unittest.TestCase):
 
     @unittest.skipIf(yaml is None, "needs Pillow and PyYAML")
     def test_some_persona_declares_props(self):
-        for _, conf in pixel_personas():
-            _script(conf)
         from daruma_pixel import personas
 
-        layers = [personas._persona(name)[1] for name in personas.PERSONAS]
+        layers = [spec.layers for spec in personas.discover().values()]
         self.assertTrue(any(getattr(m, "PROPS", None) for m in layers), "no persona declares PROPS")
 
     def check(self, file: str, conf: dict):
-        props, drawn = _props(conf)
+        props = _props(conf)
         if not props:
             self.skipTest(f"{file} declares no PROPS")
         states = registry.collect_states([registry.ModuleSpec("pomodoro", states=module_states())])
@@ -150,7 +155,7 @@ class Props(unittest.TestCase):
         reactions = [s.name for s in states if s.kind == registry.REACTION and s.module == "core"]
         script = _script(conf)
         stage_names = _stage_names(conf)
-        built = [drawn if i == 0 and drawn else script.build(n) if n else None for i, n in enumerate(stage_names)]
+        built = [_build(script, n) if n else None for n in stage_names]
         anims = _animation_names(built)
         char = registry.Persona(
             file,

@@ -9,6 +9,12 @@ Run it by hand to look at the result:
 That writes, per persona, OUT_DIR/<name>/: every layer as a PNG and sheet.png,
 every frame of every animation as the screen would show it.
 
+A persona module says what it is with a Spec: `PERSONA = Spec(...)`, or
+`PERSONAS = (Spec(...), ...)` for a module with several (the daruma's eye
+states). The framework keeps no list of them: discover() finds every module
+of a package that has one, and build(name, module) builds one from a module
+you name.
+
 Each persona is drawn on the device in layers, back to front:
 
   1. the window glass (sky and weather), drawn by the device, if any;
@@ -24,41 +30,75 @@ for every frame, at the screen's color depth, and stops the build if not.
 from __future__ import annotations
 
 import hashlib
+import importlib
+import pkgutil
 import sys
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 from PIL import Image
 
-# name -> (background color, layers module, module with ANIMATIONS/BLINKS/WINKS)
-# Modules may be given by name; they load when that persona is built, so a persona
-# whose script is missing only fails when it is used. A name with a leading
-# dot is a module of this package (".preview"); any other name is imported
-# as is, so a persona kept outside the package names its own modules.
-# The layers module has background(), foreground(pose), scene(pose), WINDOW
-# (None without one), and optionally plant(stage, wilted) with PLANT_STAGES
-# and the stage scene() shows by default, DEFAULT_STAGE (any prop that grows
-# with the progress signal, healthy and wilted), and RUG_COLORS with
-# RUG_BY_WEEKDAY (Sunday first) for colors that change daily, with RUG_BOX
-# for where they may be (default: the bottom 13 rows).
-PERSONAS = {
-    "corgi": (0x4A2A1A, ".preview", ".moods"),
-    "the_boss": (0xDED2BE, ".the_boss", ".the_boss"),
-    "jack_russell": (0x76503A, ".jack_russell", ".jack_russell"),
-    "tabby_cat": (0x281C16, ".tabby_cat", ".tabby_cat"),
-}
+PACKAGE = "daruma_pixel"  # Where discover() looks by default.
 
 
-def _persona(name: str):
-    """(background, layers, source) for a persona, with its modules loaded."""
-    import importlib
+@dataclass(frozen=True)
+class Spec:
+    """One persona: what build() needs to draw it.
 
-    background, layers, source = PERSONAS[name]
+    `layers` has background(), foreground(pose), scene(pose), WINDOW (None
+    without one), and optionally plant(stage, wilted) with PLANT_STAGES and
+    the stage scene() shows by default, DEFAULT_STAGE (any prop that grows
+    with the progress signal, healthy and wilted), and RUG_COLORS with
+    RUG_BY_WEEKDAY (Sunday first) for colors that change daily, with RUG_BOX
+    for where they may be (default: the bottom 13 rows). `animations` has
+    ANIMATIONS, BLINKS and WINKS. Either one left out is the module that
+    holds the Spec. `check`, if set, runs on the built persona and raises
+    when it is wrong.
+    """
 
-    def load(m):
-        return importlib.import_module(m, __package__) if isinstance(m, str) else m
+    name: str
+    background: int  # 0xRRGGBB, for any margin round the room.
+    layers: Any = None
+    animations: Any = None
+    check: Callable[[Persona], None] | None = None
 
-    return background, load(layers), load(source)
+
+def specs(module: ModuleType) -> dict[str, Spec]:
+    """name -> Spec for every persona a module declares, with its defaults filled in."""
+    found = getattr(module, "PERSONAS", None) or ((module.PERSONA,) if hasattr(module, "PERSONA") else ())
+    return {
+        s.name: replace(
+            s,
+            layers=module if s.layers is None else s.layers,
+            animations=module if s.animations is None else s.animations,
+        )
+        for s in found
+    }
+
+
+def discover(package: str = PACKAGE) -> dict[str, Spec]:
+    """name -> Spec for every persona in the modules of `package`."""
+    root = importlib.import_module(package)
+    found: dict[str, Spec] = {}
+    for info in pkgutil.iter_modules(root.__path__, f"{package}."):
+        for name, spec in specs(importlib.import_module(info.name)).items():
+            if name in found:
+                raise ValueError(f"Two personas are named {name!r} (in {info.name})")
+            found[name] = spec
+    return found
+
+
+def spec(name: str, module: ModuleType | str | None = None) -> Spec:
+    """The Spec of persona `name`: from `module` (a module or its dotted name), or found by discover()."""
+    if isinstance(module, str):
+        module = importlib.import_module(module)
+    known = specs(module) if module is not None else discover()
+    if name not in known:
+        raise ValueError(f"No persona {name!r}; there are {sorted(known)}")
+    return known[name]
 
 
 @dataclass
@@ -141,8 +181,13 @@ def union_box(images) -> tuple[int, int, int, int]:
     return box or (0, 0, 1, 1)
 
 
-def build(name: str) -> Persona:
-    background, layers, source = _persona(name)
+def build(name: str, module: ModuleType | str | None = None) -> Persona:
+    """Every picture the device needs for persona `name` (see spec())."""
+    return build_spec(spec(name, module))
+
+
+def build_spec(s: Spec) -> Persona:
+    background, layers, source = s.background, s.layers, s.animations
 
     poses = []
     for frames in source.ANIMATIONS.values():
@@ -192,12 +237,15 @@ def build(name: str) -> Persona:
 
         persona.recolor_from = [hexc(c) for c in layers.RUG_COLORS]
         persona.recolor_by_weekday = [[hexc(c) for c in day] for day in layers.RUG_BY_WEEKDAY]
+    if s.check is not None:
+        s.check(persona)
     return persona
 
 
 def previews(name: str, out: Path) -> None:
-    _, layers, source = _persona(name)
-    persona = build(name)
+    s = spec(name)
+    layers, source = s.layers, s.animations
+    persona = build_spec(s)
     out.mkdir(parents=True, exist_ok=True)
     persona.backdrop.save(out / "bg.png")
     for i, (healthy, wilted) in enumerate(zip(persona.plant_stages, persona.plant_wilted, strict=False)):
@@ -230,5 +278,5 @@ def previews(name: str, out: Path) -> None:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
-    for persona_name in sys.argv[2:] or PERSONAS:
+    for persona_name in sys.argv[2:] or discover():
         previews(persona_name, Path(sys.argv[1]) / persona_name)

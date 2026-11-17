@@ -1,6 +1,8 @@
 """Preview the pixel corgi: mood grid, UI mock, and a wag GIF.
 
-uv run python -m daruma_pixel.preview OUT_DIR [PIXEL_FONT.ttf]
+uv run python -m daruma_pixel.corgi_preview OUT_DIR [PIXEL_FONT.ttf]
+
+The persona itself, its layers, is corgi_persona.py.
 """
 
 from __future__ import annotations
@@ -10,24 +12,12 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .corgi import CORGI, H, W
-from .moods import ANIMATIONS, HAPPY, wag_cycle
-from .pet import Pet
+from .corgi import H, W
+from .corgi_moods import ANIMATIONS, HAPPY, wag_cycle
+from .corgi_persona import room, scene
 from .pixelkit import upscale
-from .room import Room
 
 SCALE = 3
-
-# --- Layers for the device ----------------------------------------------------
-# The corgi in its cozy room (room.py): warm plank walls, a window, a shelf
-# with the plant, floor boards and a red rug that changes color by weekday.
-
-_pet = Pet(CORGI, Room())
-globals().update(_pet.layers())  # background, foreground, scene, WINDOW, plant, the rug colors
-room = _pet.stage.image
-# Where focus's props stand (tests/test_props.py): the book in the lap. The
-# glasses move with the head (tests/test_pet_props.py checks they stay on).
-PROPS = {"focus": [(40, 55, 67, 75)]}
 
 
 # --- Pixel UI ---------------------------------------------------------------

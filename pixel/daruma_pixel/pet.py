@@ -31,12 +31,16 @@ Two ways to wag (Breed.tail):
              carried (1 up and proud, 0 low and tucked). The body keeps
              still.
 
-A breed module builds a Pet from its Breed and a Scene and exposes the names
-every persona module has (see personas.py):
+A persona module builds a Pet from its Breed and a Scene and exposes the
+names every persona module has (see personas.Spec):
 
-    _pet = Pet(BREED, Room(...))
-    globals().update(_pet.layers())  # background, foreground, scene, WINDOW, the scene's extras
+    ROOM = Room(...)
+    _pet = Pet(BREED, ROOM)
+    background, foreground, scene = _pet.background, _pet.foreground, _pet.scene
+    WINDOW = ROOM.window
+    plant, ... = ROOM.layers()[...]   # the scene's progress prop and weekday colors
     ANIMATIONS, BLINKS, WINKS = ...
+    PERSONA = Spec("name", background=0x...)
 
 Everything is drawn on the 106x80 canvas, with the light from the top left.
 """
@@ -575,7 +579,7 @@ def _ball(c: Canvas, x: int, y: int) -> None:
 
 @dataclass(frozen=True, eq=False)
 class Pet:
-    """A breed in a scene, as the layers personas.py builds a persona from.
+    """A breed in a scene: the layers a persona module takes its names from.
 
     The device draws the window glass itself (sky, weather), then the scene
     with a hole where the glass is, then the progress prop, then the pet.
@@ -605,16 +609,6 @@ class Pet:
 
     def foreground(self, pose: Pose) -> Image.Image:
         return self.render(pose)
-
-    def layers(self) -> dict:
-        """Every persona-module name for the layers (see personas.py)."""
-        return {
-            "background": self.background,
-            "foreground": self.foreground,
-            "scene": self.scene,
-            "WINDOW": self.stage.window,
-            **self.stage.layers(),
-        }
 
 
 # --- Moods and animations -------------------------------------------------------

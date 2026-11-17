@@ -21,7 +21,7 @@
 daruma_sprites:
   - id: jack_russell
     name: Jack Russell
-    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: jack_russell }
+    pixel_art: { module: daruma_pixel.jack_russell, persona: jack_russell }
     params:
       rug: { value: weekday, expose: true, name: throw }
     # A reaction during a focus session keeps the ball.

@@ -75,9 +75,8 @@ def persona_config(persona: str) -> dict:
 def pet_personas() -> list[str]:
     """Personas drawn on the pet rig: their layers module has a pet.Pet."""
     out = []
-    for name in personas.PERSONAS:
-        _, layers, _ = personas._persona(name)
-        if isinstance(getattr(layers, "_pet", None), pet.Pet):
+    for name, spec in personas.discover().items():
+        if isinstance(getattr(spec.layers, "_pet", None), pet.Pet):
             out.append(name)
     return out
 
@@ -156,7 +155,8 @@ class ReactionsOverActivities(unittest.TestCase):
         self.assertIn("corgi", names)
         self.assertIn("jack_russell", names)
         for name in names:
-            _, layers, source = personas._persona(name)
+            spec = personas.spec(name)
+            layers, source = spec.layers, spec.animations
             anims = list(source.ANIMATIONS)
             conf = persona_config(name)
             char = registry.Persona(

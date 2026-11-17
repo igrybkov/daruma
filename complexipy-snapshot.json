@@ -68,10 +68,6 @@
     "file_name": "__init__.py",
     "functions": [
       {
-        "name": "_validate_layers",
-        "complexity": 16
-      },
-      {
         "name": "_from_script",
         "complexity": 21
       },
@@ -124,6 +120,16 @@
       {
         "name": "_pot",
         "complexity": 21
+      }
+    ]
+  },
+  {
+    "path": "pixel/daruma_pixel/corgi_preview.py",
+    "file_name": "corgi_preview.py",
+    "functions": [
+      {
+        "name": "tomato",
+        "complexity": 19
       }
     ]
   },
@@ -264,16 +270,6 @@
       {
         "name": "_tuft",
         "complexity": 27
-      }
-    ]
-  },
-  {
-    "path": "pixel/daruma_pixel/preview.py",
-    "file_name": "preview.py",
-    "functions": [
-      {
-        "name": "tomato",
-        "complexity": 19
       }
     ]
   },

@@ -18,7 +18,8 @@ stand under a soft spotlight, a sage wall with a window on the side, cat
 grass on the sill (the progress prop) and a velvet posing drape whose color
 follows the weekday.
 
-This module has the same names as every persona module (see personas.py).
+This module is the persona: it has the names every persona module has
+(see personas.Spec).
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ import math
 
 from . import cat, pet
 from .cat import Cat, CatPose, Look
+from .personas import Spec
 from .pet import Breed, Coat, Rig, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask
 from .studio import Studio
@@ -202,10 +204,12 @@ CAT = Cat(
 STUDIO = Studio()
 BACKGROUND = 0x281C16  # The backdrop's darkest brown, for any margin round the scene.
 
-# --- Layers (see personas.py) --------------------------------------------------------
+# --- Layers (see personas.Spec) ------------------------------------------------------
 
 WINDOW = STUDIO.window
-globals().update(STUDIO.layers())  # plant, PLANT_STAGES, DEFAULT_STAGE, the drape's weekday colors
+_extra = STUDIO.layers()
+plant, PLANT_STAGES, DEFAULT_STAGE = _extra["plant"], _extra["PLANT_STAGES"], _extra["DEFAULT_STAGE"]
+RUG_COLORS, RUG_BY_WEEKDAY, RUG_BOX = _extra["RUG_COLORS"], _extra["RUG_BY_WEEKDAY"], _extra["RUG_BOX"]
 
 
 def foreground(pose: CatPose):
@@ -219,7 +223,7 @@ def background():
 def scene(pose: CatPose, plant_stage: int | None = None, wilted: bool = False):
     """The full picture: studio, cat grass (at DEFAULT_STAGE unless given), cat."""
     img = STUDIO.image()
-    img.alpha_composite(plant(DEFAULT_STAGE if plant_stage is None else plant_stage, wilted))  # noqa: F821
+    img.alpha_composite(plant(DEFAULT_STAGE if plant_stage is None else plant_stage, wilted))
     img.alpha_composite(CAT.render(pose))
     return img
 
@@ -339,3 +343,5 @@ WINKS: dict[str, CatPose] = {
     "Neutral": with_(NEUTRAL, eyes="wink"),
     "Happy": with_(HAPPY, eyes="wink"),
 }
+
+PERSONA = Spec("tabby_cat", background=BACKGROUND)

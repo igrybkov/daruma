@@ -114,8 +114,9 @@ def rect(r):
 
 def corgi_idle(s: Screen) -> Image.Image:
     """SpritePersona: the extended room at the largest whole scale, on the bottom."""
-    _, layers, source = personas._persona("corgi")
-    persona = personas.build("corgi")
+    spec = personas.spec("corgi")
+    layers, source = spec.layers, spec.animations
+    persona = personas.build_spec(spec)
     pose = source.ANIMATIONS["Neutral"][0][0]
     scene = layers.scene(pose).convert("RGBA")
     room = persona.backdrop.convert("RGBA")

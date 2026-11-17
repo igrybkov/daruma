@@ -82,7 +82,7 @@ Every persona entry takes the same shared options:
 daruma_sprites:
   - id: my_fox                  # also the prefix of its params: my_fox.rug
     name: Fox                   # the option in the Persona select
-    pixel_art: { script: ../pixel/my_personas.py, persona: fox }
+    pixel_art: { script: ../pixel/fox.py, persona: fox }
     behaviors:                  # optional: per state, when the name alone is not enough
       celebrate: { animation: Happy, sound: goal }
       petted: { animation: Loved, sound: pet, say: "Yip!" }
@@ -171,23 +171,22 @@ offers:
 
 | Name | What |
 |---|---|
-| `background()`, `foreground(pose)`, `scene(pose)`, `WINDOW` | the layers; `globals().update(_pet.layers())` sets them for a pet |
+| `background()`, `foreground(pose)`, `scene(pose)`, `WINDOW` | the layers; a pet takes them from its `Pet` and its scene (see `corgi_persona.py`) |
 | `ANIMATIONS` | animation name -> list of (pose, ms); `Neutral` is required |
 | `BLINKS`, `WINKS` | animation name -> the single frame the hub flashes for a blink or a wink |
 | `PROPS` | optional: activity -> boxes where its props stand, for the props tests |
+| `PERSONA` | `Spec(name, background=...)`: says the module is a persona |
 
-Then add the persona to the table in
-[personas.py](../pixel/daruma_pixel/personas.py), or from your own script:
+`PERSONA` is what makes the module a persona. Nothing else lists it:
+[personas.py](../pixel/daruma_pixel/personas.py) finds every persona
+module of the library, and a `pixel_art:` entry names yours.
 
 ```python
-from daruma_pixel import personas
+from daruma_pixel.personas import Spec
 
-# name -> (background color, layers module, module with ANIMATIONS/BLINKS/WINKS)
-personas.PERSONAS["fox"] = (0x3A2A20, "fox", "fox")
-
-
-def build(name):
-    return personas.build(name)
+# Layers and animations default to this module; name others with
+# Spec(..., layers=..., animations=...).
+PERSONA = Spec("fox", background=0x3A2A20)
 ```
 
 Preview it without a device. This writes every layer and a sheet of every

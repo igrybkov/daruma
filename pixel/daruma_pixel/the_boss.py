@@ -12,8 +12,8 @@ Her idle: hands resting on the desk; now and then she checks her
 wristwatch, or picks up the mug for a sip. She puts on thin gold glasses
 to read.
 
-This module has the same names as every persona module (scene, background,
-foreground, WINDOW, ANIMATIONS, BLINKS, WINKS).
+This module is the persona: it has the names every persona module has
+(see personas.Spec).
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ from .desk_boss import (
     shoulder,
     with_,
 )
+from .personas import Spec
 from .pixelkit import Canvas, Ramp, ellipse, mask, poly, subtract
 
 OUTLINE = (34, 26, 30)
@@ -457,3 +458,5 @@ WINKS: dict[str, Pose] = {
     "Neutral": with_(NEUTRAL, eyes="wink", mouth="smile"),
     "Happy": with_(HAPPY, eyes="wink", mouth="smile"),
 }
+
+PERSONA = Spec("the_boss", background=0xDED2BE)

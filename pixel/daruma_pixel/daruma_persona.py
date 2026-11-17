@@ -1,23 +1,17 @@
-"""The daruma as device personas: build(eyes_painted) gives what personas.build() gives.
+"""The daruma as device personas, one per number of painted eyes.
 
+    PERSONAS: daruma0, daruma1, daruma2 (see personas.Spec)
     build(0), build(1), build(2) -> personas.Persona
 
 Each is a whole persona: room, window, plant, cushion colors and every
 animation, for that many painted eyes. They use the same room and the same
 crop box, so frames that do not show the eyes are the same pictures in all
-three and the device stores them once.
+three and the device stores them once. Each Spec checks that box.
 
-To make it a regular persona, personas.PERSONAS needs one entry per eye state:
-
-    "daruma0": (daruma.BACKGROUND, daruma, daruma_moods.eyes(0)),
-    "daruma1": (daruma.BACKGROUND, daruma, daruma_moods.eyes(1)),
-    "daruma2": (daruma.BACKGROUND, daruma, daruma_moods.eyes(2)),
-
-Until then, build() adds those entries itself before it calls personas.build().
-It also takes the persona name, so the existing pixel_art config works now:
+A `pixel_art:` config names this module and a persona in it:
 
     pixel_art:
-      script: ../pixel/daruma_pixel/daruma_persona.py
+      module: daruma_pixel.daruma_persona
       persona: daruma1
 
 What the firmware still needs: a way to switch between the three personas
@@ -33,11 +27,12 @@ frame. See its docstring for what the device would need.
 from __future__ import annotations
 
 import hashlib
+import sys
 from dataclasses import dataclass
 
 from PIL import Image
 
-from . import daruma, daruma_moods
+from . import daruma, daruma_moods, personas
 
 EYE_STATES = (0, 1, 2)
 
@@ -49,11 +44,8 @@ def persona_name(eyes_painted: int) -> str:
 def build(eyes_painted: int | str):
     """personas.build() for the daruma with this many painted eyes (0, 1 or 2).
 
-    Also takes the persona name ("daruma0" .. "daruma2"), so a `pixel_art:`
-    config can name this script and that persona directly.
+    Also takes the persona name ("daruma0" .. "daruma2").
     """
-    from . import personas  # Here, not at the top: personas.py may import this module one day.
-
     if isinstance(eyes_painted, str):
         names = {persona_name(n): n for n in EYE_STATES}
         if eyes_painted not in names:
@@ -61,11 +53,7 @@ def build(eyes_painted: int | str):
         eyes_painted = names[eyes_painted]
     if eyes_painted not in EYE_STATES:
         raise ValueError(f"eyes_painted is 0, 1 or 2, not {eyes_painted}")
-    name = persona_name(eyes_painted)
-    personas.PERSONAS.setdefault(name, (daruma.BACKGROUND, daruma, daruma_moods.eyes(eyes_painted)))
-    persona = personas.build(name)
-    _check_box(persona, eyes_painted)
-    return persona
+    return personas.build(persona_name(eyes_painted), sys.modules[__name__])
 
 
 def _check_box(persona, eyes_painted: int) -> None:
@@ -77,6 +65,18 @@ def _check_box(persona, eyes_painted: int) -> None:
     b = persona.animations["Neutral"].frames[0][0].size
     if ref.sprite_offset != persona.sprite_offset or a != b:
         raise ValueError(f"daruma{eyes_painted} crops {persona.sprite_offset} {b}, daruma0 {ref.sprite_offset} {a}")
+
+
+PERSONAS = tuple(
+    personas.Spec(
+        persona_name(n),
+        background=daruma.BACKGROUND,
+        layers=daruma,
+        animations=daruma_moods.eyes(n),
+        check=lambda persona, n=n: _check_box(persona, n),
+    )
+    for n in EYE_STATES
+)
 
 
 @dataclass

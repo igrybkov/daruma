@@ -11,7 +11,7 @@
 daruma_sprites:
   - id: the_boss
     name: The Boss
-    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: the_boss }
+    pixel_art: { module: daruma_pixel.the_boss, persona: the_boss }
     behaviors:
       focus: { animation: Focus }
     # Menu and apps: her cream office paper on a warm wall, with teal ink and

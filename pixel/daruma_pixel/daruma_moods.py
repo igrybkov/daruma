@@ -1,10 +1,10 @@
 """The daruma's moods and animations, for each number of painted eyes.
 
-Same shape as moods.py: ANIMATIONS maps a name to a list of (Pose, ms)
+Same shape as corgi_moods.py: ANIMATIONS maps a name to a list of (Pose, ms)
 frames that loops, BLINKS and WINKS map a name to one frame. The difference:
 each exists three times, once per eye state. eyes(n) gives an object with
 ANIMATIONS, BLINKS and WINKS for n painted eyes (0, 1 or 2), which is what
-personas.build() reads from a persona's source module.
+personas.build() reads from a persona's animations (personas.Spec).
 
 Frames with closed eyes (blinks, the happy wobble, sleep, the fall in
 Scared) are the same picture in every eye state, so the device stores
@@ -204,7 +204,7 @@ def eyes(n: int) -> SimpleNamespace:
     return SimpleNamespace(ANIMATIONS=animations(n), BLINKS=blinks(n), WINKS=winks(n))
 
 
-# Module-level defaults, one eye painted: the moods.py shape.
+# Module-level defaults, one eye painted: the corgi_moods.py shape.
 ANIMATIONS = animations(1)
 BLINKS = blinks(1)
 WINKS = winks(1)

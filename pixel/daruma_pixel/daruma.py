@@ -25,7 +25,7 @@ points per pixel, and ink shows where it covers enough of a pixel, so thin
 strokes do not break up. Upright, the doll is mirrored to be exactly
 symmetric.
 
-Layers for personas.py, as preview.py does for the corgi: background() (the
+Layers for personas.Spec, as corgi_persona.py has for the corgi: background() (the
 room with a hole for the glass), foreground(pose) (the doll and its props),
 scene(pose), WINDOW (the tall window's glass; background() leaves it
 open), plant() with PLANT_STAGES and DEFAULT_STAGE (the bonsai in the

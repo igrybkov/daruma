@@ -13,7 +13,7 @@
 daruma_sprites:
   - id: pixel_corgi
     name: Pixel corgi
-    pixel_art: { script: ../pixel/daruma_pixel/personas.py, persona: corgi }
+    pixel_art: { module: daruma_pixel.corgi_persona, persona: corgi }
     behaviors:
       focus: { animation: Focus }
     # A reaction during a focus session keeps the glasses and the book.

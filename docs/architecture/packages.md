@@ -63,7 +63,7 @@ code imports the components the same way:
   as in a build (`esphome/components/<name>/...`).
 
 **Files named by packages.** The same rule covers the files the personas
-read. `pixel_art: {script: ../pixel/personas.py}` and
+read. `pixel_art: {script: ../pixel/my_persona.py}` and
 `art: ../art/flat_corgi` resolve next to the package, and the component
 stores the absolute path (`resolve_file()` and `resolve_dir()` in
 `src/esphome/components/daruma/sprite.py`). It resolves them while the config is
@@ -73,12 +73,15 @@ build reads only absolute paths.
 **The pixel library.** The pixel art is the Python package
 `daruma_pixel` (`pixel/daruma_pixel/`, installable with pip through
 `pyproject.toml`). Firmware builds do not install it. `daruma_sprites` puts
-`pixel/` of its own checkout on the import path and imports a library
-script by module name (`daruma_pixel.personas`). A script kept elsewhere (a
-persona in a device's config folder or in another package's repository) runs
-with its own folder and the library on the path. It imports the engines
-as `from daruma_pixel import personas, pet`, adds its persona to `personas.PERSONAS`
-and calls `personas.build()`. Library modules live in their own namespace, so
+`pixel/` of its own checkout on the import path. `pixel_art: module:`
+names a persona module by dotted name (`daruma_pixel.corgi_persona`), and
+`pixel_art: script:` names a file. A script kept elsewhere (a persona in a
+device's config folder or in another package's repository) runs with its
+own folder and the library on the path. It imports the engines as
+`from daruma_pixel import personas, pet` and declares its persona with
+`PERSONA = personas.Spec(...)`; the component builds it with
+`personas.build()`. A module with a `build(name)` of its own builds
+itself. Library modules live in their own namespace, so
 a script's own module names cannot replace them. The drawn-persona cache
 hashes every file the script can import.
 

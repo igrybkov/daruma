@@ -145,10 +145,10 @@ desktop: secrets esphome-env ## Build and run the desktop device in a window (DA
 test: test-py test-cpp ## Host tests in Python and C++ (no ESPHome build)
 
 test-py: ## Host tests in Python (PYTEST_ARGS= for pytest)
-	$(UV_RUN) pytest tests $(PYTEST_ARGS)
+	$(UV_RUN) pytest tests -m "not cpp" $(PYTEST_ARGS)
 
-test-cpp: ## Host tests in C++
-	tests/run_cpp.sh
+test-cpp: ## Host tests in C++, through pytest (PYTEST_ARGS="-k layout" for one)
+	$(UV_RUN) pytest tests -m cpp $(PYTEST_ARGS)
 
 # Mutation tests (docs/testing.md). Python, then C++; both run when the
 # first fails.

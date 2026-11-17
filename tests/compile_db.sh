@@ -1,6 +1,6 @@
 #!/bin/sh
 # Writes build/clang-tidy/compile_commands.json for the host C++ tests,
-# with the flags tests/run_cpp.sh uses, so clang-tidy can read them:
+# with the flags tests/conftest.py uses, so clang-tidy can read them:
 #
 #   tests/compile_db.sh
 #   clang-tidy -p build/clang-tidy tests/test_*.cpp

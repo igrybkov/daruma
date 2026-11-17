@@ -65,9 +65,8 @@ module fully before you write one.
    persona's colors, and a `pet` sound in its voice. Write the header
    comment the way the others do: what it looks like and what it does.
 6. **Host tests.**
-   `uv run pytest tests`
-   and `tests/run_cpp.sh`. The persona tests build every persona: layers,
-   rug colors, props, patch frames.
+   `uv run pytest tests`. It runs the C++ tests too. The persona tests
+   build every persona: layers, rug colors, props, patch frames.
 7. **Build and record.** Record the showcase on the desktop build and
    look at the frames:
 

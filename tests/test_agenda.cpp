@@ -2,7 +2,7 @@
 // headings (daruma_calendar/agenda.h), and of the next event line on the
 // device's screen (daruma_calendar/next_event.h).
 //
-//   tests/run_cpp.sh   (builds and runs it with the other C++ tests)
+//   uv run pytest tests/test_agenda.cpp   (pytest builds and runs it: tests/conftest.py)
 
 #include <cstdio>
 #include <string>

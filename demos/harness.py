@@ -74,6 +74,9 @@ EPOCH = 1773223200
 START_NS = 1_000_000_000
 # One frame step: the BOX-3 profile draws at most every 100 ms.
 STEP = 0.05
+# Real seconds a device may take to finish one step: only a hung program
+# takes this long.
+SETTLE_TIMEOUT = 30
 
 
 class DeviceError(RuntimeError):
@@ -624,33 +627,39 @@ class Device:
         return self._status
 
     def _settle(self) -> None:
-        # The device takes a new time at the start of a turn of its main loop,
-        # but its timers see it only on the next turn (see "turns" in
-        # daruma_desktop). Wait until a whole turn has run at the new time:
-        # its timers, then every component. Wait for two more turns since the
-        # first reply too: a timer that something sent before set to fire at
-        # once ("delay: 0ms") runs on the turn after it was set. Without this,
-        # whether such a timer runs before the clock moves on depends on how
-        # fast the device is, and a frame can come a step late.
+        # Wait until the device has done everything that is due at the
+        # current time. Every reply says on which turn of its main loop the
+        # device handled the request ("loops"). Whatever the runner sent
+        # before that request was handled on that turn or earlier. "idle" is
+        # the last turn that started with nothing due at its time (see
+        # idle_loop_ in daruma_desktop). An idle turn two turns after the
+        # mark means every component has run since, and nothing is left over:
+        # no timer, no frame, no call to "HA" waiting for its answer.
         #
-        # Then round trips until two rounds in a row bring nothing from the
-        # device: everything sent before is handled, and a call to "HA" (and
-        # the next one it queues after the answer) lands at this time too,
-        # before the runner sends anything else.
+        # An answer to "HA" goes out while the runner waits for a reply, so
+        # the next reply after it gives the new mark.
         want = (self.clock.ns // 1_000_000) & 0xFFFFFFFF
-        first = self._sync()["loops"]
-        for _ in range(1000):
+        deadline = time.monotonic() + SETTLE_TIMEOUT
+        seen = self._calls_seen
+        s = self._sync()
+        while s["millis"] != want:
+            self._check_deadline(deadline, "does not take the runner's clock (is fakeclock loaded?)")
             s = self._sync()
-            if s["millis"] == want and s["turns"] >= 2 and s["loops"] - first >= 2:
-                break
-        else:
-            raise DeviceError("The device does not take the runner's clock (is fakeclock loaded?)")
-        quiet = 0
-        while quiet < 2:
-            before = self._calls_seen
-            self._sync()
-            self._sync()
-            quiet = quiet + 1 if self._calls_seen == before else 0
+        mark = s["loops"]
+        while True:
+            if self._calls_seen != seen:
+                seen = self._calls_seen
+                s = self._sync()
+                mark = s["loops"]
+                continue
+            if s["idle"] >= mark + 2:
+                return
+            self._check_deadline(deadline, "is still busy at this time")
+            s = self._sync()
+
+    def _check_deadline(self, deadline: float, what: str) -> None:
+        if time.monotonic() > deadline:
+            raise DeviceError(f"After {SETTLE_TIMEOUT} s, the device {what}; see {self.workdir / 'device.log'}")
 
     def advance(self, seconds: float, step: float = STEP) -> None:
         """Move the device's clock on, a step at a time."""

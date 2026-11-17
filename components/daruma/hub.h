@@ -332,6 +332,10 @@ class Hub : public esphome::Component {
   // True while HA is connected and subscribed (core sets it).
   void set_ha_link(std::function<bool()> link) { this->ha_link_ = std::move(link); }
 
+  // Nothing is due at `now`: no frame to draw, no HA call to send and no
+  // answer to wait for. A test runner waits for this before the clock moves.
+  bool idle(uint32_t now) { return this->ha_calls_.idle(now) && !this->frame_due_(now); }
+
   // --- Actions ----------------------------------------------------------------------
   // Named actions ("pomodoro.toggle") that bindings run. Modules add them.
   void add_action(const std::string &name, Action action) { this->actions_[name] = std::move(action); }
@@ -509,6 +513,8 @@ class Hub : public esphome::Component {
   };
   std::map<std::string, TapArea> areas_;
   HaCalls ha_calls_;
+  // A frame should be drawn at `now` (see loop()).
+  bool frame_due_(uint32_t now);
   std::function<bool()> ha_link_;
   std::vector<InputSlot> inputs_;
   std::vector<BindingSlot> bindings_;

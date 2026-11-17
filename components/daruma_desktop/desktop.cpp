@@ -13,6 +13,7 @@
 #ifdef USE_API
 #include "esphome/components/api/api_server.h"
 #endif
+#include "esphome/core/application.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
@@ -141,6 +142,16 @@ void Desktop::loop() {
     this->releases_.front().sensor->publish_state(false);
     this->releases_.pop_front();
   }
+  if (this->turns_ >= 1 && this->idle_(now))
+    this->idle_loop_ = this->loops_;
+}
+
+bool Desktop::idle_(uint32_t now) {
+  // Timers, delays and deferred calls that are due run on the next turn.
+  const auto next = esphome::App.scheduler.next_schedule_in(now);
+  if (next.has_value() && *next == 0)
+    return false;
+  return this->hub_ == nullptr || this->hub_->idle(now);
 }
 
 bool Desktop::record_start(const std::string &dir) {
@@ -206,6 +217,7 @@ bool Desktop::screenshot(const std::string &dir, const std::string &name) {
 void Desktop::describe(JsonObject root) const {
   root["loops"] = this->loops_;
   root["turns"] = this->turns_;
+  root["idle"] = this->idle_loop_;
   auto list = root["ui"].to<JsonArray>();
   for (const UiNode &n : UiTree::nodes()) {
     auto o = list.add<JsonObject>();

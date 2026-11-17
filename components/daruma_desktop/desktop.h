@@ -21,6 +21,7 @@ namespace Daruma {
 class Desktop : public esphome::Component {
  public:
   void set_display(esphome::sdl::Sdl *display) { this->display_ = display; }
+  void set_hub(Hub *hub) { this->hub_ = hub; }
   void add_button(const std::string &name, esphome::binary_sensor::BinarySensor *sensor) {
     this->buttons_[name] = sensor;
   }
@@ -60,7 +61,8 @@ class Desktop : public esphome::Component {
   // True while queued touches or button presses are still running.
   bool touch_busy() const { return !this->points_.empty() || !this->releases_.empty(); }
   // The parts on screen (UiTree) as root["ui"]: [{role, name, x, y, w, h, focused, value}],
-  // and the turns of the main loop: root["loops"] (all) and root["turns"] (see turns_).
+  // the turns of the main loop: root["loops"] (all) and root["turns"] (see turns_),
+  // and root["idle"], the last turn that started with nothing due (see idle_loop_).
   void describe(JsonObject root) const;
   // Renders the current persona's sound `name` to a WAV file, when recording.
   void sound(Hub *hub, const std::string &name);
@@ -80,7 +82,11 @@ class Desktop : public esphome::Component {
   uint32_t queue_start_();
   void add_point_(uint32_t at, int x, int y, bool down) { this->points_.push_back(Point{at, x, y, down}); }
 
+  // Nothing is due at `now`: no timer, no frame and no HA call.
+  bool idle_(uint32_t now);
+
   esphome::sdl::Sdl *display_{nullptr};
+  Hub *hub_{nullptr};
   std::map<std::string, esphome::binary_sensor::BinarySensor *> buttons_;
   std::deque<Point> points_;
   std::deque<Release> releases_;
@@ -90,12 +96,18 @@ class Desktop : public esphome::Component {
   // Turns of the main loop that started after the one that took the current
   // time. ESPHome runs its timers at the start of a turn, before any
   // component's loop(), so they see a new time one turn after the latch.
-  // Only at 2 has a whole turn run at this time: timers, then every
-  // component. A runner waits for that before it moves the clock on.
+  // From 1 on, every component has run at this time, and the timers run
+  // at it on the turn that starts now.
   uint32_t turns_{0};
   uint32_t turns_ms_{0};
   // All turns of the main loop so far.
   uint32_t loops_{0};
+  // The last turn that started with a whole turn already run at its time
+  // and nothing due at that time: no timer, no frame, no Home Assistant
+  // call to send or answer to wait for. Whatever a runner sent before the
+  // turn that handled it is done by an idle turn two turns later: every
+  // component has run once since, and nothing it started is left over.
+  uint32_t idle_loop_{0};
   bool recording_{false};
   bool paused_{false};
   std::string dir_;

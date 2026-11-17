@@ -26,7 +26,7 @@ what the screen showed, without the window or the mouse pointer.
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor
-from esphome.components.daruma import daruma_ns
+from esphome.components.daruma import CONF_DARUMA_ID, Hub, daruma_ns
 from esphome.components.sdl.display import Sdl
 from esphome.const import CONF_DISPLAY, CONF_ID, PLATFORM_HOST
 
@@ -41,6 +41,7 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(Desktop),
+            cv.GenerateID(CONF_DARUMA_ID): cv.use_id(Hub),
             cv.Required(CONF_DISPLAY): cv.use_id(Sdl),
             cv.Optional(CONF_BUTTONS, default={}): cv.Schema({cv.string_strict: cv.use_id(binary_sensor.BinarySensor)}),
         }
@@ -53,5 +54,6 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     cg.add(var.set_display(await cg.get_variable(config[CONF_DISPLAY])))
+    cg.add(var.set_hub(await cg.get_variable(config[CONF_DARUMA_ID])))
     for name, sensor_id in config[CONF_BUTTONS].items():
         cg.add(var.add_button(name, await cg.get_variable(sensor_id)))

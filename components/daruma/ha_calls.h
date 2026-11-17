@@ -90,6 +90,9 @@ class HaCalls {
   // HA has been linked for the settle time.
   bool ready(uint32_t now) const { return this->linked_ && now - this->link_since_ >= this->settle_ms_; }
   bool busy() const { return this->busy_; }
+  // Nothing to do at `now`: no call waits for its answer, and none is ready
+  // to go. Calls held back until HA has settled wait for time to pass.
+  bool idle(uint32_t now) const { return !this->busy_ && (this->queue_.empty() || !this->ready(now)); }
   size_t queued() const { return this->queue_.size(); }
   uint32_t timeouts() const { return this->timeouts_; }
   uint32_t dropped() const { return this->dropped_; }

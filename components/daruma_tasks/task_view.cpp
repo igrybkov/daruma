@@ -196,6 +196,7 @@ void TaskView::draw_scroll_bar_(AppView &v, const Layout &l) {
 }
 
 void TaskView::draw_message_(AppView &v, const std::string &text, int text_h) {
+  UiTree::add("text", text, Rect{v.x, v.y, v.w, v.h});
   const std::vector<std::string> lines = Utilities::Text::wrap(v.display, v.text, text, v.w - 24);
   const int count = std::min((int) lines.size(), 4);
   const int line_h = text_h + 4;

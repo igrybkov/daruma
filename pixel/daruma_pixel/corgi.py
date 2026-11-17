@@ -9,12 +9,10 @@ Its room, layers and moods are in preview.py and moods.py.
 
 from __future__ import annotations
 
-
 from PIL import Image
 
-
 from . import dog
-from .pet import H, W, Coat, Pose, with_  # noqa: F401  (W, H, Pose, with_: the corgi's API)
+from .pet import Coat, H, Pose, W, with_  # noqa: F401  (W, H, Pose, with_: the corgi's API)
 from .pet import render as _render
 from .pixelkit import Ramp
 

@@ -10,10 +10,10 @@ than once. The reaction states are declared here, once for all copies.
 """
 
 import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.components import font
 from esphome.components.daruma import daruma_ns
 from esphome.components.daruma.registry import REACTION, ModuleSpec, State
-import esphome.config_validation as cv
 from esphome.const import CONF_FONT, CONF_ID, CONF_TIMEOUT
 
 DEPENDENCIES = ["api", "daruma", "font"]

@@ -7,8 +7,20 @@ The mood poses and the wag are shared by every pet (pet.py).
 from __future__ import annotations
 
 from .pet import (  # noqa: F401  (the mood poses are this module's API too)
-    HAPPY, LISTENING, LOVED, NEUTRAL, READING, SAD, SCARED, SLEEPING, SLEEPY, TALKING, THINKING,
-    Pose, wag_cycle, with_,
+    HAPPY,
+    LISTENING,
+    LOVED,
+    NEUTRAL,
+    READING,
+    SAD,
+    SCARED,
+    SLEEPING,
+    SLEEPY,
+    TALKING,
+    THINKING,
+    Pose,
+    wag_cycle,
+    with_,
 )
 
 # Reading, petted or startled: the reactions over the focus keep the book.

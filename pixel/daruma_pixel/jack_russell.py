@@ -21,18 +21,18 @@ This module has the same names as every persona module (see personas.py).
 
 from __future__ import annotations
 
-
-
-from . import dog
-from . import pet
-from .pet import Coat, Pet, Pose, Rig, wag_cycle, with_
-from .living_room import LivingRoom
-from .pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly, rotate
 from PIL import Image
+
+from . import dog, pet
+from .living_room import LivingRoom
+from .pet import Coat, Pet, Pose, Rig, wag_cycle, with_
+from .pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly, rotate
 
 OUTLINE = (52, 36, 30)
 TAN = Ramp(base=(228, 164, 98), shadow=(194, 128, 70), light=(242, 192, 134), line=(156, 100, 56))
-EAR = Ramp(base=(206, 138, 76), shadow=(170, 108, 56), light=(222, 160, 98), line=(120, 74, 38))  # Flaps, a shade deeper.
+EAR = Ramp(
+    base=(206, 138, 76), shadow=(170, 108, 56), light=(222, 160, 98), line=(120, 74, 38)
+)  # Flaps, a shade deeper.
 SADDLE = Ramp(base=(160, 98, 54), shadow=(128, 76, 42), light=(186, 124, 74), line=(110, 64, 36))
 WHITE = Ramp(base=(250, 248, 242), shadow=(214, 208, 198), light=(255, 255, 255), line=(166, 156, 144))
 CHEST = Ramp(base=(250, 248, 242), shadow=(222, 216, 206), light=(255, 255, 255))  # No contour on a white body.
@@ -107,7 +107,6 @@ BREED = dog.breed(
 # under a hanging spider plant, by an arched window.
 ROOM = LivingRoom()
 BACKGROUND = 0x76503A  # For any margin round the room.
-
 
 
 def curled(p: Pose) -> Image.Image:

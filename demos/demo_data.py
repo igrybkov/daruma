@@ -26,10 +26,18 @@ ALL_DAY = "Mom's birthday"
 # (hours from the start of the current hour, condition, °F, chance of rain %)
 WEATHER_NOW = ("partlycloudy", 64.0, 8.0)  # condition, temperature, wind (mph)
 WEATHER_HOURS = [
-    (0, "partlycloudy", 64, 0), (1, "partlycloudy", 66, 0), (2, "cloudy", 67, 10),
-    (3, "cloudy", 66, 30), (4, "rainy", 63, 60), (5, "pouring", 61, 80),
-    (6, "rainy", 60, 50), (7, "cloudy", 58, 20), (8, "clear-night", 55, 0),
-    (9, "clear-night", 53, 0), (10, "clear-night", 52, 0), (11, "clear-night", 51, 0),
+    (0, "partlycloudy", 64, 0),
+    (1, "partlycloudy", 66, 0),
+    (2, "cloudy", 67, 10),
+    (3, "cloudy", 66, 30),
+    (4, "rainy", 63, 60),
+    (5, "pouring", 61, 80),
+    (6, "rainy", 60, 50),
+    (7, "cloudy", 58, 20),
+    (8, "clear-night", 55, 0),
+    (9, "clear-night", 53, 0),
+    (10, "clear-night", 52, 0),
+    (11, "clear-night", 51, 0),
 ]
 # (days from today, condition, high, low, chance of rain %, wind mph)
 WEATHER_DAYS = [(0, "rainy", 68, 49, 80, 12), (1, "sunny", 71, 50, 0, 6), (2, "partlycloudy", 69, 52, 10, 9)]
@@ -89,7 +97,11 @@ class DemoData:
         if kind == "hourly":
             hour = now - now % 3600
             return {
-                "u": "°F", "w": "mph", "c": WEATHER_NOW[0], "t": WEATHER_NOW[1], "ws": WEATHER_NOW[2],
+                "u": "°F",
+                "w": "mph",
+                "c": WEATHER_NOW[0],
+                "t": WEATHER_NOW[1],
+                "ws": WEATHER_NOW[2],
                 "h": [[hour + h * 3600, c, t, p] for h, c, t, p in WEATHER_HOURS],
             }
         day = now - now % DAY

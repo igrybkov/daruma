@@ -27,8 +27,21 @@ from types import SimpleNamespace
 
 from .daruma import EYE_X, EYE_Y, Frame, Pose, _settle, with_
 
-LOOPS = ["Neutral", "Happy", "Loved", "Sad", "Scared", "Sleepy", "Sleeping",
-         "listening", "thinking", "talking", "Focus", "LovedFocus", "ScaredFocus"]
+LOOPS = [
+    "Neutral",
+    "Happy",
+    "Loved",
+    "Sad",
+    "Scared",
+    "Sleepy",
+    "Sleeping",
+    "listening",
+    "thinking",
+    "talking",
+    "Focus",
+    "LovedFocus",
+    "ScaredFocus",
+]
 ONE_SHOTS = ["Paint", "PaintFocus"]
 
 
@@ -176,8 +189,7 @@ def with_incense(frames: list[tuple[Pose, int]]) -> list[tuple[Pose, int]]:
 def blinks(n: int) -> dict[str, Pose]:
     a = animations(n)
     first = {key: frames[0][0] for key, frames in a.items()}
-    return {key: with_(first[key], eyes="blink")
-            for key in ("Neutral", "Sad", "Focus", "listening", "thinking")}
+    return {key: with_(first[key], eyes="blink") for key in ("Neutral", "Sad", "Focus", "listening", "thinking")}
 
 
 def winks(n: int) -> dict[str, Pose]:

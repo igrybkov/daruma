@@ -10,8 +10,8 @@ that name's key, as ESPHome makes it from the name.
 """
 
 import esphome.codegen as cg
-from esphome.components import select
 import esphome.config_validation as cv
+from esphome.components import select
 from esphome.const import CONF_ID, CONF_NAME
 from esphome.core import CORE
 

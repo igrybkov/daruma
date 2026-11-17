@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 import scenario as scenarios
 from harness import DeviceError
 from media import with_touches
@@ -14,11 +13,14 @@ from media import with_touches
 def test_caption_block_flattens_to_caption_then_its_steps():
     steps = [
         {"wait": 1},
-        {"caption": "Start a focus block", "steps": [
-            {"tap": {"text": "Focus"}},
-            {"caption": "Inner", "steps": [{"wait": 2}]},
-            {"wait": 1},
-        ]},
+        {
+            "caption": "Start a focus block",
+            "steps": [
+                {"tap": {"text": "Focus"}},
+                {"caption": "Inner", "steps": [{"wait": 2}]},
+                {"wait": 1},
+            ],
+        },
         {"wait": 3},
     ]
     assert scenarios.flatten(steps) == [
@@ -34,11 +36,14 @@ def test_caption_block_flattens_to_caption_then_its_steps():
     ]
 
 
-@pytest.mark.parametrize("step", [
-    {"caption": "Flat"},  # the old flat form
-    {"caption": "x", "steps": [], "wait": 1},
-    {"caption": "x", "steps": {"wait": 1}},
-])
+@pytest.mark.parametrize(
+    "step",
+    [
+        {"caption": "Flat"},  # the old flat form
+        {"caption": "x", "steps": [], "wait": 1},
+        {"caption": "x", "steps": {"wait": 1}},
+    ],
+)
 def test_a_caption_must_hold_its_steps(step):
     with pytest.raises(DeviceError):
         scenarios.flatten([step])
@@ -47,14 +52,7 @@ def test_a_caption_must_hold_its_steps(step):
 def test_load_reads_nested_captions(tmp_path: Path):
     path = tmp_path / "nested.yaml"
     path.write_text(
-        "name: nested\n"
-        "setup:\n"
-        "  - wait: 1\n"
-        "steps:\n"
-        "  - caption: Pet it\n"
-        "    steps:\n"
-        "      - pet: true\n"
-        "  - show: sad\n"
+        "name: nested\nsetup:\n  - wait: 1\nsteps:\n  - caption: Pet it\n    steps:\n      - pet: true\n  - show: sad\n"
     )
     sc = scenarios.load(str(path))
     assert sc.setup == [{"wait": 1}]

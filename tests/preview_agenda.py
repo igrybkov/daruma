@@ -13,9 +13,9 @@ events are made up; "now" is Sunday 15 Nov, 10:30.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 
@@ -24,8 +24,13 @@ import preview_screens as ps  # noqa: E402
 
 # The default theme (theme.h): flat background, cards with an accent outline.
 OUTLINE = {
-    "frame": (14, 16, 20), "edge": (60, 66, 76), "panel": (30, 34, 42), "ink": (232, 236, 240),
-    "muted": (150, 156, 166), "title": (232, 236, 240), "accent": (0, 200, 220),
+    "frame": (14, 16, 20),
+    "edge": (60, 66, 76),
+    "panel": (30, 34, 42),
+    "ink": (232, 236, 240),
+    "muted": (150, 156, 166),
+    "title": (232, 236, 240),
+    "accent": (0, 200, 220),
 }
 
 # (kind, day, time or "", title): the rows build_agenda() makes from them.
@@ -47,7 +52,7 @@ ROWS = [
 
 
 def mix(a, b, k):
-    return tuple(int(x + (y - x) * k) for x, y in zip(a, b))
+    return tuple(int(x + (y - x) * k) for x, y in zip(a, b, strict=False))
 
 
 def outline_frame(s, title):
@@ -56,7 +61,7 @@ def outline_frame(s, title):
     d = ImageDraw.Draw(img)
     hh = s.l["header"][3]
     d.text((s.w // 2, hh // 2), title, font=s.text, fill=t["title"], anchor="mm")
-    d.text((s.px(22), hh // 2), "\U000F0141", font=s.icons, fill=t["title"], anchor="mm")
+    d.text((s.px(22), hh // 2), "\U000f0141", font=s.icons, fill=t["title"], anchor="mm")
     return img
 
 
@@ -82,8 +87,13 @@ def agenda(s, wood: bool, scroll: int, focus: int | None) -> Image.Image:
         top = y + top0 + (i - scroll) * row_h
         mid = top + row_h // 2
         if row[0] == "H":
-            d.text((left, top + row_h - s.px(7)), ps.fit(d, s.text, row[1], right - left), font=s.text, fill=t["ink"],
-                   anchor="ls")
+            d.text(
+                (left, top + row_h - s.px(7)),
+                ps.fit(d, s.text, row[1], right - left),
+                font=s.text,
+                fill=t["ink"],
+                anchor="ls",
+            )
             ly = top + row_h - s.px(3)
             d.line((left, ly, right - 1, ly), fill=mix(t["panel"], t["muted"], 0.35))
         elif row[0] == "E":
@@ -91,12 +101,19 @@ def agenda(s, wood: bool, scroll: int, focus: int | None) -> Image.Image:
             bg = t["panel"]
             if mark == "now":
                 bg = mix(t["panel"], t["accent"], 0.2)
-                d.rounded_rectangle((left - s.px(4), top + 1, right + s.px(2), top + row_h - 2), radius=s.px(5), fill=bg)
+                d.rounded_rectangle(
+                    (left - s.px(4), top + 1, right + s.px(2), top + row_h - 2), radius=s.px(5), fill=bg
+                )
                 d.rectangle((left - s.px(4), top + 3, left - s.px(4) + 2, top + row_h - 4), fill=t["accent"])
             tc = t["accent"] if mark == "now" else (t["muted"] if mark in ("past", "allday") else t["ink"])
             d.text((left + 2, mid), ps.fit(d, s.small, when, time_w - s.px(4)), font=s.small, fill=tc, anchor="lm")
-            d.text((left + time_w, mid), ps.fit(d, s.text, title, right - left - time_w), font=s.text,
-                   fill=t["muted"] if mark == "past" else t["ink"], anchor="lm")
+            d.text(
+                (left + time_w, mid),
+                ps.fit(d, s.text, title, right - left - time_w),
+                font=s.text,
+                fill=t["muted"] if mark == "past" else t["ink"],
+                anchor="lm",
+            )
         else:
             d.text((left + 2, mid), row[1], font=s.small, fill=t["muted"], anchor="lm")
         if focus == i:

@@ -12,12 +12,12 @@ using namespace Daruma::Pomodoro;
 
 static int failures = 0;
 
-#define CHECK(cond)                                                \
-  do {                                                             \
-    if (!(cond)) {                                                 \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);  \
-      failures++;                                                  \
-    }                                                              \
+#define CHECK(cond) \
+  do { \
+    if (!(cond)) { \
+      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+      failures++; \
+    } \
   } while (0)
 
 static bool same(const std::vector<Button> &a, const std::vector<Button> &b) { return a == b; }

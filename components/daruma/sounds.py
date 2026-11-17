@@ -84,9 +84,7 @@ def _not_too_long(steps):
     return steps
 
 
-SOUNDS_SCHEMA = cv.Schema(
-    {cv.string_strict: cv.All(cv.ensure_list(_step), cv.Length(min=1), _not_too_long)}
-)
+SOUNDS_SCHEMA = cv.Schema({cv.string_strict: cv.All(cv.ensure_list(_step), cv.Length(min=1), _not_too_long)})
 
 
 def _expand(steps):
@@ -110,7 +108,6 @@ async def sounds_to_code(persona, config):
     """Gives the persona its own sounds from its `sounds:` option, if any."""
     for name, steps in config.get(CONF_SOUNDS, {}).items():
         items = ", ".join(
-            "Daruma::Synth::Step{" + ", ".join(f"{float(v)!r}f" for v in step) + "}"
-            for step in _expand(steps)
+            "Daruma::Synth::Step{" + ", ".join(f"{float(v)!r}f" for v in step) + "}" for step in _expand(steps)
         )
         cg.add(persona.set_sound(name, cg.RawExpression(f"std::vector<Daruma::Synth::Step>{{{items}}}")))

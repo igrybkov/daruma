@@ -104,12 +104,12 @@ struct Prompt {
   std::vector<std::string> options_shown;
 
   // Run time.
-  uint32_t seq{0};        // Arrival order; newer is higher.
-  bool shown{false};      // Has been on screen (its sound played).
-  bool timing{false};     // The timeout runs.
-  uint32_t ends_at{0};    // When the timeout runs out.
+  uint32_t seq{0};      // Arrival order; newer is higher.
+  bool shown{false};    // Has been on screen (its sound played).
+  bool timing{false};   // The timeout runs.
+  uint32_t ends_at{0};  // When the timeout runs out.
   uint32_t ask_ends_at{0};
-  bool answered{false};   // A choice prompt that took its answer and waits for HA.
+  bool answered{false};  // A choice prompt that took its answer and waits for HA.
 
   // Needs no answer: an info message with no button or one OK-style
   // button. Any tap dismisses it, its button included.

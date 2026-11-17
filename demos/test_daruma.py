@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 import scenario as scenarios
 from harness import expect
 
@@ -29,8 +28,13 @@ def test_pet_shows_petted(device):
 
 
 def test_doorbell_unlock(device):
-    device.show_prompt(id="door", title="Doorbell", body="Someone is at the front door.",
-                      options=["Unlock", "Talk", "Ignore"], style="urgent")
+    device.show_prompt(
+        id="door",
+        title="Doorbell",
+        body="Someone is at the front door.",
+        options=["Unlock", "Talk", "Ignore"],
+        style="urgent",
+    )
     expect(device.get_by_role("button", name="Unlock")).to_be_visible()
     expect(device).to_have_state("attention")
     expect(device).to_match_screenshot("doorbell")
@@ -226,14 +230,17 @@ def _check_props_through(device, props, seconds, what):
             kept = sum(1 for xy, v in want.items() if shot.getpixel(xy) == v)
             assert kept >= KEEP * len(want), (
                 f"{device.persona}: {what} at {t:.1f} s (state {device.state()}): "
-                f"{kept} of {len(want)} prop pixels in {box}")
+                f"{kept} of {len(want)} prop pixels in {box}"
+            )
         device.advance(0.1)
         t += 0.1
 
 
 _PROP_CASES = [
     pytest.param(persona, activity, reaction, marks=pytest.mark.persona(persona), id=f"{persona}-{activity}-{reaction}")
-    for persona, activities in ACTIVITY_PROPS.items() for activity in activities for reaction in CORE_REACTIONS
+    for persona, activities in ACTIVITY_PROPS.items()
+    for activity in activities
+    for reaction in CORE_REACTIONS
 ]
 
 
@@ -295,15 +302,21 @@ SATURDAY_EVENING = 1794707970
 RUG_SPOT = (224, 212)
 # The rug's main color per day (room.py RUG_BY_WEEKDAY), and plain red.
 RUG_MAIN = {
-    "plain": (150, 58, 58), "Sunday": (236, 228, 210), "Monday": (58, 92, 160), "Tuesday": (222, 182, 48),
-    "Wednesday": (62, 128, 76), "Thursday": (100, 62, 40), "Friday": (214, 104, 146), "Saturday": (112, 70, 150),
+    "plain": (150, 58, 58),
+    "Sunday": (236, 228, 210),
+    "Monday": (58, 92, 160),
+    "Tuesday": (222, 182, 48),
+    "Wednesday": (62, 128, 76),
+    "Thursday": (100, 62, 40),
+    "Friday": (214, 104, 146),
+    "Saturday": (112, 70, 150),
 }
 
 
 def rug_day(device) -> str:
     """The day whose rug color the screen shows at RUG_SPOT."""
     px = device.screenshot().getpixel(RUG_SPOT)
-    return min(RUG_MAIN, key=lambda day: sum((a - b) ** 2 for a, b in zip(RUG_MAIN[day], px)))
+    return min(RUG_MAIN, key=lambda day: sum((a - b) ** 2 for a, b in zip(RUG_MAIN[day], px, strict=False)))
 
 
 @pytest.mark.persona("Pixel corgi")

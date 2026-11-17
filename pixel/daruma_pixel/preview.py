@@ -1,6 +1,6 @@
 """Preview the pixel corgi: mood grid, UI mock, and a wag GIF.
 
-    uv run python -m daruma_pixel.preview OUT_DIR [PIXEL_FONT.ttf]
+uv run python -m daruma_pixel.preview OUT_DIR [PIXEL_FONT.ttf]
 """
 
 from __future__ import annotations
@@ -10,12 +10,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-
 from .corgi import CORGI, H, W
+from .moods import ANIMATIONS, HAPPY, wag_cycle
 from .pet import Pet
-from .room import Room
-from .moods import ANIMATIONS, wag_cycle, HAPPY
 from .pixelkit import upscale
+from .room import Room
 
 SCALE = 3
 
@@ -47,7 +46,12 @@ def wood_panel(d: ImageDraw.ImageDraw, x0: int, y0: int, x1: int, y1: int) -> No
     d.rectangle((x0 + s, y0 + s, x1 - s, y0 + 2 * s - 1), fill=WOOD_LIGHT)
     d.rectangle((x0 + 3 * s, y0 + 3 * s, x1 - 3 * s, y1 - 3 * s), fill=WOOD_DARK)
     d.rectangle((x0 + 4 * s, y0 + 4 * s, x1 - 4 * s, y1 - 4 * s), fill=PAPER)
-    for cx, cy in ((x0 + s * 2, y0 + s * 2), (x1 - s * 2, y0 + s * 2), (x0 + s * 2, y1 - s * 2), (x1 - s * 2, y1 - s * 2)):
+    for cx, cy in (
+        (x0 + s * 2, y0 + s * 2),
+        (x1 - s * 2, y0 + s * 2),
+        (x0 + s * 2, y1 - s * 2),
+        (x1 - s * 2, y1 - s * 2),
+    ):
         d.rectangle((cx - 1, cy - 1, cx + 1, cy + 1), fill=(230, 200, 120))  # Brass nails.
 
 
@@ -78,7 +82,10 @@ def tomato(d: ImageDraw.ImageDraw, x: int, y: int, body, star=False) -> None:
         for r, row in enumerate(star_px):
             for col, ch in enumerate(row):
                 if ch == "Y":
-                    d.rectangle((x + (col - 4) * s, y + (r - 1) * s, x + (col - 3) * s - 1, y + (r) * s - 1), fill=(255, 210, 60))
+                    d.rectangle(
+                        (x + (col - 4) * s, y + (r - 1) * s, x + (col - 3) * s - 1, y + (r) * s - 1),
+                        fill=(255, 210, 60),
+                    )
     for r, row in enumerate(sprite):
         for col, ch in enumerate(row):
             color = {"L": (60, 130, 50), "B": body, "H": (255, 220, 210)}.get(ch)
@@ -158,8 +165,13 @@ def main(out: Path, font_path: str | None) -> None:
     frames = [upscale(scene(p), SCALE).convert("RGB") for p, _ in cyc * 3]
     frames[0].save(out / "wag.gif", save_all=True, append_images=frames[1:], duration=70, loop=0)
     neutral = [upscale(scene(p), SCALE).convert("RGB") for p, _ in ANIMATIONS["Neutral"]]
-    neutral[0].save(out / "neutral.gif", save_all=True, append_images=neutral[1:],
-                    duration=[ms for _, ms in ANIMATIONS["Neutral"]], loop=0)
+    neutral[0].save(
+        out / "neutral.gif",
+        save_all=True,
+        append_images=neutral[1:],
+        duration=[ms for _, ms in ANIMATIONS["Neutral"]],
+        loop=0,
+    )
 
     ui = Image.new("RGB", (320 * 3 + 20, 240), (255, 255, 255))
     ui.paste(ui_idle(scene(ANIMATIONS["Happy"][2][0]), font), (0, 0))

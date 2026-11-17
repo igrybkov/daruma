@@ -25,15 +25,15 @@ enum class InfoPlace : uint8_t { BOTTOM, TOP, OFF };
 struct Theme {
   ThemeStyle style{ThemeStyle::OUTLINE};
   InfoPlace info_line{InfoPlace::BOTTOM};
-  esphome::Color frame{14, 16, 20};      // Behind everything.
-  esphome::Color edge{60, 66, 76};       // Card edges, the paper header bar.
-  esphome::Color panel{30, 34, 42};      // Cards and the app area.
-  esphome::Color ink{232, 236, 240};     // Text on cards.
-  esphome::Color muted{150, 156, 166};   // Secondary text on cards.
-  esphome::Color title{232, 236, 240};   // Text on the frame (headers).
-  esphome::Color accent{0, 200, 220};    // Outlines, pins, highlights.
-  esphome::Color dot{60, 66, 76};        // Inactive page dots.
-  esphome::Color dock{30, 34, 42};       // The dock panel over the persona.
+  esphome::Color frame{14, 16, 20};     // Behind everything.
+  esphome::Color edge{60, 66, 76};      // Card edges, the paper header bar.
+  esphome::Color panel{30, 34, 42};     // Cards and the app area.
+  esphome::Color ink{232, 236, 240};    // Text on cards.
+  esphome::Color muted{150, 156, 166};  // Secondary text on cards.
+  esphome::Color title{232, 236, 240};  // Text on the frame (headers).
+  esphome::Color accent{0, 200, 220};   // Outlines, pins, highlights.
+  esphome::Color dot{60, 66, 76};       // Inactive page dots.
+  esphome::Color dock{30, 34, 42};      // The dock panel over the persona.
   esphome::Color dock_ink{232, 236, 240};
   esphome::Color dock_muted{150, 156, 166};
   // When set, every app icon on the board uses it instead of the app's color.

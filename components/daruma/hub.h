@@ -33,20 +33,20 @@ namespace Daruma {
 // screen; once a screen is open, gestures arrive here instead. Touch gestures
 // carry the point (x, y); navigation from buttons or a knob carries -1, -1.
 enum class Input {
-  TAP,          // short tap on the screen (x, y set)
-  HOLD,         // hold on the screen
-  LONG_HOLD,    // long hold on the screen
-  SWIPE_LEFT,   // quick flick across the screen (x, y = where it started)
+  TAP,         // short tap on the screen (x, y set)
+  HOLD,        // hold on the screen
+  LONG_HOLD,   // long hold on the screen
+  SWIPE_LEFT,  // quick flick across the screen (x, y = where it started)
   SWIPE_RIGHT,
   SWIPE_UP,
   SWIPE_DOWN,
-  STROKE,       // finger rubbed back and forth, like petting
-  BACK,         // navigation: one level back (the board's `back` input)
-  CLOSE,        // navigation: close it all
-  NEXT,         // navigation without touch: move the focus on
+  STROKE,  // finger rubbed back and forth, like petting
+  BACK,    // navigation: one level back (the board's `back` input)
+  CLOSE,   // navigation: close it all
+  NEXT,    // navigation without touch: move the focus on
   PREV,
   SELECT,
-  DISMISS,      // close transient UI (sent to every handler)
+  DISMISS,  // close transient UI (sent to every handler)
 };
 
 // A button in the menu dock: a colored circle with an icon, the label under it.
@@ -82,7 +82,7 @@ struct MenuItem {
 struct AppView {
   esphome::display::Display &display;
   const Theme &theme;
-  int x, y, w, h;  // The app area (Layout::content); draw inside it.
+  int x, y, w, h;                     // The app area (Layout::content); draw inside it.
   esphome::display::BaseFont *text;   // Names, numbers.
   esphome::display::BaseFont *small;  // Labels, captions.
   esphome::display::BaseFont *icons;  // Material Design Icons.

@@ -58,9 +58,7 @@ void ImagePersona::draw_still(esphome::display::Display &display, StateId state)
   this->drawn_ = nullptr;  // Force the next idle frame.
 }
 
-bool ImagePersona::needs_redraw(StateId state) {
-  return this->pick_(this->frames_for_(state)) != this->drawn_;
-}
+bool ImagePersona::needs_redraw(StateId state) { return this->pick_(this->frames_for_(state)) != this->drawn_; }
 
 bool ImagePersona::draw_delta(esphome::display::Display &display, StateId state) {
   this->delta_ = Rect{};
@@ -70,8 +68,7 @@ bool ImagePersona::draw_delta(esphome::display::Display &display, StateId state)
     return true;
   // Only a change within one set (main, blink, wink) is a small change.
   const Sprite *drawn = this->drawn_;
-  if (drawn == nullptr || image == nullptr ||
-      (drawn != frames.main && drawn != frames.blink && drawn != frames.wink))
+  if (drawn == nullptr || image == nullptr || (drawn != frames.main && drawn != frames.blink && drawn != frames.wink))
     return false;
   const Rect box = this->diff_box_(drawn, image);
   if (!box.empty()) {
@@ -102,8 +99,8 @@ Rect ImagePersona::diff_box_(const Sprite *a, const Sprite *b) {
       const uint8_t *pa = ra.next();
       const uint8_t *pb = rb.next();
       for (int x = 0; x < a->width(); x++) {
-        const bool same = a->is_clear(pa[x]) ? b->is_clear(pb[x])
-                                              : !b->is_clear(pb[x]) && a->color(pa[x]) == b->color(pb[x]);
+        const bool same =
+            a->is_clear(pa[x]) ? b->is_clear(pb[x]) : !b->is_clear(pb[x]) && a->color(pa[x]) == b->color(pb[x]);
         if (!same) {
           x0 = std::min(x0, x);
           x1 = std::max(x1, x);

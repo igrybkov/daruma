@@ -191,8 +191,7 @@ static std::string check_marks(const std::vector<std::string> &marks, size_t opt
 std::string PromptController::show(const std::string &id, const std::string &layout, const std::string &title,
                                    const std::string &body, const std::vector<std::string> &options,
                                    const std::vector<std::string> &marks, const std::string &style, int timeout_s,
-                                   const std::string &state, const std::string &sound, bool dismissable,
-                                   uint32_t ask) {
+                                   const std::string &state, const std::string &sound, bool dismissable, uint32_t ask) {
   Prompt p;
   if (id.empty() || id.size() > MAX_ID)
     return "id: give 1 to 64 characters";
@@ -279,8 +278,8 @@ std::string PromptController::close(const std::string &id) {
   return "";
 }
 
-void PromptController::ask(uint32_t call_id, const std::string &id, const std::string &layout,
-                           const std::string &title, const std::string &body, const std::vector<std::string> &options,
+void PromptController::ask(uint32_t call_id, const std::string &id, const std::string &layout, const std::string &title,
+                           const std::string &body, const std::vector<std::string> &options,
                            const std::vector<std::string> &marks, const std::string &style, int timeout_s,
                            const std::string &state, const std::string &sound, bool dismissable) {
   AskState &a = this->asks_[call_id];
@@ -441,8 +440,7 @@ PromptGeometry PromptController::geometry_(Display &d, const PromptMetrics &m, c
   const int n = p.options.size();
   // The body's lines at the card's width, so the card can grow to hold them.
   const int w = prompt_layout::inner_width(l, urgent);
-  const int lines =
-      p.body_shown.empty() ? 0 : (int) Utilities::Text::wrap(d, this->text_font_, p.body_shown, w).size();
+  const int lines = p.body_shown.empty() ? 0 : (int) Utilities::Text::wrap(d, this->text_font_, p.body_shown, w).size();
   switch (p.layout) {
     case PromptLayout::CHOICE:
       return prompt_layout::choice(l, m, n, std::min(lines, 3), urgent, title, bar);
@@ -658,8 +656,8 @@ void PromptController::draw_prompt_(Display &d, Prompt &p) {
     case PromptLayout::CHOICE: {
       // The question in the title font when it fits, else the text font.
       const int tl = m.title_line;
-      BaseFont *font =
-          paint.lines(this->title_font_, p.body_shown, g.body.w) * tl <= g.body.h ? this->title_font_ : this->text_font_;
+      BaseFont *font = paint.lines(this->title_font_, p.body_shown, g.body.w) * tl <= g.body.h ? this->title_font_
+                                                                                               : this->text_font_;
       paint.wrapped(g.body, font, p.body_shown, t.ink, t.panel, true);
       break;
     }

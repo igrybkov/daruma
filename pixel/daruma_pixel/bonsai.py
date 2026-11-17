@@ -42,8 +42,10 @@ BARK_LIGHT = (140, 104, 74)
 BARK_DARK = (70, 48, 36)
 
 # Foliage tones: dark, mid, light, highlight.
-LEAF = {False: ((38, 84, 52), (60, 120, 62), (98, 160, 80), (150, 198, 104)),
-        True: ((104, 74, 40), (150, 108, 50), (186, 144, 70), (210, 176, 98))}
+LEAF = {
+    False: ((38, 84, 52), (60, 120, 62), (98, 160, 80), (150, 198, 104)),
+    True: ((104, 74, 40), (150, 108, 50), (186, 144, 70), (210, 176, 98)),
+}
 
 # The full tree, as points up the trunk from the soil (x, y).
 TRUNK = [(94, 38), (93, 36), (92, 34), (92, 32), (93, 30), (95, 28), (96, 26), (95, 24), (94, 23)]
@@ -105,7 +107,7 @@ def _trunk(L: Layer, k: float, stage: int) -> list[tuple[float, float]]:
     base_w = 1 if stage <= 2 else 2 if stage <= 4 else 3
     # Walk the polyline in small steps so the line has no gaps.
     path = []
-    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False):
         n = max(1, round(max(abs(x1 - x0), abs(y1 - y0)) * 2))
         for i in range(n):
             t = i / n
@@ -191,7 +193,7 @@ def _seedling(L: Layer, wilted: bool) -> None:
 def _fallen(L: Layer, stage: int) -> None:
     """A few dead needles on the table, more on a bigger tree."""
     spots = [(CX - 7, TABLE_TOP - 1), (CX + 7, TABLE_TOP - 1), (CX - 6, TABLE_TOP - 1), (CX + 6, TABLE_TOP - 1)]
-    for x, y in spots[:1 + stage // 2]:
+    for x, y in spots[: 1 + stage // 2]:
         L.dot(x, y, LEAF[True][1])
 
 
@@ -208,9 +210,9 @@ def plant(stage: int, wilted: bool = False) -> Image.Image:
     pts = _trunk(L, k, stage)
     pads = [(c, rx, ry, root) for c, rx, ry, root, first in PADS if stage >= first]
     size = 0.55 + 0.45 * k  # Pads grow fuller as the tree grows.
-    for c, rx, ry, root in pads:
+    for c, _rx, _ry, root in pads:
         _branch(L, _grown(root, k), _grown(c, k))
-    for c, rx, ry, root in pads:
+    for c, rx, ry, _root in pads:
         x, y = _grown(c, k)
         _pad(L, x, y, rx * size, ry * (0.7 + 0.3 * k), wilted)
     (ax, ay), arx, ary = APEX

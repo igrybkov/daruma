@@ -35,7 +35,8 @@ void CalendarView::draw(AppView &v, const CalendarViewState &state) {
   this->time_w_ = v.px(54);
   this->arrow_w_ = v.px(46);
   this->draw_bar_(v, state);
-  v.display.horizontal_line(v.x + this->pad_, v.y + this->bar_h_, v.w - 2 * this->pad_, mix(v.theme.panel, v.theme.muted, 0.35f));
+  v.display.horizontal_line(v.x + this->pad_, v.y + this->bar_h_, v.w - 2 * this->pad_,
+                            mix(v.theme.panel, v.theme.muted, 0.35f));
   this->draw_list_(v, state);
 }
 
@@ -75,8 +76,7 @@ void CalendarView::draw_bar_(AppView &v, const CalendarViewState &state) {
   const int baseline = cy + v.px(6);
   v.display.print(left, baseline, v.text, t.ink, TextAlign::BASELINE_LEFT, label.c_str(), t.panel);
   if (!date.empty()) {
-    v.display.print(left + label_w + gap, baseline, v.small, t.muted, TextAlign::BASELINE_LEFT, date.c_str(),
-                    t.panel);
+    v.display.print(left + label_w + gap, baseline, v.small, t.muted, TextAlign::BASELINE_LEFT, date.c_str(), t.panel);
   }
 }
 
@@ -143,8 +143,8 @@ void CalendarView::draw_list_(AppView &v, const CalendarViewState &state) {
       this->draw_row_(v, state, day.events[i], i == next, row_top, right);
     } else {
       const std::string more = "+" + std::to_string(day.total - events) + " " + state.more_text;
-      v.display.print(v.x + this->pad_ + 2, row_top + this->row_h_ / 2, v.small, t.muted, TextAlign::CENTER_LEFT, more.c_str(),
-                      t.panel);
+      v.display.print(v.x + this->pad_ + 2, row_top + this->row_h_ / 2, v.small, t.muted, TextAlign::CENTER_LEFT,
+                      more.c_str(), t.panel);
     }
     if (i + 1 < last)
       v.display.horizontal_line(v.x + this->pad_, row_top + this->row_h_ - 1, right - v.x - this->pad_, line);
@@ -170,8 +170,8 @@ void CalendarView::draw_list_(AppView &v, const CalendarViewState &state) {
   }
 }
 
-void CalendarView::draw_row_(AppView &v, const CalendarViewState &state, const CalendarEvent &event, bool next,
-                             int top, int right) {
+void CalendarView::draw_row_(AppView &v, const CalendarViewState &state, const CalendarEvent &event, bool next, int top,
+                             int right) {
   const Theme &t = v.theme;
   const bool now = state.is_today && event.is_now(state.now);
   const bool past = state.is_today && event.is_past(state.now);
@@ -180,7 +180,8 @@ void CalendarView::draw_row_(AppView &v, const CalendarViewState &state, const C
   Color bg = t.panel;
   if (now) {
     bg = mix(t.panel, t.accent, 0.2f);
-    Utilities::Draw::roundedRectangle(&v.display, v.x + this->pad_ - 4, top + 1, right - v.x - this->pad_ + 6, this->row_h_ - 3, 5, bg);
+    Utilities::Draw::roundedRectangle(&v.display, v.x + this->pad_ - 4, top + 1, right - v.x - this->pad_ + 6,
+                                      this->row_h_ - 3, 5, bg);
     v.display.filled_rectangle(v.x + this->pad_ - 4, top + 3, 3, this->row_h_ - 7, t.accent);
   }
 
@@ -190,7 +191,7 @@ void CalendarView::draw_row_(AppView &v, const CalendarViewState &state, const C
   } else {
     // Times outside this day (an event from last night, or one that runs
     // past midnight) show as "…".
-        const std::string from = event.start < state.day->start ? "…" : local_hhmm(event.start);
+    const std::string from = event.start < state.day->start ? "…" : local_hhmm(event.start);
     const std::string to = event.end > state.day->end ? "…" : local_hhmm(event.end);
     const Color from_color = (now || next) ? t.accent : (past ? t.muted : t.ink);
     v.display.print(time_x, mid - v.px(7), v.small, from_color, TextAlign::CENTER_LEFT, from.c_str(), bg);

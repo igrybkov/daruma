@@ -30,9 +30,7 @@ class FocusRing {
   int count() const { return this->count_; }
   int index() const { return this->index_; }
   bool valid() const { return this->index_ >= 0; }
-  void set(int index) {
-    this->index_ = this->count_ == 0 ? -1 : std::max(0, std::min(index, this->count_ - 1));
-  }
+  void set(int index) { this->index_ = this->count_ == 0 ? -1 : std::max(0, std::min(index, this->count_ - 1)); }
   void reset() { this->set(0); }
 
   // Moves on by one. At the end it wraps around (or stays, without wrap).

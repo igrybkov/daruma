@@ -20,6 +20,7 @@ W, H = 106, 80
 WINDOW = (8, 8, 24, 21)  # Glass: x, y, width, height. The cross bars stay in the room.
 RUG_BOX = (0, H - 13, W, H)  # Where the weekday colors may be: the rug, on the floor.
 
+
 @dataclass(frozen=True)
 class Room:
     """A cozy room: plank wall, a window, a shelf for the plant, floor boards
@@ -55,10 +56,14 @@ class Room:
         return img
 
     def layers(self) -> dict:
-        return {"plant": _plant.plant, "PLANT_STAGES": _plant.STAGES, "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
-                "RUG_COLORS": (self.rug_edge, self.rug, self.rug_shadow), "RUG_BY_WEEKDAY": RUG_BY_WEEKDAY,
-                "RUG_BOX": RUG_BOX}
-
+        return {
+            "plant": _plant.plant,
+            "PLANT_STAGES": _plant.STAGES,
+            "DEFAULT_STAGE": _plant.DEFAULT_STAGE,
+            "RUG_COLORS": (self.rug_edge, self.rug, self.rug_shadow),
+            "RUG_BY_WEEKDAY": RUG_BY_WEEKDAY,
+            "RUG_BOX": RUG_BOX,
+        }
 
 
 # The rug changes color with the day of the week, in the colors people most
@@ -68,12 +73,12 @@ class Room:
 # the room's three rug colors for the day's (edge, main, shadow), Sunday first.
 RUG_BY_WEEKDAY = (
     ((184, 150, 104), (236, 228, 210), (204, 192, 170)),  # Sunday: white
-    ((204, 170, 112), (58, 92, 160), (44, 70, 126)),      # Monday: blue
-    ((236, 214, 160), (222, 182, 48), (180, 144, 32)),    # Tuesday: yellow
-    ((206, 172, 100), (62, 128, 76), (46, 98, 58)),       # Wednesday: green
-    ((206, 164, 110), (100, 62, 40), (78, 46, 30)),       # Thursday: brown, obviously
-    ((228, 190, 144), (214, 104, 146), (172, 78, 114)),   # Friday: pink
-    ((206, 166, 108), (112, 70, 150), (86, 52, 118)),     # Saturday: purple
+    ((204, 170, 112), (58, 92, 160), (44, 70, 126)),  # Monday: blue
+    ((236, 214, 160), (222, 182, 48), (180, 144, 32)),  # Tuesday: yellow
+    ((206, 172, 100), (62, 128, 76), (46, 98, 58)),  # Wednesday: green
+    ((206, 164, 110), (100, 62, 40), (78, 46, 30)),  # Thursday: brown, obviously
+    ((228, 190, 144), (214, 104, 146), (172, 78, 114)),  # Friday: pink
+    ((206, 166, 108), (112, 70, 150), (86, 52, 118)),  # Saturday: purple
 )
 
 
@@ -116,5 +121,3 @@ def room(r: Room) -> Image.Image:
                     px[W // 2 + dx, y] = (*r.rug_edge, 255)
     d.ellipse((W // 2 - 24, H - 9, W // 2 + 24, H - 4), fill=r.rug_shadow)
     return img
-
-

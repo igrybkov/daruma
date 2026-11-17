@@ -36,9 +36,8 @@ struct Look {
 
 // One per entry of LOOKS in __init__.py, in the same order.
 static const Look LOOKS[] = {
-    {NEUTRAL, 0, 0, 1.0f},   {HAPPY, 0, 0, 1.0f},  {SAD, 0, 0, 1.0f},     {LOVED, 0, 0, 1.0f},
-    {SCARED, 0, 0, 1.0f},    {SLEEPY, 0, 0, 1.0f}, {SLEEPING, 0, 0, 1.0f},
-    {NEUTRAL, 0, -15, 1.0f},  // listening: eyes up.
+    {NEUTRAL, 0, 0, 1.0f},   {HAPPY, 0, 0, 1.0f},    {SAD, 0, 0, 1.0f},       {LOVED, 0, 0, 1.0f}, {SCARED, 0, 0, 1.0f},
+    {SLEEPY, 0, 0, 1.0f},    {SLEEPING, 0, 0, 1.0f}, {NEUTRAL, 0, -15, 1.0f},  // listening: eyes up.
     {NEUTRAL, 30, 10, 1.0f},  // thinking: a glance aside while HA works.
     {NEUTRAL, 0, 30, 0.5f},   // focus: eyes down and narrowed, as if reading.
 };

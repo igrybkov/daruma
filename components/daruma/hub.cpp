@@ -123,10 +123,10 @@ void Hub::dump_config() {
   ESP_LOGCONFIG(TAG, "Daruma hub: %d states", state_count());
   const DisplayProfile &p = this->profile();
   static const char *const COLORS[] = {"full", "gray4", "mono"};
-  ESP_LOGCONFIG(TAG, "  Screen: %dx%d %s, unit %.2f; colors %s, %s, frames >= %u ms%s",
-                this->layout_.width, this->layout_.height, size_class_name(this->layout_.size_class),
-                this->layout_.unit, COLORS[(int) p.colors], p.animate ? "animated" : "stills",
-                (unsigned) p.min_frame_ms, p.partial_refresh ? "" : ", full refresh");
+  ESP_LOGCONFIG(TAG, "  Screen: %dx%d %s, unit %.2f; colors %s, %s, frames >= %u ms%s", this->layout_.width,
+                this->layout_.height, size_class_name(this->layout_.size_class), this->layout_.unit,
+                COLORS[(int) p.colors], p.animate ? "animated" : "stills", (unsigned) p.min_frame_ms,
+                p.partial_refresh ? "" : ", full refresh");
   for (auto *persona : this->personas_) {
     ESP_LOGCONFIG(TAG, "  Persona: %s%s", persona->get_name().c_str(), persona == this->persona_ ? " (active)" : "");
   }
@@ -237,8 +237,7 @@ void Hub::decay_happiness() {
 
 void Hub::force_mood(const std::string &mood) {
   StateId id;
-  if (mood.empty() || mood == "Auto" || !state_by_name(mood.c_str(), &id) ||
-      state_info(id).kind != StateKind::MOOD) {
+  if (mood.empty() || mood == "Auto" || !state_by_name(mood.c_str(), &id) || state_info(id).kind != StateKind::MOOD) {
     this->has_forced_mood_ = false;
     ESP_LOGI(TAG, "Forced mood: (auto)");
     return;
@@ -263,9 +262,7 @@ void Hub::set_hardware_mute(bool muted) {
   this->dirty_ = true;
 }
 
-bool Hub::has_happiness_changed_(uint32_t ms) const {
-  return esphome::millis() - this->last_happiness_change_ < ms;
-}
+bool Hub::has_happiness_changed_(uint32_t ms) const { return esphome::millis() - this->last_happiness_change_ < ms; }
 
 bool Hub::has_mood_changed_(uint32_t ms) const { return esphome::millis() - this->last_mood_change_ < ms; }
 
@@ -295,7 +292,7 @@ void Hub::apply_layout_(int width, int height) {
 }
 
 void Hub::set_profile(int colors, bool animate, uint32_t min_frame_ms, bool partial_refresh,
-                        uint16_t full_refresh_every) {
+                      uint16_t full_refresh_every) {
   DisplayProfile profile;
   profile.colors = static_cast<ColorMode>(colors);
   profile.animate = animate;
@@ -424,8 +421,8 @@ void Hub::set_sky(const std::string &sky) {
   static const struct {
     const char *name;
     Sky sky;
-  } SKIES[] = {{"Clear", Sky::CLEAR}, {"Cloudy", Sky::CLOUDY}, {"Rain", Sky::RAIN},
-               {"Snow", Sky::SNOW},   {"Night", Sky::NIGHT}};
+  } SKIES[] = {
+      {"Clear", Sky::CLEAR}, {"Cloudy", Sky::CLOUDY}, {"Rain", Sky::RAIN}, {"Snow", Sky::SNOW}, {"Night", Sky::NIGHT}};
   for (const auto &entry : SKIES) {
     if (sky == entry.name) {
       if (this->signals_.sky != entry.sky) {
@@ -585,8 +582,7 @@ bool Hub::needs_redraw() {
   return this->profile().animate && this->persona_ != nullptr && this->persona_->needs_redraw(state);
 }
 
-template<typename T>
-void Hub::insert_sorted_(std::vector<Ordered<T>> &list, int order, T value, bool descending) {
+template<typename T> void Hub::insert_sorted_(std::vector<Ordered<T>> &list, int order, T value, bool descending) {
   auto it = std::find_if(list.begin(), list.end(), [&](const Ordered<T> &entry) {
     return descending ? entry.order < order : entry.order > order;
   });
@@ -595,9 +591,7 @@ void Hub::insert_sorted_(std::vector<Ordered<T>> &list, int order, T value, bool
 
 void Hub::add_layer(int order, Layer layer) { insert_sorted_(this->layers_, order, std::move(layer), false); }
 
-void Hub::add_screen(int priority, Screen screen) {
-  insert_sorted_(this->screens_, priority, std::move(screen), true);
-}
+void Hub::add_screen(int priority, Screen screen) { insert_sorted_(this->screens_, priority, std::move(screen), true); }
 
 // --- Actions ----------------------------------------------------------------
 
@@ -651,8 +645,7 @@ std::vector<std::string> Hub::action_names() const {
 
 // --- Inputs -------------------------------------------------------------------
 
-int Hub::add_input(const std::string &name, bool touch, uint32_t double_ms, uint32_t hold_ms,
-                     uint32_t long_hold_ms) {
+int Hub::add_input(const std::string &name, bool touch, uint32_t double_ms, uint32_t hold_ms, uint32_t long_hold_ms) {
   InputSlot slot{name, touch, PressRecognizer(touch ? Gesture::TAP : Gesture::PRESS, touch)};
   slot.press.set_timing(PressTiming{double_ms, hold_ms, long_hold_ms});
   this->inputs_.push_back(std::move(slot));
@@ -857,7 +850,7 @@ std::vector<MenuItem> Hub::menu_items() {
 }
 
 void Hub::add_menu_entry(const std::string &menu, uint8_t kind, const std::string &id, const std::string &label,
-                           const std::string &icon, const std::string &color) {
+                         const std::string &icon, const std::string &color) {
   this->menus_[menu].push_back(MenuEntry{static_cast<MenuEntry::Kind>(kind), id, label, icon, color});
 }
 
@@ -904,8 +897,8 @@ std::vector<MenuItem> Hub::menu_items(const std::string &menu) {
       case MenuEntry::ACTION: {
         const esphome::Color bg = entry_color(theme, entry.color);
         const std::string action = entry.id;
-        MenuItem item = MenuItem::make(entry.label, entry.icon, bg, ink_for(bg),
-                                       [this, action]() { this->run_action(action); });
+        MenuItem item =
+            MenuItem::make(entry.label, entry.icon, bg, ink_for(bg), [this, action]() { this->run_action(action); });
         auto look = this->action_buttons_.find(action);
         if (look != this->action_buttons_.end() && !look->second(item))
           break;  // Makes no sense now.

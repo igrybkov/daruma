@@ -203,7 +203,7 @@ one fails, and fails at the end.
 | Lint | `gitlint` on each commit of the pull request; ruff, clang-format, complexipy, lizard; clang-tidy on the host tests and the headers they include |
 | ESPHome | `make config` (every file in `examples/`), then `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
 | Screen tests | tests 3 and 4 above, in one job with one build |
-| Previews | demo GIFs and contact sheets, uploaded as an artifact |
+| Previews (standard, wide-square) | demo GIFs and contact sheets, uploaded as artifacts; two jobs side by side |
 | Pull request title | the title is a Conventional Commit |
 
 The examples fetch Daruma with git. In CI they fetch the checkout under
@@ -229,7 +229,7 @@ from the run's summary page.
 Every run also records preview GIFs: `highlight`, `work`, `emotions`
 and `activities` for every persona, and `highlight` on the wide and
 square screens. Each scenario gets a contact sheet. A pull request gets one comment that links to
-the run's `previews` artifact. Pull
+the run's artifacts (`preview-standard`, `preview-wide-square`). Pull
 request artifacts stay 14 days, main's stay
 90. The GIFs come from the desktop build of the same packages. So they
 match the device's screens, but they are not recorded on the ESP32.

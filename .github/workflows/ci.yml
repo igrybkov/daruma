@@ -338,16 +338,26 @@ jobs:
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the
-  # full showcase; the wide and square screens record highlight only.
+  # full showcase; the wide and square screens record highlight only. Two
+  # jobs side by side: in one, the previews ran far longer than any test.
   previews:
-    name: Previews
+    name: Previews (${{ matrix.name }})
     runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
       contents: read
       pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: standard
+            variants: standard
+          - name: wide-square
+            variants: wide square
     env:
       DARUMA_WORK: ${{ github.workspace }}/ci-work
+      VARIANTS: ${{ matrix.variants }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -377,7 +387,7 @@ jobs:
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       - name: Record the GIFs
         run: |
-          for variant in standard wide square; do
+          for variant in $VARIANTS; do
             want="highlight"
             if [ "$variant" = standard ]; then want="highlight work emotions activities"; fi
             have=""
@@ -398,29 +408,31 @@ jobs:
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: previews
+          name: preview-${{ matrix.name }}
           path: ${{ env.DARUMA_WORK }}/preview
           retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
       - name: Describe the previews
         env:
+          NAME: ${{ matrix.name }}
           URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
           dir="$DARUMA_WORK/preview"
           {
-            echo "### Previews"
-            echo "[previews]($URL): $(du -sh "$dir" | cut -f1)."
+            echo "### Previews: $NAME"
+            echo "[preview-$NAME]($URL): $(du -sh "$dir" | cut -f1)."
             sed 's/^/- /; s/,/, /g' "$RUNNER_TEMP/scenarios.txt"
             echo "$(find "$dir/gifs" -name '*.gif' | wc -l | tr -d ' ') GIFs, one contact sheet per scenario."
           } >> "$GITHUB_STEP_SUMMARY"
-      # A pull request from a fork gets a read-only token, so no comment.
+      # One comment names both jobs' artifacts. A pull request from a fork
+      # gets a read-only token, so no comment.
       - name: Comment on the pull request
         if: >-
-          github.event_name == 'pull_request' &&
+          matrix.name == 'standard' && github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: previews
           message: |
-            **Previews** for ${{ github.event.pull_request.head.sha }}: demo GIFs and contact sheets from the desktop build, in the [run's artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (`previews`). Failed screen tests add `screens`, with expected, actual and diff side by side.
+            **Previews** for ${{ github.event.pull_request.head.sha }}: demo GIFs and contact sheets from the desktop build, in the [run's artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (`preview-standard`, `preview-wide-square`). Failed screen tests add `screens`, with expected, actual and diff side by side.
 
             They come from the desktop build of the same packages, so they match the device's screens. They are not recorded on the ESP32.

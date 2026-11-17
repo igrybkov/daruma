@@ -26,9 +26,10 @@ from typing import Any
 
 import pytest
 
-ROOT = Path(__file__).resolve().parent.parent
-# Built and run by their own Python tests.
-NOT_COLLECTED = {"test_frames.cpp"}
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+# Paths relative to HERE. Built and run by their own Python tests.
+NOT_COLLECTED = {Path("test_frames.cpp")}
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -36,9 +37,13 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_collect_file(parent: pytest.Collector, file_path: Path) -> "CppFile | None":
-    if file_path.suffix == ".cpp" and file_path.name.startswith("test_") and file_path.name not in NOT_COLLECTED:
-        return CppFile.from_parent(parent, path=file_path)
-    return None
+    """Only the test_*.cpp files in this folder, not in its subfolders."""
+    path = file_path.resolve()
+    if path.parent != HERE or not path.match("test_*.cpp"):
+        return None
+    if path.relative_to(HERE) in NOT_COLLECTED:
+        return None
+    return CppFile.from_parent(parent, path=file_path)
 
 
 class CppFailure(Exception):

@@ -72,7 +72,7 @@ def test_focus_starts_at_once(device):
 
 
 def test_focus_from_the_menu(device):
-    device.tap(160, 100)
+    device.press("home")
     device.get_by_text("Custom").tap()
     device.get_by_text("10 min").tap()
     expect(device).to_have_state("focus")
@@ -190,7 +190,7 @@ KEEP = 0.95  # Share of the prop pixels each frame must show unchanged.
 
 def _start_focus(device):
     device.set("Pomodoro focus", 5)
-    device.tap(160, 100)
+    device.press("home")
     device.get_by_text("Focus").tap()
     expect(device).to_have_state("focus")
     device.advance(1)

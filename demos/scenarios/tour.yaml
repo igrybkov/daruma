@@ -13,8 +13,9 @@ steps:
   - pet: true
   - expect: {state: petted}
   - wait: 2.5
-  # The menu: Focus starts the 5-minute block at once.
-  - tap: [160, 100]
+  # The red circle opens the pomodoro menu: Focus starts the 5-minute block
+  # at once.
+  - press: home
   - expect: {visible: {text: Focus}}
   - snapshot: dock
   - tap: {text: Focus}

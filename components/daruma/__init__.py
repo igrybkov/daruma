@@ -55,7 +55,7 @@
       expose_bindings: true        # one select per binding above, in HA
       apps: [calendar, tasks, stats]   # board order; every app gets an "App: <Name>" switch
       menus:                       # named menus of dock buttons (registry.resolve_menus)
-        main: [pomodoro, tasks, calendar]   # a tap on the persona opens main
+        main: [tasks, calendar, weather]    # a tap on the persona opens main (default: Tasks, Calendar, More)
         quick: [pomodoro.stop, stats, more, { label: Lights, icon: "\U000F0335", event: desk_lights }]
       progress:                    # progress sources and their weights
         pomodoro: 1

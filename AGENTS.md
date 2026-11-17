@@ -43,6 +43,27 @@ The build is strict. `components/daruma/registry.py` checks every state,
 action, binding and theme key against every other, so a typo fails at
 compile time.
 
+### How the pieces connect
+
+- **States.** `components/daruma/registry.py` declares every state once,
+  with a kind (mood, activity, reaction) and a fallback. At build time it
+  becomes the X-macro `DARUMA_STATE_LIST` in `defines.h`. `states.h` turns
+  that into `enum class StateId`. Strings stay only in logs and HA selects.
+- **Precedence.** A reaction wins, then the top activity, then the mood.
+- **Modules add states** with their own fallbacks. Tasks adds `task_done`,
+  which falls back to `celebrate`.
+- **Showcase test.** `test_showcase_covers_every_state` in
+  `demos/test_daruma.py` asks the running build for its states. Every state
+  must appear in `demos/scenarios/emotions.yaml` or `activities.yaml`.
+- **Screen tests give the same frames on every run.** `demos/fakeclock.c`
+  fakes the clock and seeds the random numbers. The runner plays Home
+  Assistant with made-up data from `demos/demo_data.py`. Golden pictures
+  live in `tests/golden/<persona>/<scenario or test>/`. A failure writes
+  the actual picture, a diff and a GIF.
+- **Test API.** Screen tests find parts by text or role, like browser
+  tests: `device.get_by_role("button", name="Unlock").tap()`. Pick a
+  persona with `@pytest.mark.persona("Pixel corgi")`. The default is Eyes.
+
 ## Where things live
 
 | Path | What |
@@ -86,6 +107,29 @@ make compile
 # Everything CI blocks on
 make check
 ```
+
+### Run one test
+
+```sh
+# One Python host test (tests/)
+make test-py PYTEST_ARGS="-k test_registry"   # make always passes tests/
+uv run pytest tests/test_registry.py::<name>   # or call pytest directly
+DARUMA_SKIP_PERSONAS=1 make test-py           # skip the slow persona builds
+
+# One screen test on the desktop build (demos/)
+make test-screens PYTEST_ARGS="-k corgi -n 0"
+
+# Golden check for one persona and scenario
+make golden PERSONA=Eyes SCENARIO=emotions
+
+# Run the device in a window
+make desktop
+```
+
+The C++ host tests have no single-test switch. `tests/run_cpp.sh` builds
+each `tests/test_*.cpp` against a scratch include folder. Copy its `c++`
+line to build one by hand. `test_frames.cpp` runs through
+`tests/test_frames.py`.
 
 ## Rules
 

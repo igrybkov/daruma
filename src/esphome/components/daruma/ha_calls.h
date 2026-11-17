@@ -93,6 +93,9 @@ class HaCalls {
   // Nothing to do at `now`: no call waits for its answer, and none is ready
   // to go. Calls held back until HA has settled wait for time to pass.
   bool idle(uint32_t now) const { return !this->busy_ && (this->queue_.empty() || !this->ready(now)); }
+  // The call in flight, while busy(); the next to go, while one waits.
+  const std::string &in_flight() const { return this->sending_.what; }
+  const std::string &next() const { return this->queue_.front().what; }
   size_t queued() const { return this->queue_.size(); }
   uint32_t timeouts() const { return this->timeouts_; }
   uint32_t dropped() const { return this->dropped_; }

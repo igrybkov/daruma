@@ -62,7 +62,8 @@ class Desktop : public esphome::Component {
   bool touch_busy() const { return !this->points_.empty() || !this->releases_.empty(); }
   // The parts on screen (UiTree) as root["ui"]: [{role, name, x, y, w, h, focused, value}],
   // the turns of the main loop: root["loops"] (all) and root["turns"] (see turns_),
-  // and root["idle"], the last turn that started with nothing due (see idle_loop_).
+  // root["idle"], the last turn that started with nothing due (see idle_loop_),
+  // and root["busy"], what was due when the last turn started ("" if nothing).
   void describe(JsonObject root) const;
   // Renders the current persona's sound `name` to a WAV file, when recording.
   void sound(Hub *hub, const std::string &name);
@@ -82,8 +83,8 @@ class Desktop : public esphome::Component {
   uint32_t queue_start_();
   void add_point_(uint32_t at, int x, int y, bool down) { this->points_.push_back(Point{at, x, y, down}); }
 
-  // Nothing is due at `now`: no timer, no frame and no HA call.
-  bool idle_(uint32_t now);
+  // What is due at `now`: a timer, a frame or an HA call. Empty when nothing is.
+  std::string busy_(uint32_t now);
 
   esphome::sdl::Sdl *display_{nullptr};
   Hub *hub_{nullptr};
@@ -108,6 +109,8 @@ class Desktop : public esphome::Component {
   // turn that handled it is done by an idle turn two turns later: every
   // component has run once since, and nothing it started is left over.
   uint32_t idle_loop_{0};
+  // What was due when the last turn started, for a runner's error message.
+  std::string busy_now_;
   bool recording_{false};
   bool paused_{false};
   std::string dir_;

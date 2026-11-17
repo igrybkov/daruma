@@ -1,10 +1,18 @@
 # Packages
 
-The parts a device file lists under `packages:`. Including a package
-turns it on. Leaving it out drops it. Each file's header comment has its
-options and the Home Assistant actions it adds.
+Daruma is built from parts, and each package is one part: a board, the
+core, a persona or a feature. Your device file stays short. It names the
+parts you want, and ESPHome fetches them from this repository. To get a
+new version, change the `ref`.
 
-For a full device that uses them, see [examples/box3.yaml](../examples/box3.yaml).
+A package is an
+[ESPHome package](https://esphome.io/components/packages/): a YAML file
+that ESPHome merges into your device's config. List it under
+`packages:` to turn the part on. Leave it out and the part is gone, with
+nothing else to remove. Each file's header comment has its options and
+the Home Assistant actions it adds.
+
+For a full device file, see [examples/box3.yaml](../examples/box3.yaml).
 
 ## Board: pick one
 

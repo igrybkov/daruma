@@ -24,11 +24,10 @@ On Debian or Ubuntu, install uv, then:
 sudo apt-get install build-essential libsdl2-dev ffmpeg
 ```
 
-You don't install ESPHome by hand. `make setup` installs the test and
-lint tools from `uv.lock` into `.venv`, and ESPHome into its own locked
-environment, `.venv-esphome`. The version lives in `pyproject.toml` (the
-`esphome` dependency group). The screen tests sync `.venv-esphome`
-themselves, so you can skip this step too.
+You don't install ESPHome by hand. `make setup` installs ESPHome and the
+test and lint tools from `uv.lock` into `.venv`. The ESPHome version lives
+in `pyproject.toml` (the `esphome` dependency group). `uv run` syncs
+`.venv` before it runs anything, so you can skip this step too.
 
 Every task has a make goal. `make` alone lists them, with their
 variables. Each goal runs a short command or two; `make -n <goal>`
@@ -194,20 +193,18 @@ GitHub Actions runs [ci.yml](.github/workflows/ci.yml) on every pull
 request and on every push to main. A new push to a pull request cancels
 its old run.
 [conventional-commits.yml](.github/workflows/conventional-commits.yml)
-checks the pull request title and every commit message in it.
+checks the pull request title. Each job runs all its checks, even after
+one fails, and fails at the end.
 
 | Job | What it runs |
 |---|---|
-| Host tests (Python) | test 1 above, on the pinned Python and on 3.12 |
-| Host tests (C++) | test 2 above |
-| Config | `esphome config` for each file in `examples/` |
-| Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
+| Host tests (Python pinned) | test 1 above on the pinned Python, then test 2 |
+| Host tests (Python 3.12) | test 1 above on Python 3.12 |
+| Lint | `gitlint` on each commit of the pull request; ruff, clang-format, complexipy, lizard; clang-tidy on the host tests and the headers they include |
+| ESPHome | `make config` (every file in `examples/`), then `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
 | Screen tests | tests 3 and 4 above, in one job with one build |
-| Previews | demo GIFs and contact sheets, uploaded as artifacts |
+| Previews (standard, wide-square) | demo GIFs and contact sheets, uploaded as artifacts; two jobs side by side |
 | Pull request title | the title is a Conventional Commit |
-| Commit messages | `gitlint` on each commit of the pull request |
-| Lint | ruff, clang-format, complexipy and lizard |
-| clang-tidy | the host tests and the headers they include |
 
 The examples fetch Daruma with git. In CI they fetch the checkout under
 test, not main. To do the same on your machine, commit first, then:

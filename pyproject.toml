@@ -23,19 +23,20 @@ dependencies = ["pillow>=10"]
 [project.urls]
 Homepage = "https://github.com/igrybkov/daruma"
 
-# Tools for working on Daruma, locked in uv.lock:
+# Tools for working on Daruma, locked in uv.lock, all in one .venv:
 #
-#   uv sync                    test, lint and clang-tidy tools (the default "dev" group)
+#   uv sync                    ESPHome, test, lint and clang-tidy tools (the default "dev" group)
 #   uv run pytest              host tests and screen tests
 #
-# ESPHome has a group of its own: it pins an older aioesphomeapi than the
-# screen tests use, so the two never share an environment. The screen test
-# harness runs ESPHome from .venv-esphome; CI's ESPHome jobs sync only it:
+# The test tools include ESPHome: the screen tests build with it. CI's
+# config and compile jobs sync only ESPHome:
 #
 #   uv sync --only-group esphome --no-install-project
 [dependency-groups]
 test = [
-    "aioesphomeapi==46.30.0",
+    { include-group = "esphome" },
+    # The screen tests talk to the device with it. ESPHome pins the version.
+    "aioesphomeapi",
     "pillow>=10",
     "pytest>=9",
     "pytest-asyncio>=1.5",
@@ -63,7 +64,6 @@ environments = [
     "sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sys_platform == 'win32'",
 ]
-conflicts = [[{ group = "esphome" }, { group = "test" }]]
 
 [tool.uv.dependency-groups]
 esphome = { requires-python = ">=3.12,<3.15" }

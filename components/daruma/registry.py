@@ -366,8 +366,10 @@ def _check_action(action: str, actions: set[str], menus) -> str | None:
         return None
     base, _, menu = action.partition(":")
     if base not in actions:
+        # pragma: no mutate block, message text
         return f"'{base}', which no included module offers (offered: {', '.join(sorted(actions))})"
     if menu and menu not in menus:
+        # pragma: no mutate block, message text
         return f"the menu '{menu}', which is not defined (menus: {', '.join(sorted(menus)) or 'none'})"
     return None
 
@@ -407,7 +409,8 @@ def resolve_bindings(
     # The core module goes first, so any other module's default wins over it.
     for module in sorted(modules, key=lambda m: m.name != "daruma"):
         for trigger, action in module.bindings.items():
-            name, _, gesture = trigger.partition(".")
+            # A trigger with a second dot is skipped below either way.
+            name, _, gesture = trigger.partition(".")  # pragma: no mutate
             if name not in inputs or gesture not in inputs[name].gestures:
                 log.append(f"{module.name}: default binding {trigger} -> {action} skipped; the board has no {trigger}")
                 continue
@@ -593,6 +596,7 @@ def _theme_error(persona_id, what, key, names, declared):
     prefix = key.split(".")[0]
     if prefix not in names:
         return f"{persona_id}: theme {what} '{key}': no included module is named '{prefix}'"
+    # pragma: no mutate block, message text
     mine = sorted(k for k in declared if k.startswith(prefix + "."))
     return f"{persona_id}: theme {what} '{key}' is not one of {prefix}'s: {', '.join(mine) or 'none'}"
 
@@ -793,14 +797,17 @@ def _target_problem(target, modules: list[ModuleSpec], actions: set[str], menus)
     kind, value = next(iter(target.items()))
     has_menu = any(m.name == "menu" for m in modules)
     if kind in ("app", "menu") and not has_menu:
+        # pragma: no mutate block, message text
         return f"opens {'an app' if kind == 'app' else 'a menu'}, which needs the menu (include menu.yaml)"
     if kind == "app":
         apps = [a for m in modules for a in m.apps]
         if value not in apps:
+            # pragma: no mutate block, message text
             return f"opens the app '{value}', which no included module offers (apps: {', '.join(apps) or 'none'})"
         return None
     if kind == "menu":
         if value not in menus:
+            # pragma: no mutate block, message text
             return f"opens the menu '{value}', which is not defined (menus: {', '.join(sorted(menus)) or 'none'})"
         return None
     problem = _check_action(value, actions, menus)
@@ -820,11 +827,11 @@ def resolve_targets(
     first in the config wins, and the build log says so (copies of an app
     share an area this way)."""
     log = []
-    areas: dict[str, str] = {}
+    areas: set[str] = set()
     for m in modules:
         for area in m.areas:
             check_name(area, "Tap area")
-            areas.setdefault(area, m.name)
+            areas.add(area)
     out: dict[str, str] = {}
     for area, target in device.items():
         if area not in areas:

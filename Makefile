@@ -25,6 +25,7 @@ DOCKER_CMD ?= ## A command for docker-test (default: golden and screen tests)
 GROUP ?= ## One dependency group for setup: test, lint, tidy, dev or esphome
 CONFIRM ?= ## Set to 1 to let update-golden write golden pictures
 BUILD_REF ?= ci-head## The scratch branch that config and compile point at HEAD (default: ci-head)
+BASE ?= origin/main## What mutate-diff compares with, from the merge base (default: origin/main)
 
 # DARUMA_WORK is the scratch folder of record.py (--out) and pytest. Empty
 # means each uses its default temp folder.
@@ -68,7 +69,7 @@ define run_hooks
 endef
 
 .PHONY: help setup esphome-env esphome-version secrets config compile desktop \
-	test test-py test-cpp screens golden test-screens update-golden gifs \
+	test test-py test-cpp mutate mutate-diff screens golden test-screens update-golden gifs \
 	lint format complexity tidy docker-test check clean
 
 # --- Help ----------------------------------------------------------------
@@ -148,6 +149,23 @@ test-py: ## Host tests in Python (PYTEST_ARGS= for pytest)
 
 test-cpp: ## Host tests in C++
 	tests/run_cpp.sh
+
+# Mutation tests (docs/testing.md). Python, then C++; both run when the
+# first fails.
+mutate: ## Mutation tests of all the code the host tests reach: a report, never fails on survivors
+	@status=0; \
+	$(UV_RUN) python tests/mutate_py.py || status=1; \
+	$(UV_RUN) python tests/mutate_cpp.py || status=1; \
+	exit $$status
+
+# A fresh mutants/ each time, as in CI: mutmut keeps old mutants when only
+# a comment changed, so it would miss a new pragma.
+mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant
+	rm -rf mutants
+	@status=0; \
+	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' || status=1; \
+	$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)' || status=1; \
+	exit $$status
 
 screens: golden test-screens ## The golden check, then the screen tests; make -k runs both on a failure
 

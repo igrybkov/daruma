@@ -54,6 +54,33 @@ jobs:
         if: ${{ !cancelled() && matrix.python == 'pinned' }}
         run: tests/run_cpp.sh
 
+  # Mutation tests of the lines a pull request changes (docs/testing.md).
+  # It fails on a mutant no test catches, but it is not a required check:
+  # a person decides whether to add a test or mark the line.
+  mutation:
+    name: Mutation tests (changed lines)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      # The whole history, for the merge base with the pull request's base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the test tools and mutmut
+        run: uv sync --locked --only-group test --only-group mutation --no-install-project
+      - name: Run the mutation tests
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: make mutate-diff BASE="$BASE" UV_RUN="uv run --no-sync"
+
   # Every check runs, even after one fails, so one run shows them all.
   lint:
     name: Lint
@@ -335,6 +362,244 @@ jobs:
             !${{ env.DARUMA_WORK }}/build/src
           retention-days: 14
           if-no-files-found: ignore
+
+  # Coverage: which code the tests run. It has jobs of its own, beside the
+  # test jobs, so no test job gets slower. The coverage jobs build the C++
+  # with gcc's --coverage and run the Python under coverage.py; "Coverage
+  # report" joins their data. On a pull request it checks two rules
+  # (tests/coverage_comment.py) and fails when one breaks.
+  coverage-host:
+    name: Coverage (host tests)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    env:
+      COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
+    steps:
+      # The pull request's own commit, not the merge with main: the
+      # coverage comment maps the line numbers onto the pull request's diff.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the test and coverage tools
+        run: uv sync --locked --only-group test --only-group coverage --no-install-project
+      # CXXFLAGS and DARUMA_CPP_OUT reach test_frames.py too, which
+      # builds its C++ program itself.
+      - name: Run the C++ tests
+        env:
+          CXXFLAGS: --coverage
+          DARUMA_CPP_OUT: ${{ env.COVERAGE_DIR }}/cpp
+        run: tests/run_cpp.sh
+      - name: Run the Python tests
+        env:
+          CXXFLAGS: --coverage
+          DARUMA_CPP_OUT: ${{ env.COVERAGE_DIR }}/cpp
+          COVERAGE_FILE: ${{ env.COVERAGE_DIR }}/python/.coverage.host
+        run: uv run --no-sync pytest tests -n 2 --cov=components --cov=pixel --cov-report=
+      - name: Read the C++ coverage
+        run: >-
+          uv run --no-sync python tests/coverage_report.py
+          --gcov "$COVERAGE_DIR/cpp" --save "$COVERAGE_DIR/cpp-host.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-host
+          path: |
+            ${{ env.COVERAGE_DIR }}/cpp-host.json
+            ${{ env.COVERAGE_DIR }}/python
+          include-hidden-files: true
+          retention-days: 7
+
+  # The desktop build with coverage (DARUMA_COVERAGE, demos/harness.py),
+  # under the golden check and under the screen tests. One job each: in
+  # one job they would run longer than the screen test job.
+  coverage-screens:
+    name: Coverage (${{ matrix.name }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: golden pictures
+            id: golden
+          - name: screen tests
+            id: screens
+    env:
+      COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
+      DARUMA_COVERAGE: ${{ github.workspace }}/ci-coverage/python
+      DARUMA_WORK: ${{ github.workspace }}/ci-work
+    steps:
+      # The pull request's own commit, not the merge with main: the
+      # coverage comment maps the line numbers onto the pull request's diff.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      # No ffmpeg: it only makes GIFs, which coverage doesn't need.
+      - name: Install SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev
+      - name: Install the test and coverage tools
+        run: uv sync --locked --only-group test --only-group coverage --no-install-project
+      - name: Read the ESPHome version
+        run: echo "ESPHOME_VERSION=$(sed -n 's/^esphome = \["esphome==\(.*\)"\]$/\1/p' pyproject.toml)" >> "$GITHUB_ENV"
+      # The persona art the screen tests save. With it, the build skips
+      # drawing the art; the host tests cover that Python.
+      - name: Restore the persona art
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
+      - name: Check the golden pictures
+        if: matrix.id == 'golden'
+        run: uv run --no-sync python demos/record.py --test --out "$DARUMA_WORK" --jobs 4
+      - name: Run the screen tests
+        if: matrix.id == 'screens'
+        run: |
+          mkdir -p "$DARUMA_WORK"
+          uv run --no-sync pytest demos -n 4 --basetemp="$DARUMA_WORK/pytest"
+      - name: Read the C++ coverage
+        if: ${{ !cancelled() }}
+        env:
+          ID: ${{ matrix.id }}
+        run: >-
+          uv run --no-sync python tests/coverage_report.py
+          --gcov "$DARUMA_WORK/build/src/examples/.esphome/build" --save "$COVERAGE_DIR/cpp-$ID.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-${{ matrix.id }}
+          path: |
+            ${{ env.COVERAGE_DIR }}/cpp-${{ matrix.id }}.json
+            ${{ env.COVERAGE_DIR }}/python
+          include-hidden-files: true
+          retention-days: 7
+
+  coverage-report:
+    name: Coverage report
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    needs: [coverage-host, coverage-screens]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    env:
+      COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
+    steps:
+      # The pull request's own commit, so line numbers match its diff. The
+      # whole history, for that diff.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the coverage tools
+        run: uv sync --locked --only-group coverage --no-install-project
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: ${{ env.COVERAGE_DIR }}/jobs
+      # coverage.py maps the build's copy of the sources back onto this
+      # checkout ([tool.coverage.paths] in pyproject.toml). The host tests'
+      # data on its own gives the "tested" Python number; every job's data
+      # also counts the code that runs in the builds. The first combine
+      # keeps its input, which the second one reads. Its data file is named
+      # .coverage, in a folder of its own: combine only reads files named
+      # like the data file. When the host tests failed, there is no host
+      # data and no tested number.
+      - name: Join the Python coverage
+        run: |
+          if [ -d "$COVERAGE_DIR/jobs/coverage-host/python" ]; then
+            mkdir -p "$COVERAGE_DIR/tested"
+            uv run --no-sync coverage combine --keep --data-file="$COVERAGE_DIR/tested/.coverage" \
+              "$COVERAGE_DIR"/jobs/coverage-host/python
+            uv run --no-sync coverage json --data-file="$COVERAGE_DIR/tested/.coverage" \
+              -o "$COVERAGE_DIR/python-tested.json"
+          fi
+          uv run --no-sync coverage combine --data-file="$COVERAGE_DIR/.coverage" "$COVERAGE_DIR"/jobs/*/python
+          uv run --no-sync coverage json --data-file="$COVERAGE_DIR/.coverage" -o "$COVERAGE_DIR/python.json"
+      - name: Write the report
+        run: |
+          uv run --no-sync python tests/coverage_report.py --lines "$COVERAGE_DIR"/jobs/*/cpp-*.json \
+            --python "$COVERAGE_DIR/python.json" --tested-python "$COVERAGE_DIR/python-tested.json" \
+            --out "$COVERAGE_DIR/report"
+          {
+            echo "### Coverage"
+            echo "Lines the tests run, by area. C++ from the host tests and the desktop build"
+            echo "under the screen tests. Python tested: from the host tests. Python run in builds:"
+            echo "also ESPHome's config checks and code generation, which run in every build."
+            echo "Per file: files.md in the coverage artifact."
+            echo
+            cat "$COVERAGE_DIR/report/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: ${{ env.COVERAGE_DIR }}/report
+          retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
+      # main's newest report, to compare with. Main saves one on every push.
+      - name: Fetch main's coverage
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list -R "$GITHUB_REPOSITORY" -w CI -b main -e push -s completed -L 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$run_id" ] && gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n coverage -D "$COVERAGE_DIR/main"; then
+            echo "BASE_RUN=$run_id" >> "$GITHUB_ENV"
+          else
+            echo "No coverage from main to compare with."
+          fi
+      # Checks the rules too. It writes "pass" or "fail" to status.txt and
+      # succeeds either way, so the comment goes up before the job fails.
+      # The thresholds are in tests/coverage_comment.py.
+      - name: Write the comment
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff -U0 "$BASE...HEAD" -- components pixel > "$COVERAGE_DIR/pr.diff"
+          uv run --no-sync python tests/coverage_comment.py "$COVERAGE_DIR/report/lines.json" \
+            --tested "$COVERAGE_DIR/report/tested.json" \
+            --base "$COVERAGE_DIR/main/lines.json" --base-tested "$COVERAGE_DIR/main/tested.json" \
+            --base-run "${BASE_RUN:-}" --diff "$COVERAGE_DIR/pr.diff" \
+            --out "$COVERAGE_DIR/comment.md" --status "$COVERAGE_DIR/status.txt"
+      # One comment, updated on every push. A pull request from a fork gets
+      # a read-only token, so no comment.
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: coverage
+          path: ${{ env.COVERAGE_DIR }}/comment.md
+      - name: Check the coverage rules
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ "$(cat "$COVERAGE_DIR/status.txt")" != pass ]; then
+            echo "::error::A coverage rule failed. The coverage comment, or the log of \"Write the comment\", shows which."
+            exit 1
+          fi
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the

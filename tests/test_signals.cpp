@@ -31,10 +31,21 @@ static void test_weekday_slot() {
     CHECK(weekday_slot(day, 7) == -1);
   // Fewer entries than days: the missing days are plain too.
   CHECK(weekday_slot(3, 3) == 2);
+  // More entries than days: there is still no eighth weekday.
+  CHECK(weekday_slot(8, 8) == -1);
+  CHECK(weekday_slot(7, 8) == 6);
   CHECK(weekday_slot(4, 3) == -1);
   CHECK(weekday_slot(1, 0) == -1);
   // An unset clock (the Signals default) is plain.
   CHECK(weekday_slot(Signals{}.weekday, 7) == -1);
+}
+
+// Before HA sends anything: no progress, not behind, wellbeing unset (-1).
+static void test_defaults() {
+  const Signals s;
+  CHECK(s.progress == 0);
+  CHECK(!s.behind);
+  CHECK(s.wellbeing == -1);
 }
 
 static void test_day_part() {
@@ -53,6 +64,7 @@ static void test_day_part() {
 
 int main() {
   test_weekday_slot();
+  test_defaults();
   test_day_part();
   if (failures) {
     std::printf("%d failure(s)\n", failures);

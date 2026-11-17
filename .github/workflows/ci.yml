@@ -1,0 +1,343 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a pull request cancels its old run. Runs on main queue up,
+# so every commit on main gets a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # The ESPHome the builds and the harness use. Renovate keeps it in step
+  # with the docs and scripts.
+  DARUMA_ESPHOME: esphome==2026.10.2
+
+jobs:
+  host-python:
+    name: Host tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # "pinned" is .python-version. 3.12 is the floor: the components'
+        # Python runs inside the user's ESPHome, which supports 3.12.
+        python: [pinned, "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      - name: Pick the Python
+        env:
+          PYTHON: ${{ matrix.python }}
+        run: |
+          if [ "$PYTHON" != pinned ]; then echo "UV_PYTHON=$PYTHON" >> "$GITHUB_ENV"; fi
+      - name: Run the host tests
+        run: uv run --no-project --with pillow --with pyyaml python -m unittest discover -s tests
+
+  host-cpp:
+    name: Host tests (C++)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the C++ tests
+        run: tests/run_cpp.sh
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      - name: Restore the pre-commit cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml', '.python-version') }}
+      # The hooks and their versions come from .pre-commit-config.yaml, so
+      # CI and a contributor's machine run the same tools.
+      - name: Complexity (complexipy, lizard)
+        run: |
+          run() { uvx --python "$(cat .python-version)" --from pre-commit==4.7.0 pre-commit "$@"; }
+          run run complexipy --all-files
+          run run lizard --all-files
+      # The formatters don't block yet: the existing code isn't formatted.
+      # They block once the code is formatted in its own pull request.
+      - name: Python lint (ruff check)
+        continue-on-error: true
+        run: uvx --python "$(cat .python-version)" --from pre-commit==4.7.0 pre-commit run ruff-check --all-files --show-diff-on-failure
+      - name: Python format (ruff format)
+        continue-on-error: true
+        run: uvx --python "$(cat .python-version)" --from pre-commit==4.7.0 pre-commit run ruff-format --all-files --show-diff-on-failure
+      - name: C++ format (clang-format)
+        continue-on-error: true
+        run: uvx --python "$(cat .python-version)" --from pre-commit==4.7.0 pre-commit run clang-format --all-files --show-diff-on-failure
+
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      # The host tests and the component headers they include. The
+      # components' .cpp files need ESPHome's headers, so they aren't here.
+      - name: Write the compile database
+        run: tests/compile_db.sh
+      - name: Run clang-tidy
+        run: >-
+          uvx --python "$(cat .python-version)" --from clang-tidy==23.1.4
+          clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
+
+  config:
+    name: Config (${{ matrix.example }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [box3, variant_apps, variant_mono, variant_square, variant_wide, desktop]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      - name: Install SDL2
+        if: matrix.example == 'desktop'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev
+      - name: Prepare the build
+        run: .github/scripts/prepare-build.sh
+      # The examples fetch Daruma with git. Point them at this checkout.
+      - name: Check the config
+        working-directory: examples
+        run: |
+          uvx --python "$(cat ../.python-version)" --from "$DARUMA_ESPHOME" esphome \
+            -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
+            config ${{ matrix.example }}.yaml > "$RUNNER_TEMP/config.log" 2>&1 \
+            || { tail -n 60 "$RUNNER_TEMP/config.log"; exit 1; }
+
+  compile:
+    name: Compile (box3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      # Pull requests read the caches that main saves; only main writes them.
+      - name: Restore the ESP-IDF cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/esphome
+          key: esp-idf-${{ runner.os }}-${{ env.DARUMA_ESPHOME }}
+      # Only the build folder: .esphome/packages holds ESPHome's git clones,
+      # and a restored clone would build old code.
+      - name: Restore the build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/build
+          key: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-${{ github.sha }}
+          restore-keys: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-
+      - name: Prepare the build
+        run: .github/scripts/prepare-build.sh
+      - name: Compile
+        working-directory: examples
+        run: |
+          set -o pipefail
+          uvx --python "$(cat ../.python-version)" --from "$DARUMA_ESPHOME" esphome \
+            -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
+            compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+      - name: Report the flash size
+        run: |
+          {
+            echo "### Firmware: examples/box3.yaml"
+            .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
+          } >> "$GITHUB_STEP_SUMMARY"
+          ls -l examples/.esphome/build/daruma/build/firmware.*.bin
+      - name: Save the ESP-IDF cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/esphome
+          key: esp-idf-${{ runner.os }}-${{ env.DARUMA_ESPHOME }}
+      - name: Save the build cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/build
+          key: esphome-build-box3-${{ env.DARUMA_ESPHOME }}-${{ github.sha }}
+
+  # On macOS, where the golden pictures were made. Linux draws the same
+  # screens with colors one step off in places, and the eyes glance
+  # elsewhere, so the pictures don't match there.
+  screens:
+    name: Screen tests (${{ matrix.suite }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [golden, pytest]
+    env:
+      DARUMA_WORK: ${{ github.workspace }}/ci-work
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      - name: Install SDL2 and ffmpeg
+        run: brew install sdl2 ffmpeg
+      - name: Check the golden pictures
+        if: matrix.suite == 'golden'
+        run: uv run demos/record.py --test --out "$DARUMA_WORK"
+      - name: Run the screen tests
+        if: matrix.suite == 'pytest'
+        run: |
+          mkdir -p "$DARUMA_WORK"
+          uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml \
+            pytest demos --basetemp="$DARUMA_WORK/pytest"
+      - name: Put expected, actual and diff side by side
+        if: failure()
+        run: >-
+          uv run --no-project --with pillow python demos/contact_sheet.py diffs
+          "$DARUMA_WORK" "$DARUMA_WORK/side-by-side"
+      - name: Upload the frames of a failed run
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screens-${{ matrix.suite }}
+          path: |
+            ${{ env.DARUMA_WORK }}
+            !${{ env.DARUMA_WORK }}/build/src
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # Demo GIFs from the desktop build of this commit, so a pull request
+  # can be previewed without a device. The full showcase costs about two
+  # minutes more than highlight alone, so every run records it.
+  previews:
+    name: Previews (${{ matrix.variant }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [standard, wide, square]
+    env:
+      DARUMA_WORK: ${{ github.workspace }}/ci-work
+      VARIANT: ${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            .python-version
+      - name: Install SDL2 and ffmpeg
+        run: brew install sdl2 ffmpeg
+      - name: Pick the scenarios
+        run: |
+          want="highlight"
+          if [ "$VARIANT" = standard ]; then want="highlight work emotions activities"; fi
+          have=""
+          for s in $want; do
+            if [ -f "demos/scenarios/$s.yaml" ]; then have="${have:+$have,}$s"; fi
+          done
+          echo "SCENARIOS=$have" >> "$GITHUB_ENV"
+      - name: Record the GIFs
+        run: |
+          uv run demos/record.py --variant "$VARIANT" --scenario "$SCENARIOS" \
+            --out "$DARUMA_WORK" --docs "$DARUMA_WORK/preview/gifs"
+      - name: Make the contact sheets
+        run: >-
+          uv run --no-project --with pillow python demos/contact_sheet.py gifs
+          "$DARUMA_WORK/preview/gifs" "$DARUMA_WORK/preview/sheets"
+      - name: Upload the previews
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: preview-${{ matrix.variant }}
+          path: ${{ env.DARUMA_WORK }}/preview
+          retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
+      - name: Describe the previews
+        env:
+          URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          dir="$DARUMA_WORK/preview"
+          {
+            echo "### Previews: $VARIANT"
+            echo "[preview-$VARIANT]($URL): $(du -sh "$dir" | cut -f1)."
+            echo "Scenarios: ${SCENARIOS//,/, }. $(find "$dir/gifs" -name '*.gif' | wc -l | tr -d ' ') GIFs, one contact sheet per scenario."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  preview-comment:
+    name: Preview comment
+    needs: previews
+    # A pull request from a fork gets a read-only token, so no comment.
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: previews
+          message: |
+            **Previews** for ${{ github.event.pull_request.head.sha }}: demo GIFs and contact sheets from the desktop build, in the [run's artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (`preview-standard`, `preview-wide`, `preview-square`). Failed screen tests add `screens-golden` and `screens-pytest`, with expected, actual and diff side by side.
+
+            They come from the desktop build of the same packages, so they match the device's screens. They are not recorded on the ESP32.

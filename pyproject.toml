@@ -12,12 +12,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daruma-pixel"
-version = "0.1.0"
+version = "0.0.0"
 description = "Pixel-art rooms, personas and engines for Daruma device personas"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = ["pillow>=10"]
 
 [project.urls]
@@ -26,3 +26,19 @@ Homepage = "https://github.com/igrybkov/daruma"
 [tool.setuptools.packages.find]
 where = ["pixel"]
 include = ["daruma_pixel*"]
+
+# Lint and format. The version is pinned in .pre-commit-config.yaml; CI
+# runs the same hooks.
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+# Cognitive complexity (not cyclomatic) per function. Functions above the
+# limit today are listed in complexipy-snapshot.json and may not grow; a
+# new function above it fails.
+[tool.complexipy]
+paths = ["components", "pixel", "demos", "tests", "sounds"]
+max-complexity-allowed = 15

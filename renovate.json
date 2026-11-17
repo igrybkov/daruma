@@ -1,7 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
   ],
   "ignorePaths": [
     "**/node_modules/**",
@@ -10,9 +11,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "ESPHome pins in scripts and docs (uvx --from esphome==..., DARUMA_ESPHOME)",
+      "description": "ESPHome pins in scripts, docs and workflows (uvx --from esphome==..., DARUMA_ESPHOME)",
       "managerFilePatterns": [
-        "/\\.(py|md|sh)$/"
+        "/\\.(py|md|sh)$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/"
       ],
       "matchStrings": [
         "esphome==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -37,12 +39,26 @@
       "customType": "regex",
       "description": "aioesphomeapi pins: uv run --with ..., and record.py's inline script metadata",
       "managerFilePatterns": [
-        "/\\.(py|md)$/"
+        "/\\.(py|md)$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/"
       ],
       "matchStrings": [
         "aioesphomeapi==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "aioesphomeapi",
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "Python tools pinned with == in the workflows, .gitlint and .pre-commit-config.yaml",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/",
+        "/^\\.gitlint$/",
+        "/^\\.pre-commit-config\\.yaml$/"
+      ],
+      "matchStrings": [
+        "(?<depName>gitlint-core|lizard|clang-tidy|pre-commit)==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
       "datasourceTemplate": "pypi"
     }
   ],
@@ -60,6 +76,36 @@
         "aioesphomeapi"
       ],
       "groupName": "ESPHome"
+    },
+    {
+      "description": "gitlint in pre-commit and in CI moves as one",
+      "matchDepNames": [
+        "gitlint-core",
+        "jorisroovers/gitlint"
+      ],
+      "groupName": "gitlint"
+    },
+    {
+      "description": "The Python pin in .python-version: one pull request per minor release, on a monthly schedule",
+      "matchManagers": [
+        "pyenv"
+      ],
+      "groupName": "Python",
+      "schedule": [
+        "* 0-6 1 * *"
+      ]
+    },
+    {
+      "description": "clang-format (pre-commit mirror) and clang-tidy (CI) move as one LLVM version",
+      "matchDepNames": [
+        "pre-commit/mirrors-clang-format",
+        "clang-tidy"
+      ],
+      "groupName": "LLVM tools"
     }
-  ]
+  ],
+  "semanticCommits": "enabled",
+  "pre-commit": {
+    "enabled": true
+  }
 }

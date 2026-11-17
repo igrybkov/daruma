@@ -19,12 +19,23 @@ brew install uv sdl2 ffmpeg
 ```
 
 You don't install ESPHome. The scripts run ESPHome 2026.10.2 through uv.
+`.python-version` pins the Python the tests and builds use (3.14). The
+floor is 3.12 (`requires-python`), as ESPHome's.
+`uv run` reads it; `uvx` doesn't, so the harness and CI pass it on.
 
 Fork the repository, clone your fork, and make a branch for your change:
 
 ```sh
 git clone https://github.com/<you>/daruma && cd daruma
 git switch -c my-change
+```
+
+Install the hooks once. On every commit they format and lint what you
+changed, check its complexity, and check the commit message (see
+[Lint and format](#lint-and-format) and [Commits](#commits)):
+
+```sh
+uvx pre-commit install
 ```
 
 To try your change on a real device, point the device file at your fork
@@ -126,6 +137,106 @@ uv run --with pytest --with aioesphomeapi==46.30.0 --with pillow --with pyyaml p
   `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
 - A new C++ test file goes into the list in `tests/run_cpp.sh`.
 
+## Lint and format
+
+The pre-commit hooks run these on the files you change. The versions
+live in [.pre-commit-config.yaml](.pre-commit-config.yaml); CI runs the
+same hooks.
+
+| Tool | Checks | Config |
+|---|---|---|
+| ruff | Python lint and format | `pyproject.toml` |
+| clang-format | C and C++ format, in ESPHome's style | `.clang-format` |
+| complexipy | Python cognitive complexity, at most 15 per function | `pyproject.toml`, `complexipy-snapshot.json` |
+| lizard | C and C++ cyclomatic complexity, at most 15 per function | `whitelizard.txt` |
+| clang-tidy | C++ bugs and slow code, in CI only | `.clang-tidy` |
+
+Before you commit, run `ruff check --fix` and `ruff format`, or let the
+hook do it. To run every hook on every file:
+
+```sh
+uvx pre-commit run --all-files
+```
+
+clang-tidy needs a compile database. It reads the host tests and the
+component headers they include:
+
+```sh
+tests/compile_db.sh
+uvx --from clang-tidy==23.1.4 clang-tidy -p build/clang-tidy tests/test_*.cpp
+```
+
+On macOS, add `--extra-arg=-isysroot --extra-arg="$(xcrun --show-sdk-path)"`.
+
+Keep new functions under the complexity limits. Split a function that
+grows past them. Don't add it to the baseline:
+`complexipy-snapshot.json` and `whitelizard.txt` list only the
+functions that were over the limit when the checks came in. When you
+bring one under the limit, drop its entry (for complexipy, run
+`uvx complexipy --snapshot-create`).
+
+## CI
+
+GitHub Actions runs [ci.yml](.github/workflows/ci.yml) on every pull
+request and on every push to main. A new push to a pull request cancels
+its old run.
+[conventional-commits.yml](.github/workflows/conventional-commits.yml)
+checks the pull request title and every commit message in it.
+
+| Job | What it runs |
+|---|---|
+| Host tests (Python) | test 1 above, on the pinned Python and on 3.12 |
+| Host tests (C++) | test 2 above |
+| Config | `esphome config` for each file in `examples/` |
+| Compile (box3) | `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
+| Screen tests (golden) | test 3 above, on macOS, where the golden pictures were made |
+| Screen tests (pytest) | test 4 above, on macOS |
+| Previews | demo GIFs and contact sheets, uploaded as artifacts |
+| Pull request title | the title is a Conventional Commit |
+| Commit messages | `gitlint` on each commit of the pull request |
+| Lint | complexipy and lizard; ruff and clang-format don't block yet |
+| clang-tidy | the host tests and the headers they include |
+
+The examples fetch Daruma with git. In CI they fetch the checkout under
+test, not main. To do the same on your machine, commit first, then:
+
+```sh
+.github/scripts/prepare-build.sh
+uvx --from esphome==2026.10.2 esphome -s daruma_url "file://$PWD" \
+    -s daruma_ref ci-head compile examples/box3.yaml
+```
+
+The script writes `examples/secrets.yaml` with placeholder Wi-Fi keys
+and a random API key. It stops if that file exists already. It also
+points a local branch `ci-head` at your commit. Never flash this build.
+
+When a screen test fails, the job uploads its frames, diffs and logs as
+an artifact, with expected, actual and diff side by side. Download it
+from the run's summary page.
+
+Every run also records preview GIFs: `highlight`, `work`, `emotions`
+and `activities` for every persona, and `highlight` on the wide and
+square screens. Each scenario gets a contact sheet. A pull request gets one comment that links to
+the run's artifacts (`preview-standard`, `preview-wide`,
+`preview-square`). Pull request artifacts stay 14 days, main's stay
+90. The GIFs come from the desktop build of the same packages. So they
+match the device's screens, but they are not recorded on the ESP32.
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) makes
+the releases. You don't tag by hand.
+
+1. On every push to main, it reads the commits since the last release.
+2. It opens or updates a release pull request. That pull request
+   updates `CHANGELOG.md` and the version in `pyproject.toml`.
+3. When the owner merges it, release-please tags `v<version>` and
+   publishes a GitHub release with the same notes.
+
+A release has no firmware files. Each device builds its own firmware
+from the packages, with its own personas and secrets. Pin a device to a
+release with `daruma_ref: v0.1.0`.
+
 ## Golden pictures and frames
 
 Golden pictures live in `tests/golden/<persona>/<scenario or test>/`.
@@ -186,6 +297,25 @@ This is a public repository. Demo data is made up.
   `fix(prompts): long titles wrap inside the card`. Common scopes:
   `core`, `pixel`, `apps`, `prompts`, `menu`, `pomodoro`, `demos`,
   `docs`.
+- The pull request title follows the same format. A squash merge of
+  several commits makes it the commit on main.
+- gitlint checks the format ([.gitlint](.gitlint)): locally after
+  `uvx pre-commit install`, and in CI. To check your branch by hand:
+  `uvx --from gitlint-core==0.19.1 gitlint --commits origin/main..HEAD`.
+
+The type sets the next version. Before 1.0.0:
+
+| Type | Use it for | Next release |
+|---|---|---|
+| `feat` | a new persona, app, option or state | minor: 0.1.0 to 0.2.0 |
+| `fix` | a bug fix | patch: 0.1.0 to 0.1.1 |
+| `perf` | faster or smaller, same behavior | patch |
+| `revert` | undo an earlier commit | patch |
+| `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore` | everything else | no release on its own |
+
+A breaking change adds `!` after the type (`feat(core)!: ...`) or a
+`BREAKING CHANGE:` line in the body. Before 1.0.0 it bumps the minor
+version.
 - The body says why, and what a reader can't see in the diff.
 - Sign your commits if you can (`git commit -S`).
 - Code comments explain the code on their own. They don't cite tickets,

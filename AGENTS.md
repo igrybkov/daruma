@@ -98,6 +98,12 @@ uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
 - Code comments explain the code on their own. They don't cite plans,
   tickets or conversations.
 - Docs: short sentences, plain verbs, one idea per sentence. No em dashes.
+- Commit messages and pull request titles are Conventional Commits
+  (`feat(pixel): ...`); gitlint and CI check them.
+- Before you commit, run `ruff check --fix`, `ruff format` and
+  clang-format, or let the pre-commit hooks do it. Keep new functions
+  under complexity 15 (complexipy, lizard); split them, don't add
+  exclusions.
 - Demo data is made up. Never put a real person's name, calendar or tasks
   into demos, tests or pictures.
 

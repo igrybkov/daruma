@@ -46,13 +46,13 @@ static std::string shape(const std::vector<AgendaRow> &rows) {
         out += "e" + std::to_string(r.event);
         break;
       case AgendaRowKind::NOTHING:
-        out += "-";
+        out += '-';
         break;
       case AgendaRowKind::MORE:
-        out += "+";
+        out += '+';
         break;
     }
-    out += " ";
+    out += ' ';
   }
   return out;
 }

@@ -52,7 +52,8 @@ from typing import Any, Callable
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
 ESPHOME_SPEC = os.environ.get("DARUMA_ESPHOME", "esphome==2026.10.2")
-PYTHON = os.environ.get("DARUMA_PYTHON", "3.14")
+# uvx ignores .python-version, so the build passes it on.
+PYTHON = os.environ.get("DARUMA_PYTHON") or (REPO_DIR / ".python-version").read_text().strip()
 DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
 SOURCES = ["examples", "packages", "components", "pixel", "art"]
 GOLDEN_DIR = HERE.parent / "tests" / "golden"

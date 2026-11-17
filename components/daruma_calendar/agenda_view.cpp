@@ -4,6 +4,7 @@
 
 #include "esphome/components/daruma/draw.h"
 #include "esphome/components/daruma/text.h"
+#include "esphome/components/daruma/ui_tree.h"
 
 namespace Daruma {
 
@@ -53,6 +54,7 @@ void AgendaView::draw(AppView &v, const AgendaViewState &state) {
       case AgendaRowKind::HEADING: {
         const std::string text = row.day < (int) state.headings.size() ? state.headings[row.day] : "";
         this->draw_heading_(v, text, top, right);
+        this->add_part_(v, text, top, right);
         break;
       }
       case AgendaRowKind::EVENT:
@@ -61,10 +63,12 @@ void AgendaView::draw(AppView &v, const AgendaViewState &state) {
       case AgendaRowKind::NOTHING:
         v.display.print(v.x + this->pad_ + this->time_w_, mid, v.text, t.muted, TextAlign::CENTER_LEFT,
                         state.nothing_text.c_str(), t.panel);
+        this->add_part_(v, state.nothing_text, top, right);
         break;
       case AgendaRowKind::MORE: {
         const std::string more = "+" + std::to_string(state.span->hidden()) + " " + state.more_text;
         v.display.print(v.x + this->pad_ + 2, mid, v.small, t.muted, TextAlign::CENTER_LEFT, more.c_str(), t.panel);
+        this->add_part_(v, more, top, right);
         break;
       }
     }
@@ -130,11 +134,19 @@ void AgendaView::draw_event_(AppView &v, const AgendaViewState &state, const Cal
   std::string title = drawable_text(v.text, event.title);
   if (title.empty())
     title = state.untitled_text;
+  this->add_part_(v, title, top, right, now ? "now" : "");
   title = fit_text(v.display, v.text, title, right - title_x);
   v.display.print(title_x, mid, v.text, past ? t.muted : t.ink, TextAlign::CENTER_LEFT, title.c_str(), bg);
 }
 
+// A row for tests and demos to find by its text (ui_tree.h).
+void AgendaView::add_part_(AppView &v, const std::string &name, int top, int right, const std::string &value) {
+  const int left = v.x + this->pad_;
+  UiTree::add("row", name, Rect{left, top, right - left, this->row_h_}, false, value);
+}
+
 void AgendaView::draw_message_(AppView &v, const std::string &text) {
+  UiTree::add("text", text, Rect{v.x, v.y, v.w, v.h});
   const int width = v.w - 4 * this->pad_;
   std::vector<std::string> lines = Utilities::Text::wrap(v.display, v.text, text, width);
   if (lines.size() > 3)

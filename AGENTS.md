@@ -61,27 +61,30 @@ compile time.
 ## Commands
 
 Run them from the repository root. [docs/testing.md](docs/testing.md)
-explains each.
+explains each. `make` lists every goal; `make -n <goal>` prints its
+commands.
 
 ```sh
 # Host tests: no ESPHome build needed
-uv run pytest tests
-tests/run_cpp.sh
+make test                 # test-py and test-cpp
 
 # Screen tests on the desktop build (same pictures on macOS and Linux)
-uv run demos/record.py --test
-uv run pytest demos
-tests/in_docker.sh        # both, in Ubuntu 24.04 as CI runs them
+make screens              # golden, then test-screens
+make docker-test          # both, in Ubuntu 24.04 as CI runs them
 
 # Record GIFs, accept new golden pictures
-uv run demos/record.py --personas "<Name>" --scenario highlight,emotions,activities
-uv run demos/record.py --update-golden --personas "<Name>" --scenario tour
+make gifs PERSONA="<Name>" SCENARIO=highlight,emotions,activities
+make update-golden CONFIRM=1 PERSONA="<Name>" SCENARIO=tour
 
 # Preview a pixel persona: every frame in sheet.png
 uv run python -m daruma_pixel.personas /tmp/p <name>
 
-# Compile the example device
-uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
+# Lint, and compile the example device (commit first)
+make lint tidy
+make compile
+
+# Everything CI blocks on
+make check
 ```
 
 ## Rules
@@ -110,14 +113,15 @@ uvx --from esphome==2026.10.2 esphome compile examples/box3.yaml
 
 ## Pitfalls
 
-- **ESPHome version.** The builds and docs use ESPHome 2026.10.2. Pin it
-  with `uvx --from esphome==2026.10.2`; another version may not compile.
+- **ESPHome version.** The builds and docs use ESPHome 2026.10.2, from
+  `.venv-esphome` (`make setup`). Outside make, pin it with
+  `uvx --from esphome==2026.10.2`; another version may not compile.
 - **Never flash a scratch build.** A build made with placeholder secrets
   loses its Wi-Fi on the device. Compile to check; flash only with the
   person's real secrets.
 - **Busy folders.** Every device listens on a free API port, but the
   recorder and pytest share a temp folder. When another run may use it,
-  pass `--out` to record.py, or set `DARUMA_WORK` for pytest.
+  pass `DARUMA_WORK=/tmp/mine` to make.
 - **Paths in packages** are relative to the package file
   (`../components`, `../pixel/...`, `../art/...`). The components resolve
   them at validation time.

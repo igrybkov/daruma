@@ -10,6 +10,10 @@ On Debian or Ubuntu: `sudo apt-get install build-essential libsdl2-dev ffmpeg`,
 and uv.
 The builds use ESPHome 2026.10.2 through uv; you don't install it.
 
+The commands below are make goals. `make` lists them all.
+`make -n <goal>` prints the commands a goal runs, for a machine
+without make.
+
 ## The desktop build
 
 [examples/desktop.yaml](../examples/desktop.yaml) runs Daruma in a window
@@ -17,7 +21,7 @@ The builds use ESPHome 2026.10.2 through uv; you don't install it.
 BOX-3 example:
 
 ```sh
-cd examples && uvx --from esphome==2026.10.2 esphome run desktop.yaml
+make desktop
 ```
 
 - The mouse is the finger: tap, hold, swipe, stroke.
@@ -31,12 +35,14 @@ One command records every persona in every scenario, into
 [docs/demos](demos/):
 
 ```sh
-uv run demos/record.py                                   # everything
-uv run demos/record.py --personas Eyes --scenario emotions --mp4
+make gifs                                    # everything
+make gifs PERSONA=Eyes SCENARIO=emotions     # one persona, one scenario
+make gifs VARIANT=wide SCENARIO=highlight    # the wide screen
 ```
 
 The first run builds the firmware in a temp folder; later runs reuse it.
-`--mp4` also writes an MP4 with the sounds. GIFs are twice the screen
+For an MP4 with the sounds too, run record.py itself:
+`uv run demos/record.py --personas Eyes --scenario emotions --mp4`. GIFs are twice the screen
 size, or the scenario's `gif_scale`. They are kept under `--max-kb` by
 lowering the frame rate, then the colors. The README shows the
 `highlight` GIFs; [gallery.md](gallery.md) shows the rest.
@@ -97,10 +103,15 @@ a reaction. `show: ""` goes back to normal.
 ## Screen tests
 
 ```sh
-uv run demos/record.py --test             # exit 1 on a difference
-uv run demos/record.py --update-golden    # accept the new pictures
-uv run pytest demos                       # tests in Python
+make golden                    # exit 1 on a difference
+make update-golden CONFIRM=1   # accept the new pictures
+make test-screens              # tests in Python
+make screens                   # golden, then test-screens
 ```
+
+`PERSONA=` and `SCENARIO=` narrow `golden` and `update-golden`.
+`PYTEST_ARGS=` passes options to pytest, for example
+`make test-screens PYTEST_ARGS="-k corgi"`.
 
 - **Time is fake.** A small library ([demos/fakeclock.c](../demos/fakeclock.c))
   gives the program a clock that only the runner moves, and a fixed random
@@ -129,14 +140,16 @@ uv run pytest demos                       # tests in Python
   there. The desktop build turns off fused multiply-add
   (`-ffp-contract=off`), so text blends to the same colors with any
   compiler. `--update-golden` keeps a picture whose pixels didn't change.
-- **Linux in Docker.** `tests/in_docker.sh` runs the screen tests in
+- **Linux in Docker.** `make docker-test` runs the screen tests in
   Ubuntu 24.04, as CI does. Its caches live in Docker volumes, so a
-  second run starts warm. `tests/in_docker.sh bash` opens a shell there.
+  second run starts warm. `make docker-test DOCKER_CMD=bash` opens a
+  shell there.
 - **Pick a persona** with `@pytest.mark.persona("Pixel corgi")` (default
   Eyes), and a wall clock with `@pytest.mark.clock(epoch=..., timezone=...)`.
 - **Another port or folder.** The runner uses port 6053 and a temp folder.
   When another runner holds them, pass `--port 6062 --out /tmp/mine` to
   record.py, or set `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.
+  With make, `DARUMA_WORK=/tmp/mine` sets the folder for both.
 
 A persona kept out of this repository can still be recorded and tested:
 `--private-persona path/to/persona.yaml --personas "<its name>"`. Its GIFs
@@ -147,8 +160,9 @@ and pictures stay in the temp folder.
 These need no ESPHome build:
 
 ```sh
-uv run pytest tests   # Python
-tests/run_cpp.sh      # C++
+make test-py    # Python
+make test-cpp   # C++
+make test       # both
 ```
 
 They cover the registry and the build checks, the pixel art (every

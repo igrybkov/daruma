@@ -151,8 +151,13 @@ jobs:
         with:
           path: examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
+      # The public CI secrets. Their API key is fixed: ESPHome compiles it
+      # into main.cpp, so the compiler cache can reuse that file. The
+      # ci-head branch names this commit, for the examples' git package.
       - name: Prepare the build
-        run: .github/scripts/prepare-build.sh
+        run: |
+          cp examples/secrets.ci.yaml examples/secrets.yaml
+          git branch -f ci-head HEAD
       # The examples fetch Daruma with git. Point them at this checkout.
       - name: Check the config
         working-directory: examples
@@ -244,8 +249,13 @@ jobs:
         with:
           path: examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
+      # The public CI secrets. Their API key is fixed: ESPHome compiles it
+      # into main.cpp, so the compiler cache can reuse that file. The
+      # ci-head branch names this commit, for the examples' git package.
       - name: Prepare the build
-        run: .github/scripts/prepare-build.sh
+        run: |
+          cp examples/secrets.ci.yaml examples/secrets.yaml
+          git branch -f ci-head HEAD
       - name: Compile
         working-directory: examples
         run: |
@@ -278,6 +288,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin
+          ccache --show-stats
       - name: Save the ESP-IDF cache
         if: github.event_name == 'push' || steps.idf.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

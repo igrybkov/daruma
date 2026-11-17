@@ -24,11 +24,10 @@ On Debian or Ubuntu, install uv, then:
 sudo apt-get install build-essential libsdl2-dev ffmpeg
 ```
 
-You don't install ESPHome by hand. `make setup` installs the test and
-lint tools from `uv.lock` into `.venv`, and ESPHome into its own locked
-environment, `.venv-esphome`. The version lives in `pyproject.toml` (the
-`esphome` dependency group). The screen tests sync `.venv-esphome`
-themselves, so you can skip this step too.
+You don't install ESPHome by hand. `make setup` installs ESPHome and the
+test and lint tools from `uv.lock` into `.venv`. The ESPHome version lives
+in `pyproject.toml` (the `esphome` dependency group). `uv run` syncs
+`.venv` before it runs anything, so you can skip this step too.
 
 Every task has a make goal. `make` alone lists them, with their
 variables. Each goal runs a short command or two; `make -n <goal>`

@@ -326,7 +326,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
-      # The harness syncs ESPHome's own environment (.venv-esphome) itself.
+      # The test tools include ESPHome, which the harness builds with.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
       # The art cache key names the ESPHome version: it pins the Pillow
@@ -411,7 +411,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
-      # The harness syncs ESPHome's own environment (.venv-esphome) itself.
+      # The test tools include ESPHome, which the harness builds with.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
       # The art cache key names the ESPHome version: it pins the Pillow

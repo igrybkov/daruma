@@ -1,4 +1,4 @@
-"""The living room: a Scene (pet.py) with a comfy couch for a pet to sit on.
+"""The living room: a Scene (scene.py) with a comfy couch for a pet to sit on.
 
 Linen-striped wallpaper, an arched window with curtains (the device draws
 the sky in its glass), a spider plant hanging from the ceiling (the
@@ -57,7 +57,7 @@ class LivingRoom:
     throw_shadow: Color = (140, 52, 66)
     sky: tuple[Color, ...] = ((122, 190, 236), (150, 206, 240), (184, 224, 246))
 
-    # The Scene protocol (pet.py).
+    # The Scene protocol (scene.py).
     window = WINDOW
     pet_floor = SEAT  # Not a field: the couch is always where it is. See pet.Pet.
 

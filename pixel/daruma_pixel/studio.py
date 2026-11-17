@@ -1,4 +1,4 @@
-"""The portrait studio: a Scene (pet.py) in the style of an 80s pet portrait.
+"""The portrait studio: a Scene (scene.py) in the style of an 80s pet portrait.
 
 A mottled brown backdrop hangs from a roll bar and sweeps down to the floor,
 lit by a soft spotlight behind the sitter and falling off to near black at

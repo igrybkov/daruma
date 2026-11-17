@@ -1,4 +1,4 @@
-"""The cozy room: a Scene (pet.py) for pets indoors.
+"""The cozy room: a Scene (scene.py) for pets indoors.
 
 Plank walls, a window with the sky, a shelf with the plant (plant.py, the
 progress prop), floor boards, and a rug that changes color by weekday.
@@ -39,7 +39,7 @@ class Room:
     wainscot: Color | None = None  # A lower wall panel below a rail, if any.
     rail: Color | None = None
 
-    # The Scene protocol (pet.py).
+    # The Scene protocol (scene.py).
     window = WINDOW  # Not a field: every room has its window in the same place.
 
     def image(self) -> Image.Image:

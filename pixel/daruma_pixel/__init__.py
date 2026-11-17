@@ -3,6 +3,8 @@ personas are drawn with, at build time.
 
     personas      build(name) -> Persona: every layer and frame the device needs;
                PERSONAS maps a persona name to its modules
+    scene      the Scene interface: what is behind a persona
+    effects    hearts, zzz, sweat, tears, dots and sparkles round any actor
     pixelkit   shapes on a low-res canvas, outlines and shading
     pet        a sitting pet in a room (room.py, living_room.py, studio.py);
                dog.py, corgi.py, jack_russell.py, cat.py and tabby_cat.py

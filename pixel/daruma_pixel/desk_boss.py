@@ -24,7 +24,7 @@ from dataclasses import dataclass, field, replace
 
 from PIL import Image, ImageDraw
 
-from .pet import extras as _extras
+from .effects import extras as _extras
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, mask, poly, rotate
 
 W, H = 106, 80

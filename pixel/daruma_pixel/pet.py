@@ -6,8 +6,9 @@ says what it looks like: its nose and mouth (the species' own), the ears
 ones), head and muzzle, leg and body size, the tail, the coat colors and
 where the patches go, and any stances beyond sitting. The engine draws
 what every pet shares: body, chest, legs, haunches, head, eyes, the
-glasses and book, the tail and its wag, the effects and the moods. The scene behind
-the pet (room, window, rug, plant) is separate and swappable: see Scene.
+glasses, book and ball, the tail and its wag, and the moods. The effects
+(hearts, zzz, ...) are effects.py's. The scene behind the pet (room,
+window, rug, plant) is separate and swappable: see scene.py.
 
 Species parts live on top: dog.py has the dog's nose, mouth (tongue out),
 button ears and "sitting pretty". A cat would add its own nose and mouth,
@@ -45,20 +46,18 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Protocol
 
 from PIL import Image, ImageDraw
 
+from .effects import HEART, HEART_SHINE, extras
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, mask, poly, rotate, shear_rows, shift
+from .scene import Scene
 
 W, H = 106, 80  # Logical canvas: 318x240 on screen at 3x.
 
 # Colors every pet shares: eyes, effects and props.
 DARK = (44, 28, 24)
 BLUSH = (244, 150, 140)
-HEART = (226, 52, 72)
-HEART_SHINE = (255, 160, 170)
-DOT_RING = (40, 30, 36)  # Thinking dots: a dark ring around white.
 BOOK = Ramp(base=(44, 116, 124), shadow=(30, 86, 96), light=(70, 150, 156), line=(24, 64, 72))
 PAGE = Ramp(base=(240, 224, 184), shadow=(212, 192, 150), line=(150, 120, 84))
 GOLD = (226, 186, 88)
@@ -571,75 +570,7 @@ def _ball(c: Canvas, x: int, y: int) -> None:
         c.dot(x0 + i, y + j, BALL_SEAM)
 
 
-def extras(c: Canvas, extras: tuple[str, ...], cx: int, floor: int, tear: tuple[int, int] | None = None) -> None:
-    """Effects around the persona: hearts, zzz, sweat, tear, dots, sparkle.
-
-    `tear` is where a tear starts (under the left eye); by default, under
-    the corgi's eye.
-    """
-    top = floor - 64
-    for e in extras:
-        if e == "hearts":
-            for hx, hy in ((cx - 26, top + 10), (cx + 24, top + 4), (cx + 30, top + 18)):
-                for row, line in enumerate([".X.X.", "XXXXX", ".XXX.", "..X.."]):
-                    for col, ch in enumerate(line):
-                        if ch == "X":
-                            c.dot(hx + col, hy + row, HEART)
-                c.dot(hx + 1, hy + 1, HEART_SHINE)
-        elif e == "zzz":
-            for _i, (zx, zy, s) in enumerate(((cx + 20, top + 18, 3), (cx + 26, top + 10, 4), (cx + 33, top + 1, 5))):
-                col = (200, 210, 255)
-                for k in range(s):
-                    c.dot(zx + k, zy, col)
-                    c.dot(zx + s - 1 - k, zy + k, col)
-                    c.dot(zx + k, zy + s - 1, col)
-        elif e == "sweat":
-            for dx, dy in ((0, 0), (-1, 1), (0, 1), (-1, 2), (0, 2), (1, 2), (0, 3)):
-                c.dot(cx + 18 + dx, top + 20 + dy, (120, 190, 255))
-        elif e == "tear":
-            tx, ty = tear or (cx - 9, floor - 36)
-            for dy in range(3):
-                c.dot(tx, ty + dy, (120, 190, 255))
-        elif e == "dots":
-            # White dots in a dark ring, so they read on light and dark walls.
-            for i in range(3):
-                x, y = cx + 22 + i * 5, top + 13 - i * 4
-                for dx, dy in ((0, -1), (1, -1), (-1, 0), (2, 0), (-1, 1), (2, 1), (0, 2), (1, 2)):
-                    c.dot(x + dx, y + dy, DOT_RING)
-                for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                    c.dot(x + dx, y + dy, (255, 255, 255))
-        elif e == "sparkle":
-            for sx, sy in ((cx - 24, top + 16), (cx + 25, top + 12)):
-                for dx, dy in ((0, -2), (0, -1), (0, 0), (0, 1), (0, 2), (-2, 0), (-1, 0), (1, 0), (2, 0)):
-                    c.dot(sx + dx, sy + dy, (255, 236, 140))
-
-
 # --- Layers for the device ------------------------------------------------------
-
-
-class Scene(Protocol):
-    """Where a pet lives: everything behind it, swappable per persona.
-
-    A scene is the backdrop and, if it has them, a window (where the device
-    draws the sky and weather), a progress prop (a picture per stage of the
-    progress signal, healthy and wilted, like a plant growing) and colors
-    the device swaps by weekday (like a rug). room.py's Room is one scene,
-    living_room.py's LivingRoom another. A scene with furniture to sit on
-    may set `pet_floor`, the row the pet's feet rest on (see Pet.render).
-    """
-
-    window: tuple[int, int, int, int] | None  # Glass: x, y, width, height; None without one.
-
-    def image(self) -> Image.Image:
-        """The whole backdrop, glass included."""
-
-    def background(self) -> Image.Image:
-        """The backdrop, see-through where the glass is."""
-
-    def layers(self) -> dict:
-        """The scene's optional persona-module names: plant, PLANT_STAGES and
-        DEFAULT_STAGE for a progress prop; RUG_COLORS, RUG_BY_WEEKDAY and
-        RUG_BOX for weekday colors (see personas.py). Empty without either."""
 
 
 @dataclass(frozen=True, eq=False)

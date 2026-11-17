@@ -41,8 +41,9 @@ from dataclasses import dataclass, replace
 
 from PIL import Image
 
-from . import pet
-from .pet import DARK, HEART, HEART_SHINE, Breed, Coat, H, Pose, Rig, Stance, W  # noqa: F401
+from . import effects, pet
+from .effects import HEART, HEART_SHINE
+from .pet import DARK, Breed, Coat, H, Pose, Rig, Stance, W  # noqa: F401
 from .pixelkit import Canvas, Color, Point, Ramp, ellipse, intersect, mask, poly, rotate, subtract  # noqa: F401
 
 WHITE = (255, 255, 255)
@@ -479,5 +480,5 @@ class Cat:
                 top.dot(lx + dx, ly + dy, LASER_GLOW)
             top.dot(lx, ly, LASER)
         lx_, ly_ = (round(v) for v in hp(-b.eye_at[0], b.eye_at[1]))
-        pet.extras(top, p.extras, cx, floor + p.hop, tear=(lx_ - 1, ly_ + 3))
+        effects.extras(top, p.extras, cx, floor + p.hop, tear=(lx_ - 1, ly_ + 3))
         return top.img

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from PIL import Image
 
-from . import dog, pet
+from . import dog, effects, pet
 from .living_room import LivingRoom
 from .pet import Coat, Pet, Pose, Rig, wag_cycle, with_
 from .pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly, rotate
@@ -185,7 +185,7 @@ def curled(p: Pose) -> Image.Image:
         for dx in (-1, 0, 1):
             c.dot(ex + dx, ey + (1 if kind == "blink" else 0), EYE if kind == "half" or dx == 0 else pet.DARK)
     c.outline(OUTLINE)
-    pet.extras(c, p.extras, 30, floor + 20)
+    effects.extras(c, p.extras, 30, floor + 20)
     return c.img
 
 

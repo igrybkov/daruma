@@ -1,0 +1,16 @@
+# A uv workspace member. daruma_personas is a namespace package (PEP 420): each
+# member adds its own part, so there is no daruma_personas/__init__.py.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daruma-persona-the-boss"
+version = "0.0.0"
+description = "The boss persona"
+requires-python = ">=3.12"
+dependencies = ["daruma-pixel", "daruma-shapes-office"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daruma_personas"]

@@ -14,14 +14,14 @@
 # focus -> Focus); the rest fall back, and the build log lists how
 # (src/esphome/components/daruma/registry.py).
 #
-# Drawn by Python while the firmware compiles (pixel/daruma_pixel/
-# tabby_cat.py on cat.py and pet.py, in studio.py, through personas.py); edit
-# the art there and compile. Previews: see personas.py.
+# Drawn by Python while the firmware compiles (pixel/persona-tabby-cat: a cat
+# from daruma_shapes.pets in the studio from daruma_shapes.rooms); edit the
+# art there and compile. Previews: see daruma_pixel.personas.
 
 daruma_sprites:
   - id: tabby_cat
     name: Tabby cat
-    pixel_art: { module: daruma_pixel.tabby_cat, persona: tabby_cat }
+    pixel_art: { module: daruma_personas.tabby_cat, persona: tabby_cat }
     params:
       rug: { value: weekday, expose: true }
     # Menu and apps: cream cards on the backdrop's brown, with the drape's

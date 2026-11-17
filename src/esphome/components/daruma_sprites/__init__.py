@@ -25,7 +25,7 @@ let the layers behind show.
 
 Or the whole persona comes from Python at build time: `pixel_art` names a
 persona and the module (by dotted name) or script (by path) that has it.
-A module declares its personas with a Spec (pixel/daruma_pixel/personas.py),
+A module declares its personas with a Spec (daruma_pixel.personas),
 or has a build(persona) of its own; either gives the room, frames, plant,
 rug colors and animations.
 
@@ -216,7 +216,7 @@ def _pictures(config):
 PIXEL_ART_SCHEMA = cv.All(
     cv.Schema(
         {
-            # A Python file, or a module by dotted name (daruma_pixel.corgi_persona).
+            # A Python file, or a module by dotted name (daruma_personas.corgi).
             cv.Optional(CONF_SCRIPT): cv.string_strict,
             cv.Optional(CONF_MODULE): cv.string_strict,
             cv.Required(CONF_PERSONA): cv.string_strict,
@@ -304,25 +304,36 @@ CONFIG_SCHEMA = cv.All(
 )
 
 
-# The pixel library: the Python package daruma_pixel (personas, pixelkit, the
-# rooms, engines and personas), in the same checkout as this component:
-# <repo>/components/daruma_sprites/ and <repo>/pixel/daruma_pixel/. A script
-# kept elsewhere, such as a persona in another package's repository, imports
-# it as `from daruma_pixel import personas`.
-PIXEL_LIBRARY = Path(__file__).resolve().parents[4] / "pixel"
-PIXEL_PACKAGE = "daruma_pixel"
+# The pixel packages, in the same checkout as this component
+# (<repo>/src/esphome/components/daruma_sprites/): every <repo>/pixel/*/src.
+# They hold daruma_pixel (the drawing layer) and the namespace packages
+# daruma_shapes and daruma_personas, one part per folder. The build installs
+# nothing: it puts the folders on the import path. A script kept elsewhere,
+# such as a persona in another repository, imports them by those names.
+PIXEL_ROOT = Path(__file__).resolve().parents[4] / "pixel"
+
+
+def _pixel_paths() -> list[Path]:
+    """The src folder of every pixel package, in name order."""
+    return sorted(PIXEL_ROOT.glob("*/src"))
+
+
+def _use_pixel_paths() -> None:
+    """The pixel packages first on the import path, in name order."""
+    for folder in reversed(_pixel_paths()):
+        if str(folder) not in sys.path:
+            sys.path.insert(0, str(folder))
 
 
 def _pixel_art_file(art) -> Path:
     """The file of a pixel_art script, or of its module: a dotted name found
-    with the pixel library on the import path."""
+    with the pixel packages on the import path."""
     if CONF_MODULE not in art:
         try:
             return Path(resolve_file(art[CONF_SCRIPT]))
         except cv.Invalid as err:
             raise cv.Invalid(f"No pixel_art script: {err}") from err
-    if str(PIXEL_LIBRARY) not in sys.path:
-        sys.path.insert(0, str(PIXEL_LIBRARY))
+    _use_pixel_paths()
     try:
         spec = importlib.util.find_spec(art[CONF_MODULE])
     except ImportError:
@@ -333,29 +344,30 @@ def _pixel_art_file(art) -> Path:
 
 
 def _library_module(script: Path) -> str | None:
-    """The module name of a script inside the library (daruma_pixel.personas), or None."""
-    try:
-        rel = script.resolve().relative_to((PIXEL_LIBRARY / PIXEL_PACKAGE).resolve())
-    except ValueError:
-        return None
-    return ".".join((PIXEL_PACKAGE, *rel.with_suffix("").parts))
+    """The module name of a script inside a pixel package (daruma_personas.corgi), or None."""
+    path = script.resolve()
+    for src in _pixel_paths():
+        if path.is_relative_to(src.resolve()):
+            parts = path.relative_to(src.resolve()).with_suffix("").parts
+            return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
+    return None
 
 
 def _script_path(script: Path) -> list[Path]:
     """The folders on the import path for a pixel_art script: its own (not
-    for a library script, whose modules import each other through the
-    package), then the library."""
+    for a script in a pixel package, whose modules import each other through
+    the package), then the pixel packages."""
     folders = [] if _library_module(script) else [script.resolve().parent]
-    if PIXEL_LIBRARY.is_dir():
-        folders.append(PIXEL_LIBRARY)
-    return folders
+    return folders + _pixel_paths()
 
 
 def _script_sources(script: Path) -> list[Path]:
-    """Every Python file the script can import: the ones next to it and the library's."""
+    """Every Python file the script can import: the ones next to it and every
+    pixel package's. All of them, not only the ones a persona uses: a few
+    more files to hash costs less than tracking imports."""
     files = set() if _library_module(script) else set(script.resolve().parent.glob("*.py"))
-    if PIXEL_LIBRARY.is_dir():
-        files |= set((PIXEL_LIBRARY / PIXEL_PACKAGE).rglob("*.py"))
+    for src in _pixel_paths():
+        files |= set(src.rglob("*.py"))
     return sorted(files)
 
 

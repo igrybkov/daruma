@@ -53,7 +53,7 @@ def repo_path(path: str) -> str | None:
     for i in range(len(parts) - 2, -1, -1):
         if parts[i] == "components" and parts[i + 1] in COMPONENTS:
             return "/".join([COMPONENTS_DIR, *parts[i + 1 :]])
-        if parts[i] == "pixel" and parts[i + 1] == "daruma_pixel":
+        if parts[i] == "pixel" and parts[i + 2 : i + 3] == ["src"]:
             return "/".join(parts[i:])
     return None
 

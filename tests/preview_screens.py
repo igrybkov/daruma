@@ -25,9 +25,10 @@ import sys
 from pathlib import Path
 
 import esphome_components  # noqa: F401
-from daruma_pixel import personas
 from esphome.components.daruma_sprites import extend
 from PIL import Image, ImageDraw, ImageFont
+
+from daruma_pixel import personas
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -15,7 +15,8 @@ src/esphome/components/
 packages/     boards (board_box3.yaml, board_box3_buttons.yaml,
               board_desktop.yaml), core.yaml, menu.yaml, pomodoro.yaml,
               prompts.yaml, app_tasks.yaml, app_calendar.yaml, persona_*.yaml
-pixel/        pixel-art sources (Python), drawn at build time
+pixel/        pixel-art sources (Python), drawn at build time: daruma-pixel
+              (drawing), shapes-* (pets, rooms, plants, office), persona-*
 art/          picture sets for persona_images.yaml
 examples/     box3.yaml, desktop.yaml and build checks
 blueprints/   HA blueprints: prompt demos, doorbell prompt, quiz, task list
@@ -70,20 +71,38 @@ stores the absolute path (`resolve_file()` and `resolve_dir()` in
 validated, while each value still knows its YAML file. The rest of the
 build reads only absolute paths.
 
-**The pixel library.** The pixel art is the Python package
-`daruma_pixel` (`pixel/daruma_pixel/`, installable with pip through
-`pyproject.toml`). Firmware builds do not install it. `daruma_sprites` puts
-`pixel/` of its own checkout on the import path. `pixel_art: module:`
-names a persona module by dotted name (`daruma_pixel.corgi_persona`), and
-`pixel_art: script:` names a file. A script kept elsewhere (a persona in a
-device's config folder or in another package's repository) runs with its
-own folder and the library on the path. It imports the engines as
-`from daruma_pixel import personas, pet` and declares its persona with
-`PERSONA = personas.Spec(...)`; the component builds it with
-`personas.build()`. A module with a `build(name)` of its own builds
-itself. Library modules live in their own namespace, so
-a script's own module names cannot replace them. The drawn-persona cache
-hashes every file the script can import.
+**The pixel packages.** The pixel art is Python, in three layers. Each
+folder under `pixel/` is a uv workspace member with its own
+`pyproject.toml` and a `src/` folder:
+
+- `pixel/daruma-pixel/`: `daruma_pixel`, the drawing layer. It holds
+  pixelkit, scenes and spots, effects and the persona framework
+  (`personas.py`: `Spec`, `build()`, `discover()`). It installs on its
+  own with pip (`#subdirectory=pixel/daruma-pixel`).
+- `pixel/shapes-*/`: `daruma_shapes.<family>`, the shapes: pets, rooms,
+  plants and office.
+- `pixel/persona-*/`: `daruma_personas.<name>`, one persona each. A
+  persona picks shapes, colors and animations.
+
+`daruma_shapes` and `daruma_personas` are namespace packages (PEP 420).
+Each member adds its own part, so the top folder has no `__init__.py`.
+`discover()` lists the personas in `daruma_personas`; no file lists them
+by hand. Imports only go down: a persona never imports another persona,
+a shape never imports a persona, and the drawing layer imports neither.
+
+`uv sync` installs every member editable (the `pixel` group). Firmware
+builds install nothing: `daruma_sprites` puts every `pixel/*/src` of its
+own checkout on the import path. `pixel_art: module:` names a persona by
+dotted name (`daruma_personas.corgi`), and `pixel_art: script:` names a
+file. A script kept elsewhere (a persona in a device's config folder or in
+another package's repository) runs with its own folder and the pixel
+packages on the path. It imports them by name, for example
+`from daruma_shapes.pets import dog`, and declares its persona with
+`PERSONA = Spec(...)`; the component builds it with `personas.build()`.
+A module with a `build(name)` of its own builds itself. The pixel
+packages live in their own namespaces, so a script's own module names
+cannot replace them. The drawn-persona cache hashes every Python file of
+every pixel package, plus the files next to a script.
 
 **Bundles.** `esphome bundle` packs the config folder for a remote build.
 Pictures and scripts the config does not name as paths are added with

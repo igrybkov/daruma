@@ -16,12 +16,13 @@ file, wherever the cache is:
 - `art: ../art/my_set` finds a picture folder in your checkout.
 - `path: ../src/esphome/components` finds your own components, if you have any.
 
-A pixel-art script runs with two folders on Python's import path: its own
-folder, and the folder that holds Daruma's pixel library, the Python
-package `daruma_pixel`. So your script imports the engines and the persona
-table from it: `from daruma_pixel import personas, pet, desk_boss, pixelkit`.
-No pip step is needed on the builder; the library comes from the Daruma
-checkout.
+A pixel-art script runs with its own folder on Python's import path, and
+every pixel package of the Daruma checkout (`pixel/*/src`). So your script
+imports them by name: the drawing layer (`daruma_pixel`), the shapes
+(`daruma_shapes.pets`, `.rooms`, `.plants`, `.office`), and a persona's
+parts if you build on one. For example:
+`from daruma_shapes.office.boss import Persona, Look`. No pip step is
+needed on the builder; the packages come from the Daruma checkout.
 
 The hub checks the merged config at build time: every persona, state and
 binding, from every package. A mistake in your package fails the build,
@@ -47,7 +48,7 @@ The easy way is a look on an engine. For a person at a desk:
 
 ```python
 # pixel/my_persona.py
-from daruma_pixel.desk_boss import Persona, Look, Pose, animations, with_
+from daruma_shapes.office.boss import Persona, Look, Pose, animations, with_
 from daruma_pixel.scene import Spot
 ...
 LOOK = Look(...)  # skin, hair, clothes, room, desk props
@@ -59,9 +60,9 @@ BLINKS = {...}
 WINKS = {...}
 ```
 
-`pixel/daruma_pixel/the_boss.py` in Daruma is a complete example of a
-look on `desk_boss`. `pixel/daruma_pixel/jack_russell.py` is a breed on
-`pet`.
+`pixel/persona-the-boss/` in Daruma is a complete example of a look on
+the office (`daruma_shapes.office.boss`). `pixel/persona-jack-russell/` is
+a breed on the pet rig (`daruma_shapes.pets`).
 
 ### The persona declaration
 
@@ -96,8 +97,9 @@ A picture persona works the same way: a `daruma_images` entry with
 
 - **Unique names.** Persona ids, `Spec` names and component names must
   not clash with Daruma's or another package's. Prefix them.
-- **Prefixed modules.** Daruma's modules sit in the `daruma_pixel`
-  package, so yours cannot replace them. But the modules of every package
+- **Prefixed modules.** Daruma's modules sit in the `daruma_pixel`,
+  `daruma_shapes` and `daruma_personas` packages, so yours cannot replace
+  them. But the modules of every package
   in a build share one top-level namespace: two repositories with a
   `util.py` clash. Name yours `my_persona_*.py`.
 - **Pin Daruma.** Say which Daruma version your package works with, and
@@ -235,12 +237,12 @@ uv run pytest demos -m scenario --scenario tour --update-golden \
     --persona "My persona"
 ```
 
-To look at the frames only, install the library from your Daruma clone
-(or from GitHub, `git+https://github.com/igrybkov/daruma`) and run your
-persona module, from your repository's root:
+To look at the frames only, run your persona module in the environment
+of a Daruma clone (`uv sync` there installs every pixel package), from
+your repository's root:
 
 ```sh
-uv run --with /path/to/daruma python -c "import sys; sys.path.insert(0, 'pixel'); \
+uv run --project /path/to/daruma python -c "import sys; sys.path.insert(0, 'pixel'); \
 from daruma_pixel import personas; \
 print(len(personas.build('my_persona', 'my_persona').animations), 'animations')"
 ```

@@ -1,27 +1,12 @@
-# The pixel-art library (pixel/daruma_pixel) as a Python package, for
-# scripts and previews outside an ESPHome build:
+# The workspace root of Daruma. It builds nothing itself. Its members:
 #
-#   pip install "git+https://github.com/igrybkov/daruma"
+#   src/                 the ESPHome components, editable only (src/pyproject.toml)
+#   pixel/daruma-pixel/  the drawing layer (daruma_pixel)
+#   pixel/shapes-*/      shapes: pets, rooms, plants, office (daruma_shapes.*)
+#   pixel/persona-*/     one package per persona (daruma_personas.*)
 #
-# ESPHome builds do not install it: the components load it from the
-# checkout they come from.
-
-[build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "daruma-pixel"
-version = "0.0.0"
-description = "Pixel-art rooms, personas and engines for Daruma device personas"
-readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
-requires-python = ">=3.12"
-dependencies = ["pillow>=10"]
-
-[project.urls]
-Homepage = "https://github.com/igrybkov/daruma"
+# ESPHome builds install none of them: they load the components and the
+# pixel packages from the checkout they come from.
 
 # Tools for working on Daruma, locked in uv.lock, all in one .venv:
 #
@@ -35,6 +20,7 @@ Homepage = "https://github.com/igrybkov/daruma"
 [dependency-groups]
 test = [
     { include-group = "esphome" },
+    { include-group = "pixel" },
     # The screen tests talk to the device with it. ESPHome pins the version.
     "aioesphomeapi",
     "pillow>=10",
@@ -42,6 +28,20 @@ test = [
     "pytest-asyncio>=1.5",
     "pytest-xdist>=3.8",
     "pyyaml>=6",
+]
+# The pixel packages, installed editable: the drawing layer, the shapes
+# and the personas (pixel/*/pyproject.toml).
+pixel = [
+    "daruma-pixel",
+    "daruma-shapes-pets",
+    "daruma-shapes-rooms",
+    "daruma-shapes-plants",
+    "daruma-shapes-office",
+    "daruma-persona-corgi",
+    "daruma-persona-jack-russell",
+    "daruma-persona-tabby-cat",
+    "daruma-persona-the-boss",
+    "daruma-persona-daruma",
 ]
 # The components by their ESPHome names (esphome.components.daruma), for
 # scripts and the REPL. Editable only: src/pyproject.toml.
@@ -83,14 +83,20 @@ environments = [
 esphome = { requires-python = ">=3.12,<3.15" }
 
 [tool.uv.workspace]
-members = ["src"]
+members = ["src", "pixel/daruma-pixel", "pixel/shapes-*", "pixel/persona-*"]
 
 [tool.uv.sources]
 daruma-components = { workspace = true }
-
-[tool.setuptools.packages.find]
-where = ["pixel"]
-include = ["daruma_pixel*"]
+daruma-pixel = { workspace = true }
+daruma-shapes-pets = { workspace = true }
+daruma-shapes-rooms = { workspace = true }
+daruma-shapes-plants = { workspace = true }
+daruma-shapes-office = { workspace = true }
+daruma-persona-corgi = { workspace = true }
+daruma-persona-jack-russell = { workspace = true }
+daruma-persona-tabby-cat = { workspace = true }
+daruma-persona-the-boss = { workspace = true }
+daruma-persona-daruma = { workspace = true }
 
 # Lint and format. The version is pinned in .pre-commit-config.yaml; CI
 # runs the same hooks.
@@ -104,13 +110,12 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 [tool.ruff.lint.isort]
 # src/esphome holds only this repository's components; esphome is ESPHome.
 known-third-party = ["esphome"]
+known-first-party = ["daruma_pixel", "daruma_shapes", "daruma_personas"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "demos"]
-# daruma_pixel, also where it is not installed (CI syncs with
-# --no-install-project). The components come in through
-# tests/esphome_components.py.
-pythonpath = ["pixel"]
+# The pixel packages come from the "pixel" group (part of "test"). The
+# components come in through tests/esphome_components.py.
 # pytest-xdist, one worker per CPU: on an M-series Mac (5 performance and
 # 6 efficiency cores) that beat 2, 4 and 6 workers for both test sets.
 # Pass -n 0 to run in one process.

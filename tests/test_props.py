@@ -32,7 +32,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 _PACKAGES = _ROOT / "packages"
-_LIBRARY = _ROOT / "pixel"
+_LIBRARIES = [src.resolve() for src in (_ROOT / "pixel").glob("*/src")]
 
 try:
     import yaml
@@ -79,14 +79,15 @@ def pixel_personas() -> list[tuple[str, dict]]:
 
 def _script(conf: dict):
     # A `module:` is imported by name. Scripts are named relative to their
-    # package file; a library script is imported as a module of daruma_pixel,
-    # so its relative imports work.
+    # package file; a script inside a pixel package is imported by its module
+    # name, so its relative imports work.
     if "module" in conf["pixel_art"]:
         return importlib.import_module(conf["pixel_art"]["module"])
     path = (_PACKAGES / conf["pixel_art"]["script"]).resolve()
-    library = _LIBRARY.resolve()
-    if path.is_relative_to(library):
-        return importlib.import_module(".".join(path.relative_to(library).with_suffix("").parts))
+    for library in _LIBRARIES:
+        if path.is_relative_to(library):
+            parts = path.relative_to(library).with_suffix("").parts
+            return importlib.import_module(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
     spec = importlib.util.spec_from_file_location(f"daruma_props_{path.stem}", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

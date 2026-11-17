@@ -87,7 +87,8 @@ def synthetic():
 
 def persona_builds() -> list[tuple[str, object]]:
     """(label, build) for every pixel persona; build() returns its personas."""
-    from daruma_pixel import daruma_persona, personas
+    from daruma_personas import daruma as daruma_persona
+    from daruma_pixel import personas
 
     return [
         ("corgi", lambda: [personas.build("corgi")]),

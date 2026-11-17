@@ -133,28 +133,39 @@ keyframes and small patches, so the animation frames of a pixel persona
 take 11 to 17 KB of flash (see the table in
 [Rendering](architecture/rendering.md)).
 
-The library is the Python package `daruma_pixel`
-([pixel/daruma_pixel/](../pixel/daruma_pixel/)). It has two engines:
+The pixel art comes in three layers. Each is a set of Python packages
+under [pixel/](../pixel/):
 
-- **`pet`**: a front-facing pet sitting in a scene. A **breed** is a short
-  module of colors and shapes: coat, ears, head, muzzle, tail, markings.
-  The dogs share `dog.py` (nose, tongue, button ears, sitting pretty), the
-  cats share `cat.py`. See [jack_russell.py](../pixel/daruma_pixel/jack_russell.py)
-  and [tabby_cat.py](../pixel/daruma_pixel/tabby_cat.py).
-- **`desk_boss`**: a person behind a desk. A **look** sets skin, hair,
-  clothes and desk props. The desk and chair are `office.py` props; the
-  look module says where the desk stands. See
-  [the_boss.py](../pixel/daruma_pixel/the_boss.py).
+- **Drawing**: `daruma_pixel`
+  ([pixel/daruma-pixel/](../pixel/daruma-pixel/)): pixelkit, scenes and
+  spots, effects, and the persona framework.
+- **Shapes**: `daruma_shapes.<family>`, generic parts any persona can use.
+  `pets` ([pixel/shapes-pets/](../pixel/shapes-pets/)) is the pet rig: a
+  front-facing pet sitting in a scene. A **breed** is a short module of
+  colors and shapes: coat, ears, head, muzzle, tail, markings. The dogs
+  share `dog.py` (nose, tongue, button ears, sitting pretty), the cats
+  share `cat.py`. `office` ([pixel/shapes-office/](../pixel/shapes-office/))
+  is a person behind a desk. A **look** sets skin, hair, clothes and desk
+  props; the desk and chair are props in `furniture.py`. `rooms` and
+  `plants` follow below.
+- **Personas**: `daruma_personas.<name>`, one package each. A persona
+  picks shapes, sets their colors, and writes its animations. See
+  [persona-jack-russell](../pixel/persona-jack-russell/),
+  [persona-tabby-cat](../pixel/persona-tabby-cat/) and
+  [persona-the-boss](../pixel/persona-the-boss/).
 
-The daruma is its own module ([daruma.py](../pixel/daruma_pixel/daruma.py)):
-a persona can also draw everything itself, as long as it offers the names
-below.
+The daruma draws its own actor
+([persona-daruma](../pixel/persona-daruma/)): a persona can also draw
+everything itself, as long as it offers the names below. A cat is generic
+and fits any room. A tabby's colors and its studio are the tabby
+persona's own.
 
 ### Rooms
 
-The scene behind a pet is swappable. Three come with Daruma:
+The scene behind a pet is swappable. Three come with Daruma, in
+`daruma_shapes.rooms`:
 
-- `room.Room`: a cozy room with plank walls, a window, a shelf and a
+- `cozy_room.Room`: a cozy room with plank walls, a window, a shelf and a
   weekday rug. Its colors are fields, so each pet can have its own.
 - `living_room.LivingRoom`: a couch (`couch.py`), an arched window and a
   ceiling hook.
@@ -164,13 +175,14 @@ The scene behind a pet is swappable. Three come with Daruma:
 A scene has a window (the device draws the sky in its glass, from the
 "Window" select), spots, and colors that change by weekday
 (`RUG_COLORS`, `RUG_BY_WEEKDAY`). A spot is a named place in the scene
-(`scene.Spot`): `Room` has "floor" and "shelf", `LivingRoom` has "seat"
-and "hook", `Studio` has "floor" and "sill".
+(`daruma_pixel.scene.Spot`): `Room` has "floor" and "shelf", `LivingRoom`
+has "seat" and "hook", `Studio` has "floor" and "sill".
 
 The persona puts things on the spots. The pet sits on one. A prop that
 grows with the `progress` signal and wilts when you fall behind
-(`scene.Grower`: `plant.POTHOS`, `spider_plant.SPIDER_PLANT`,
-`cat_grass.CAT_GRASS`, `bonsai.BONSAI`) stands on another:
+(`daruma_pixel.scene.Grower`, in `daruma_shapes.plants`:
+`pothos.POTHOS`, `spider_plant.SPIDER_PLANT`, `cat_grass.CAT_GRASS`,
+`bonsai.BONSAI`) stands on another:
 
 ```python
 _pet = Pet(CORGI, Room(), seat="floor", plant=POTHOS, plant_spot="shelf")
@@ -188,15 +200,17 @@ offers:
 
 | Name | What |
 |---|---|
-| `background()`, `foreground(pose)`, `scene(pose)`, `WINDOW` | the layers; a pet takes them from its `Pet` and its scene (see `corgi_persona.py`) |
+| `background()`, `foreground(pose)`, `scene(pose)`, `WINDOW` | the layers; a pet takes them from its `Pet` and its scene (see `daruma_personas.corgi`) |
 | `ANIMATIONS` | animation name -> list of (pose, ms); `Neutral` is required |
 | `BLINKS`, `WINKS` | animation name -> the single frame the hub flashes for a blink or a wink |
 | `PROPS` | optional: activity -> boxes where its props stand, for the props tests |
 | `PERSONA` | `Spec(name, background=...)`: says the module is a persona |
 
 `PERSONA` is what makes the module a persona. Nothing else lists it:
-[personas.py](../pixel/daruma_pixel/personas.py) finds every persona
-module of the library, and a `pixel_art:` entry names yours.
+`discover()` in
+[personas.py](../pixel/daruma-pixel/src/daruma_pixel/personas.py) finds
+every persona in the `daruma_personas` namespace, and a `pixel_art:` entry
+names yours.
 
 ```python
 from daruma_pixel.personas import Spec

@@ -41,11 +41,9 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None
 
-_REGISTRY = _ROOT / "components" / "daruma" / "registry.py"
-_SPEC = importlib.util.spec_from_file_location("daruma_registry_props", _REGISTRY)
-registry = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = registry
-_SPEC.loader.exec_module(registry)
+from component_loader import load_component  # noqa: E402
+
+registry = load_component("components/daruma/registry.py")
 
 GOAL_KEYS = ("started", "done")
 KEEP = 0.95  # Share of the prop pixels a reaction frame must show unchanged.

@@ -5,24 +5,12 @@ or PIL needed).
     python3 -m unittest discover -s tests
 """
 
-import importlib.util
-import sys
 import unittest
-from pathlib import Path
 
-_COMPONENTS = Path(__file__).resolve().parents[1] / "components"
+from component_loader import load_component
 
-
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # Dataclasses look their module up here.
-    spec.loader.exec_module(module)
-    return module
-
-
-registry = _load("daruma_registry_screens", _COMPONENTS / "daruma" / "registry.py")
-extend = _load("daruma_extend", _COMPONENTS / "daruma_sprites" / "extend.py")
+registry = load_component("components/daruma/registry.py")
+extend = load_component("components/daruma_sprites/extend.py")
 
 RegistryError, ModuleSpec = registry.RegistryError, registry.ModuleSpec
 
@@ -48,6 +36,10 @@ class Profile(unittest.TestCase):
     def test_animation_needs_fast_frames(self):
         with self.assertRaisesRegex(RegistryError, "animate: false"):
             registry.check_profile(registry.Profile(animate=True, min_frame_ms=5000))
+        # The limit is one second: 999 ms still animates, 1000 ms doesn't.
+        registry.check_profile(registry.Profile(animate=True, min_frame_ms=999))
+        with self.assertRaisesRegex(RegistryError, "animate: false"):
+            registry.check_profile(registry.Profile(animate=True, min_frame_ms=1000))
 
     def test_eink_profile(self):
         p = registry.Profile("mono", False, 5000, True, 20)
@@ -81,6 +73,10 @@ class ButtonOnlyMenu(unittest.TestCase):
     def test_menu_on_a_button(self):
         inputs, bindings, _ = self.resolve({"home.press": {"action": "menu.open", "when": "idle"}})
         registry.check_menu_reachable(inputs, bindings, [HUB, MENU])
+
+    def test_a_named_menu_on_a_button(self):
+        binding = registry.Binding("home", "press", "menu.open:main", True, "device")
+        registry.check_menu_reachable(buttons(), [binding], [HUB, MENU])
 
     def test_navigation_gesture_needs_when_idle(self):
         with self.assertRaisesRegex(RegistryError, "when: idle"):

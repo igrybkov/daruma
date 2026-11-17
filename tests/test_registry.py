@@ -3,16 +3,11 @@
 python3 -m unittest discover -s tests
 """
 
-import importlib.util
-import sys
 import unittest
-from pathlib import Path
 
-_PATH = Path(__file__).resolve().parents[1] / "components" / "daruma" / "registry.py"
-_SPEC = importlib.util.spec_from_file_location("daruma_registry", _PATH)
-registry = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = registry  # Dataclasses look their module up here.
-_SPEC.loader.exec_module(registry)
+from component_loader import load_component
+
+registry = load_component("components/daruma/registry.py")
 
 State, ModuleSpec, Persona, RegistryError = (
     registry.State,
@@ -81,6 +76,49 @@ class States(unittest.TestCase):
         bad = ModuleSpec("x", states=[State("happy", registry.MOOD, "neutral", module="x")])
         with self.assertRaisesRegex(RegistryError, "already declares"):
             registry.collect_states([bad])
+        # Between two modules, the error names the one that came first.
+        first = ModuleSpec("a", states=[State("wave", registry.REACTION, "happy", module="a")])
+        second = ModuleSpec("b", states=[State("wave", registry.REACTION, "happy", module="b")])
+        with self.assertRaisesRegex(RegistryError, "Module 'b' declares state 'wave', which a already declares"):
+            registry.collect_states([first, second])
+
+    def test_fallback_through_another_module(self):
+        tasks = ModuleSpec("tasks", states=[State("task_done", registry.REACTION, "goal", module="tasks")])
+        states = registry.collect_states(MODULES + [tasks])
+        self.assertEqual(registry.fallback_chain(states, "task_done")[:3], ["task_done", "goal", "celebrate"])
+
+    def test_fallback_loop(self):
+        # The loop doesn't come back to the first state: x -> y -> z -> y.
+        loop = ModuleSpec(
+            "m",
+            states=[
+                State("x", registry.REACTION, "y", module="m"),
+                State("y", registry.REACTION, "z", module="m"),
+                State("z", registry.REACTION, "y", module="m"),
+            ],
+        )
+        with self.assertRaisesRegex(RegistryError, "Fallback loop: x -> y -> z -> y"):
+            registry.collect_states([loop])
+
+
+class Names(unittest.TestCase):
+    """A bad name fails where it is declared, and the error says what it names."""
+
+    def test_each_kind_of_name(self):
+        cases = {
+            "State 'Bad'": lambda: registry.collect_states(
+                [ModuleSpec("x", states=[State("Bad", registry.MOOD, "neutral", module="x")])]
+            ),
+            "Module 'Bad'": lambda: registry.check_modules([ModuleSpec("Bad")]),
+            "Menu 'Bad'": lambda: registry.collect_menus(None, [ModuleSpec("x", menus={"Bad": ["more"]})]),
+            "Menu 'Worse'": lambda: registry.collect_menus({"Worse": ["more"]}, []),
+            "Menu 'Odd'": lambda: registry.resolve_menus({"Odd": ["more"]}, [MENU], set()),
+            "Event 'Bad'": lambda: resolve({"main": [{"label": "L", "icon": "i", "event": "Bad"}]}),
+            "Tap area 'Bad'": lambda: registry.resolve_targets({}, [ModuleSpec("x", areas=["Bad"])], set()),
+        }
+        for message, call in cases.items():
+            with self.subTest(message), self.assertRaisesRegex(RegistryError, f"^{message}: use lowercase"):
+                call()
 
 
 class Personas(unittest.TestCase):
@@ -109,8 +147,24 @@ class Personas(unittest.TestCase):
 
     def test_unknown_state_in_behaviors(self):
         corgi = Persona("pixel_corgi", CORGI_ANIMS, behaviors={"focsu": {"animation": "Focus"}})
-        with self.assertRaisesRegex(RegistryError, "unknown state 'focsu'"):
+        with self.assertRaises(RegistryError) as caught:
             registry.resolve_persona(corgi, self.states)
+        self.assertEqual(str(caught.exception), "pixel_corgi: behaviors: unknown state 'focsu' (did you mean focus?)")
+        corgi.behaviors = {"sleeepy": {}}
+        with self.assertRaisesRegex(RegistryError, r"\(did you mean sleepy, sleeping\?\)$"):
+            registry.resolve_persona(corgi, self.states)
+        # No state starts like it: no guess.
+        corgi.behaviors = {"zzz": {}}
+        with self.assertRaises(RegistryError) as caught:
+            registry.resolve_persona(corgi, self.states)
+        self.assertEqual(str(caught.exception), "pixel_corgi: behaviors: unknown state 'zzz'")
+
+    def test_say_and_shown_as(self):
+        corgi = Persona("pixel_corgi", CORGI_ANIMS, behaviors={"focus": {"say": "Deep work"}})
+        behaviors, _ = registry.resolve_persona(corgi, self.states)
+        by_state = dict(zip([s.name for s in self.states], behaviors, strict=True))
+        self.assertEqual((by_state["focus"].say, by_state["focus"].shown_as), ("Deep work", "focus"))
+        self.assertEqual((by_state["goal"].say, by_state["goal"].shown_as), ("", "loved"))
 
     def test_unknown_animation(self):
         corgi = Persona("pixel_corgi", CORGI_ANIMS, behaviors={"focus": {"animation": "Reading"}})
@@ -158,6 +212,16 @@ class During(unittest.TestCase):
             registry.resolve_during(char, self.states)
 
 
+class Inputs(unittest.TestCase):
+    def test_swipe_stands_for_four_directions(self):
+        gestures = registry.expand_gestures(registry.TOUCH, ["swipe", "tap", "swipe_left"])
+        self.assertEqual(gestures, ["swipe_left", "swipe_right", "swipe_up", "swipe_down", "tap"])
+
+    def test_trigger_with_a_second_dot(self):
+        with self.assertRaisesRegex(RegistryError, "input 'home' has no gesture 'press.x'"):
+            registry.split_trigger("home.press.x", inputs())
+
+
 class Bindings(unittest.TestCase):
     def setUp(self):
         self.inputs = inputs()
@@ -197,6 +261,51 @@ class Bindings(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, "next, prev, select"):
             registry.check_navigation(buttons, {"back": "a.hold"})
 
+    def by_trigger(self, device, modules):
+        bindings, _ = registry.resolve_bindings(
+            self.inputs, self.nav, device, modules, registry.collect_actions(modules)
+        )
+        return {f"{b.input}.{b.gesture}": b for b in bindings}
+
+    def test_idle_and_source(self):
+        extra = ModuleSpec("extra", actions=["extra.go"], bindings={"home.double": "extra.go"})
+        b = self.by_trigger({"home.press": {"action": "pomodoro.toggle", "when": "idle"}}, MODULES + [extra])
+        self.assertEqual((b["home.press"].idle, b["home.press"].source), (True, "device"))
+        # A default on the touch screen acts only there; one on a button acts everywhere.
+        self.assertEqual((b["screen.hold"].idle, b["screen.hold"].source), (True, "pomodoro"))
+        self.assertEqual((b["home.double"].idle, b["home.double"].source), (False, "extra"))
+
+    def test_core_defaults_lose_wherever_the_core_is_listed(self):
+        b = self.by_trigger({}, [MENU, POMODORO, HUB])
+        self.assertEqual(b["screen.tap"].action, "menu.open")
+
+    def test_a_skipped_default_skips_only_itself(self):
+        extra = ModuleSpec(
+            "extra",
+            actions=["extra.go"],
+            bindings={
+                "knob.turn": "extra.go",  # The board has no knob.
+                "screen.stroke": "radio.play",  # No radio module.
+                "home.double": "extra.go",  # The device yaml binds it.
+                "screen.swipe_up": "extra.go",
+            },
+        )
+        b = self.by_trigger({"home.double": {"action": "pomodoro.toggle"}}, MODULES + [extra])
+        self.assertEqual(b["screen.swipe_up"].action, "extra.go")
+
+    def test_none_frees_a_trigger(self):
+        quiet = ModuleSpec("quiet", bindings={"screen.stroke": "none"})
+        b = self.by_trigger({"screen.tap": {"action": "none"}}, MODULES + [quiet])
+        self.assertEqual(b["screen.tap"].action, "none")
+        self.assertEqual((b["screen.stroke"].action, b["screen.stroke"].source), ("none", "quiet"))
+
+    def test_default_with_an_unknown_action(self):
+        for action in ("extra.gone", "pomodoro.toggle.x"):
+            extra = ModuleSpec("extra", actions=["extra.go"], bindings={"screen.stroke": action})
+            message = f"'extra' binds screen.stroke to '{action}'"
+            with self.subTest(action), self.assertRaisesRegex(RegistryError, message):
+                self.by_trigger({}, MODULES + [extra])
+
     def test_two_modules_bind_one_trigger(self):
         other = ModuleSpec("other", actions=["other.go"], bindings={"screen.tap": "other.go"})
         modules = MODULES + [other]
@@ -226,15 +335,19 @@ class AppsProgressThemeParams(unittest.TestCase):
     def test_app_copies_with_one_id(self):
         # The same app_id twice: the module names clash first, and two
         # modules offering one app fail on their own too.
+        registry.check_modules(MODULES + [ModuleSpec("tasks", apps=["tasks"])])  # One copy is fine.
         twice = [ModuleSpec("tasks", apps=["tasks"]), ModuleSpec("tasks", apps=["tasks"])]
         with self.assertRaisesRegex(RegistryError, "own app_id"):
             registry.check_modules(MODULES + twice)
         clash = [ModuleSpec("tasks", apps=["tasks"]), ModuleSpec("tasks_family", apps=["tasks"])]
-        with self.assertRaisesRegex(RegistryError, "Two modules offer the app 'tasks'"):
+        with self.assertRaisesRegex(RegistryError, r"Two modules offer the app 'tasks' \(tasks and tasks_family\)"):
             registry.order_apps([], MODULES + clash)
 
     def test_progress_sources(self):
         self.assertEqual(registry.check_progress({}, MODULES), ["pomodoro"])
+        modules = MODULES + [ModuleSpec("tasks", progress=["tasks"])]
+        self.assertEqual(registry.check_progress({}, modules), ["pomodoro", "tasks"])
+        self.assertEqual(registry.check_progress({"tasks": 1}, modules), ["tasks"])
         with self.assertRaisesRegex(RegistryError, "progress: no included module feeds"):
             registry.check_progress({"tasks": 1}, MODULES)
 
@@ -253,6 +366,9 @@ class AppsProgressThemeParams(unittest.TestCase):
     def test_action_names(self):
         with self.assertRaisesRegex(RegistryError, "must start with 'pomodoro.'"):
             registry.collect_actions([ModuleSpec("pomodoro", actions=["menu.open"])])
+        twice = [ModuleSpec("tasks", actions=["tasks.add"]), ModuleSpec("tasks", actions=["tasks.add"])]
+        with self.assertRaisesRegex(RegistryError, "offered by both 'tasks' and 'tasks'"):
+            registry.collect_actions(twice)
 
 
 def menu_modules():
@@ -301,8 +417,14 @@ class Menus(unittest.TestCase):
     def test_module_menu_is_a_default(self):
         menus = resolve()
         self.assertEqual(kinds(menus["pomodoro"]), [("module", "pomodoro"), ("action", "pomodoro.break")])
-        self.assertEqual(menus["pomodoro"][1].label, "Break")
-        self.assertEqual(menus["pomodoro"][1].color, "pomodoro.break")
+        look = menus["pomodoro"][1]
+        self.assertEqual((look.label, look.icon, look.color), ("Break", "x", "pomodoro.break"))
+
+    def test_action_look_without_a_color(self):
+        mods = menu_modules()
+        mods[2].buttons["pomodoro.stop"] = {"label": "Stop", "icon": "s"}
+        (look,) = resolve({"main": ["pomodoro.stop"]}, mods)["main"][:1]
+        self.assertEqual((look.label, look.icon, look.color), ("Stop", "s", ""))
 
     def test_device_wins_per_name(self):
         menus = resolve({"pomodoro": ["pomodoro"], "main": ["calendar", "more"]})
@@ -317,10 +439,32 @@ class Menus(unittest.TestCase):
         self.assertEqual(menus["pomodoro"], ["stats"])
         self.assertTrue(any("replaces" in line for line in log))
 
+    def test_two_modules_offering_one_menu_are_named(self):
+        mods = menu_modules() + [ModuleSpec("other", menus={"pomodoro": ["stats"]})]
+        with self.assertRaisesRegex(RegistryError, "Modules 'pomodoro' and 'other' both offer the menu 'pomodoro'"):
+            registry.collect_menus({}, mods)
+
+    def test_device_replaces_one_menu_of_a_module(self):
+        two = ModuleSpec("x", menus={"first": ["stats"], "second": ["stats"]})
+        menus, _ = registry.collect_menus({"first": ["more"]}, [two])
+        self.assertEqual((menus["first"], menus["second"]), (["more"], ["stats"]))
+
     def test_app_copy_nested_menu_and_event(self):
         menus = resolve({"quick": ["tasks_family", "main", {"label": "Lights", "icon": "y", "event": "lights"}]})
         self.assertEqual(kinds(menus["quick"]), [("app", "tasks_family"), ("menu", "main"), ("event", "lights")])
         self.assertNotIn(("more", ""), kinds(menus["quick"]))  # Only main gets More by itself.
+        _, nested, event = menus["quick"]
+        self.assertEqual(nested.label, "Main")
+        self.assertEqual((event.label, event.icon, event.color), ("Lights", "y", ""))
+
+    def test_nested_menu_label_and_event_color(self):
+        lamp = {"label": "Lamp", "icon": "y", "event": "lamp", "color": "ffcc00"}
+        menus = resolve({"quick": ["evening_lights", lamp], "evening_lights": [lamp, lamp]})
+        nested, event = menus["quick"]
+        self.assertEqual(nested.label, "Evening lights")
+        self.assertEqual(event.color, "ffcc00")
+        # The same event twice is fine: two buttons can fire one event.
+        self.assertEqual(kinds(menus["evening_lights"]), [("event", "lamp"), ("event", "lamp")])
 
     def test_app_wins_over_module_of_its_name(self):
         mods = menu_modules()
@@ -330,6 +474,12 @@ class Menus(unittest.TestCase):
     def test_unknown_item(self):
         with self.assertRaisesRegex(RegistryError, "'calender' is no app, module with buttons, menu or action"):
             resolve({"main": ["calender"]})
+        # The choices name the other menus, not the one that lists the item.
+        with self.assertRaises(RegistryError) as caught:
+            resolve({"quick": ["calender"]})
+        choices = str(caught.exception).partition("choose from: ")[2]
+        self.assertIn("main", choices)
+        self.assertNotIn("quick", choices)
 
     def test_module_without_buttons(self):
         with self.assertRaisesRegex(RegistryError, "'daruma' is no app"):
@@ -370,6 +520,10 @@ class Menus(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, "need the menu"):
             registry.check_menus_included({"quick": ["stats"]}, [POMODORO])
         registry.check_menus_included({}, [POMODORO])  # Module defaults alone are fine.
+        registry.check_menus_included({"quick": ["stats"]}, [POMODORO, MENU])
+
+    def test_no_menus_without_the_menu(self):
+        self.assertEqual(registry.resolve_menus({"main": ["stats"]}, [POMODORO], {"pomodoro.toggle"}), {})
 
 
 class MenuBindings(unittest.TestCase):
@@ -463,6 +617,8 @@ class Targets(unittest.TestCase):
     def test_apps_need_the_menu(self):
         with self.assertRaisesRegex(RegistryError, "needs the menu"):
             self.resolve({"plaque": {"app": "stats"}}, modules=[CORE_AREA, POMO_AREA])
+        with self.assertRaisesRegex(RegistryError, "needs the menu"):
+            self.resolve({"plaque": {"menu": "main"}}, modules=[CORE_AREA, POMO_AREA])
         # A module's default is skipped instead, and logged.
         targets, log = self.resolve(modules=[CORE_AREA, POMO_AREA])
         self.assertEqual(targets, {})
@@ -478,6 +634,34 @@ class Targets(unittest.TestCase):
         targets, log = self.resolve(modules=[CORE_AREA, MENU_MOD, WEATHER, other])
         self.assertEqual(targets["badge"], "menu.app:weather")
         self.assertTrue(any("radio: default target for 'badge'" in line and "came first" in line for line in log))
+        self.assertTrue(any("weather's (menu.app:weather) came first" in line for line in log))
+
+    def test_device_action_with_a_menu(self):
+        with self.assertRaisesRegex(RegistryError, "runs the menu 'nope', which is not defined"):
+            self.resolve({"plaque": {"action": "menu.open:nope"}})
+
+    def test_default_action_and_menu_targets(self):
+        dial = ModuleSpec(name="dial", actions=["dial.go"], areas=["dial"], targets={"dial": {"action": "dial.go"}})
+        badge = ModuleSpec(name="menus", targets={"badge": {"menu": "main"}})
+        targets, _ = self.resolve(modules=[CORE_AREA, MENU_MOD, dial, badge])
+        self.assertEqual(targets, {"dial": "dial.go", "badge": "menu.open:main"})
+
+    def test_a_skipped_default_skips_only_itself(self):
+        late = ModuleSpec(
+            name="late",
+            actions=["late.go"],
+            areas=["dial", "gauge"],
+            targets={
+                "clock": {"app": "stats"},  # No module draws a clock.
+                "badge": {"app": "stats"},  # The device yaml sets it.
+                "plaque": {"action": "late.go"},  # Pomodoro's default came first.
+                "gauge": {"app": "radio"},  # No module offers a radio app.
+                "dial": {"action": "late.go"},
+            },
+        )
+        modules = [CORE_AREA, MENU_MOD, POMO_AREA, late]
+        targets, _ = self.resolve({"badge": "none"}, modules=modules)
+        self.assertEqual(targets["dial"], "late.go")
 
 
 class DeviceThemes(unittest.TestCase):
@@ -498,6 +682,19 @@ class DeviceThemes(unittest.TestCase):
             registry.check_device_themes({"colors": {"pomodoro.ripe": 1}}, {}, [], [POMO_AREA])
         with self.assertRaisesRegex(RegistryError, "themes: daruma: theme word 'pomodoro.go'"):
             registry.check_device_themes({}, {"daruma": {"words": {"pomodoro.go": "x"}}}, ["daruma"], [POMO_AREA])
+
+    def test_every_part_is_checked(self):
+        cases = {
+            "daruma: theme: theme word 'pomodoro.nope'": ({"words": {"pomodoro.nope": "x"}}, {}),
+            "daruma: themes: eyes: theme color 'pomodoro.nope'": ({}, {"eyes": {"colors": {"pomodoro.nope": 1}}}),
+        }
+        for message, (theme, themes) in cases.items():
+            with self.subTest(message), self.assertRaisesRegex(RegistryError, f"^{message}"):
+                registry.check_device_themes(theme, themes, ["eyes"], [POMO_AREA])
+
+    def test_builtin_words(self):
+        words = {"words": {"time.am": "vorm."}}
+        registry.check_device_themes(words, {"eyes": words}, ["eyes"], [POMO_AREA], ("time.am",))
 
     def test_old_keys_still_work(self):
         registry.check_theme_keys("eyes", {"pomodoro.tomato": 1}, {}, [POMO_AREA])

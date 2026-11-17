@@ -55,6 +55,7 @@ class AgendaView {
   void draw_heading_(AppView &v, const std::string &text, int top, int right);
   void draw_event_(AppView &v, const AgendaViewState &state, const CalendarEvent &event, int top, int right);
   void draw_message_(AppView &v, const std::string &text);
+  void add_part_(AppView &v, const std::string &name, int top, int right, const std::string &value = "");
 
   // Layout from the last draw, in screen pixels.
   int pad_{10};

@@ -21,7 +21,6 @@ tests/test_props.py checks the prop pixels themselves stay put.
 
 from __future__ import annotations
 
-import importlib.util
 import re
 import sys
 import unittest
@@ -30,10 +29,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pixel"))
 
-_SPEC = importlib.util.spec_from_file_location("daruma_registry", ROOT / "components" / "daruma" / "registry.py")
-registry = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = registry  # Dataclasses look their module up here.
-_SPEC.loader.exec_module(registry)
+from component_loader import load_component  # noqa: E402
+
+registry = load_component("components/daruma/registry.py")
 
 import yaml  # noqa: E402
 from daruma_pixel import personas, pet  # noqa: E402

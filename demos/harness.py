@@ -368,6 +368,35 @@ class Clock:
 # --------------------------------------------------------------------------
 
 
+def _prompt_fields(
+    id: str,
+    title: str,
+    body: str,
+    options: list[str] | None,
+    layout: str,
+    style: str,
+    timeout: int,
+    state: str,
+    sound: str,
+    marks: list[str] | None,
+    dismissable: bool,
+) -> dict[str, Any]:
+    """The fields of prompt_show and ask, as HA sends them."""
+    return {
+        "id": id,
+        "layout": layout,
+        "title": title,
+        "body": body,
+        "options": options or [],
+        "marks": marks or [],
+        "style": style,
+        "timeout": timeout,
+        "state": state,
+        "sound": sound,
+        "dismissable": dismissable,
+    }
+
+
 class Device:
     """One running desktop device. Use as a context manager."""
 
@@ -537,7 +566,7 @@ class Device:
                 data[k] = call.variables.get(m.group(1), v) if m else v
             self.events.append(Event(call.service, data, self.now()))
             return
-        ok, response = self.data.answer(call.service, dict(call.data), self.wall_time())
+        ok, response = self.data.reply(call.service, dict(call.data), self.wall_time())
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
             self._client.send_homeassistant_action_response(
@@ -775,18 +804,41 @@ class Device:
         """prompt_show with HA's "empty means default" values filled in."""
         self.action(
             "prompt_show",
-            id=id,
-            layout=layout,
-            title=title,
-            body=body,
-            options=options or [],
-            marks=marks or [],
-            style=style,
-            timeout=timeout,
-            state=state,
-            sound=sound,
-            dismissable=dismissable,
+            **_prompt_fields(id, title, body, options, layout, style, timeout, state, sound, marks, dismissable),
         )
+
+    def ask(
+        self,
+        id: str,
+        title: str = "",
+        body: str = "",
+        options: list[str] | None = None,
+        layout: str = "message",
+        style: str = "info",
+        timeout: int = 0,
+        state: str = "",
+        sound: str = "",
+        marks: list[str] | None = None,
+        dismissable: bool = True,
+    ) -> Callable[[], Any]:
+        """Starts the `ask` action, as an HA script would. It waits for the
+        answer, so it runs in the background while the test taps and moves the
+        clock. Returns a function that waits for the reply and returns it:
+        `.success`, `.error_message`, and the answer in `.response_data`."""
+        fields = _prompt_fields(id, title, body, options, layout, style, timeout, state, sound, marks, dismissable)
+        call = self._client.execute_service(self._services["ask"], fields, return_response=True)
+        task = self._loop.create_task(call)
+        self._settle()
+
+        def reply(timeout: float = 10.0) -> Any:
+            return self._run(task, timeout)
+
+        return reply
+
+    def run_action(self, name: str) -> None:
+        """Run one of the hub's named actions, as a binding would ("prompts.dismiss")."""
+        self._call("desktop_action", name=name)
+        self._settle()
 
     def update_prompt(self, id: str, body: str = "", marks: list[str] | None = None, countdown: int = -1) -> None:
         self.action("prompt_update", id=id, body=body, marks=marks or [], countdown=countdown)

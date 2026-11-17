@@ -89,7 +89,9 @@ for people too. To contribute the persona, also:
    and `prompts`.
 5. Add its `highlight` GIF to the README grid, and a section to
    [docs/gallery.md](docs/gallery.md).
-6. Add its golden pictures for the `tour` scenario.
+6. Add its golden pictures for the `tour`, `emotions` and `activities`
+   scenarios: `make update-golden CONFIRM=1 PERSONA="<Name>"
+   SCENARIO=tour,emotions,activities`.
 7. Compile `examples/box3.yaml` and put the flash size before and after
    in the pull request.
 
@@ -202,7 +204,9 @@ one fails, and fails at the end.
 | Host tests (Python 3.12) | test 1 above on Python 3.12 |
 | Lint | `gitlint` on each commit of the pull request; ruff, clang-format, complexipy, lizard; clang-tidy on the host tests and the headers they include |
 | ESPHome | `make config` (every file in `examples/`), then `esphome compile examples/box3.yaml`; the flash size goes in the job summary |
-| Screen tests | tests 3 and 4 above, in one job with one build |
+| Screen tests (golden pictures, pytest) | test 3 and test 4 above, in two jobs side by side; "Screen tests" passes when both do |
+| Coverage (host tests, golden pictures, screen tests) | the tests again, measuring which lines they run |
+| Coverage report | joins that data; on a pull request, posts a coverage comment and checks the coverage rules |
 | Previews (standard, wide-square) | demo GIFs and contact sheets, uploaded as artifacts; two jobs side by side |
 | Pull request title | the title is a Conventional Commit |
 
@@ -221,6 +225,12 @@ build. Both need `examples/secrets.yaml`. They write it with
 random API key. It never overwrites the file. CI copies
 `secrets.ci.yaml` instead: its fixed public key lets the compiler cache
 reuse `main.cpp`. Never flash a build with either.
+
+The coverage rules: at least 80% of the lines a pull request changes
+must run in the tests, and no total may fall more than 0.5 points below
+main's. For Python, only the host tests count. Builds run the config
+checks and code generation without a test checking them.
+[Coverage](docs/testing.md#coverage) explains the rules and the comment.
 
 When a screen test fails, the job uploads its frames, diffs and logs as
 an artifact, with expected, actual and diff side by side. Download it

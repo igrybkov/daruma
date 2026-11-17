@@ -96,6 +96,12 @@ api:
               }
             }
             ESP_LOGW("desktop", "No state '%s'", state.c_str());
+    # Runs a named action, as a binding would: "prompts.dismiss",
+    # "menu.open:quick". For tests of actions no desktop input is bound to.
+    - action: desktop_action
+      variables: { name: string }
+      then:
+        - lambda: id(daruma_hub).run_action(name);
     # Shows any registered state by its name, as the core or a module would:
     # a mood is forced, an activity is held by the owner "demo", a reaction
     # plays. An empty name ends both: the mood goes back to auto and the
@@ -237,6 +243,21 @@ daruma_desktop:
     top: left_top_button
 
 # The screen light that urgent prompts turn on.
+# The BOX-3's Mute switch (core_voice.yaml), without the microphone: muted,
+# the persona sleeps.
+switch:
+  - platform: template
+    name: Mute
+    id: mute
+    icon: "mdi:microphone-off"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    entity_category: config
+    on_turn_on:
+      - lambda: id(daruma_hub).set_mute(true);
+    on_turn_off:
+      - lambda: id(daruma_hub).set_mute(false);
+
 output:
   - platform: template
     id: backlight_output

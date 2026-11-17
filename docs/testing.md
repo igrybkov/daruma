@@ -175,12 +175,30 @@ pomodoro's rules, the calendar's agenda and the weather words.
 
 CI measures which lines the tests run, in jobs beside the tests. The
 "Coverage report" job puts a table per area in its summary, and the
-`coverage` artifact holds `files.md` (per file) and `coverage.lcov`. On
-a pull request it posts one comment, updated on every push: how many of
-the changed lines the tests run, the changed lines no test runs, and
-each total against main's newest run
-([tests/coverage_comment.py](../tests/coverage_comment.py)). It never
-fails the build. On Linux with gcc, the same steps run locally:
+`coverage` artifact holds `files.md` (per file) and `coverage.lcov`.
+
+Python has two numbers:
+
+- **Tested**: the lines the Python host tests run.
+- **Run in builds**: also the lines that run in any build. Every build
+  runs the components' config checks and code generation, whether a test
+  checks them or not. So this number is higher than what the tests check.
+
+On a pull request, the job checks two rules
+([tests/coverage_comment.py](../tests/coverage_comment.py)):
+
+- **Changed lines**: at least 80% of the lines the pull request changes
+  must run. Only lines that coverage measures count. A changed Python
+  line counts only when a host test runs it. A pull request that changes
+  no measured line passes.
+- **No drop**: the C++ total and the Python tested total may each fall at
+  most 0.5 percentage points below main's newest run. When main has no
+  number to compare, the rule passes.
+
+The job posts one comment, updated on every push. It shows each rule's
+result with its numbers, the changed lines no test runs, the totals and a
+table per area. Then the job fails if a rule failed. On a push to main
+it only writes the report. On Linux with gcc, the same steps run locally:
 
 - C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
   the programs and their data, in `tests/run_cpp.sh` and `test_frames.py`.
@@ -189,7 +207,52 @@ fails the build. On Linux with gcc, the same steps run locally:
   with `--coverage`, in a build folder of its own, and runs ESPHome's code
   generation under coverage.py, which writes its data to that folder.
 - [tests/coverage_report.py](../tests/coverage_report.py) reads the
-  `.gcda` files with gcov and joins them with coverage.py's JSON.
+  `.gcda` files with gcov and joins them with coverage.py's JSON. Give it
+  the host tests' Python data alone with `--tested-python` for the tested
+  number.
+
+## Mutation tests
+
+A passing test shows that code ran. A mutation test shows that a test
+would notice a bug in it. The tool makes one small change at a time,
+such as `<` to `<=` or `true` to `false`. Then it runs the host tests
+that reach that code. When no test fails, the change "survived". That
+is a gap in the tests.
+
+```sh
+make mutate                    # every mutant: a report
+make mutate-diff               # only the lines changed since origin/main
+make mutate-diff BASE=main     # or since another branch
+```
+
+`make mutate` takes about three minutes. It never fails on a survivor.
+`make mutate-diff` takes seconds. It fails when a mutant on a changed
+line survives. The changes count from the merge base, so commits that
+land on main later are not yours. CI runs `make mutate-diff` on every
+pull request. That check is not required.
+
+- **Python**: [mutmut](https://github.com/boxed/mutmut) mutates the
+  files in `[tool.mutmut]` in `pyproject.toml`. Only the files the host
+  tests can load are there. The others import ESPHome.
+- **C++**: `tests/mutate_cpp.py` mutates the component files that the
+  C++ host tests include. It builds and runs every test that includes
+  the file. A change that doesn't build doesn't count.
+
+When a mutant survives, add a test that tells the change apart. Some
+changes can't be told apart. For example, a bound that a later check
+covers too. Mark those lines `# pragma: no mutate` in Python or
+`// pragma: no mutate` in C++, and say why in a comment. In Python, a
+comment line `# pragma: no mutate block, <why>` covers the statements
+after it, to the end of their block. `make mutate-diff` starts from a
+fresh `mutants/` folder, so it sees a new pragma. `make mutate` keeps
+the folder between runs: delete `mutants/` after you add a pragma.
+
+The Python runs skip lines that raise an error or add a build log line.
+That text is for people, and tests match only a few words of it.
+
+The host tests load each Python file under its path's name, such as
+`components.daruma.registry` (`tests/component_loader.py`). mutmut needs
+that name to find the tests for a mutant.
 
 ## Preview pixel art
 

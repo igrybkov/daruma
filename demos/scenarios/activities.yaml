@@ -7,6 +7,7 @@ description: >-
   emotions.yaml it shows every state (see covered_states).
 showcase: true
 personas: all
+test_personas: all
 setup:
   - set: {Outside temperature: 64}
   - wait: 1
@@ -20,7 +21,9 @@ steps:
   - caption: "Voice: thinking"
     steps:
       - voice: {phase: thinking, text: "Will it rain tomorrow?"}
-      - wait: 2
+      - wait: 1.5
+      - snapshot: thinking
+      - wait: 0.5
   - caption: "Voice: talking"
     steps:
       - voice: {phase: replying, text: "No rain tomorrow. Sunny, with a high of 68."}
@@ -54,7 +57,9 @@ steps:
   - caption: Focus
     steps:
       - show: focus
-      - wait: 3
+      - wait: 2
+      - snapshot: focus
+      - wait: 1
   - caption: Paused (a sound)
     steps:
       - show: paused
@@ -95,7 +100,9 @@ steps:
     steps:
       - tap: {role: tile, name: Weather}
       - expect: {visible: {role: app, name: Weather}}
-      - wait: 2.5
+      - wait: 1.5
+      - snapshot: weather
+      - wait: 1
       - press: {input: home, seconds: 2}
       - wait: 1
   # Home Assistant talks to it.

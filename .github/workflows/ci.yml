@@ -347,8 +347,8 @@ jobs:
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
-      # The pull request's own commit, not the merge with main: GitHub's
-      # code coverage maps the line numbers onto the pull request's diff.
+      # The pull request's own commit, not the merge with main: the
+      # coverage comment maps the line numbers onto the pull request's diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -407,8 +407,8 @@ jobs:
       DARUMA_COVERAGE: ${{ github.workspace }}/ci-coverage/python
       DARUMA_WORK: ${{ github.workspace }}/ci-work
     steps:
-      # The pull request's own commit, not the merge with main: GitHub's
-      # code coverage maps the line numbers onto the pull request's diff.
+      # The pull request's own commit, not the merge with main: the
+      # coverage comment maps the line numbers onto the pull request's diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -464,7 +464,8 @@ jobs:
     name: Coverage report
     permissions:
       contents: read
-      code-quality: write
+      actions: read
+      pull-requests: write
     needs: [coverage-host, coverage-screens]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
@@ -472,11 +473,14 @@ jobs:
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
-      # The pull request's own commit, not the merge with main: GitHub's
-      # code coverage maps the line numbers onto the pull request's diff.
+      # The pull request's own commit, not the merge with main: the
+      # coverage comment maps the line numbers onto the pull request's diff.
+      # The pull request's own commit, so line numbers match its diff. The
+      # whole history, for that diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -513,23 +517,36 @@ jobs:
           name: coverage
           path: ${{ env.COVERAGE_DIR }}/report
           retention-days: ${{ github.event_name == 'push' && 90 || 14 }}
-      # GitHub's code coverage: a push to main records the baseline, and a
-      # pull request gets a comment with its coverage against main's. One
-      # upload per language. A pull request from a fork can't upload.
-      - name: Upload the C++ coverage to GitHub
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+      # main's newest report, to compare with. Main saves one on every push.
+      - name: Fetch main's coverage
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list -R "$GITHUB_REPOSITORY" -w CI -b main -e push -s completed -L 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$run_id" ] && gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n coverage -D "$COVERAGE_DIR/main"; then
+            echo "BASE_RUN=$run_id" >> "$GITHUB_ENV"
+          else
+            echo "No coverage from main to compare with."
+          fi
+      - name: Write the comment
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff -U0 "$BASE...HEAD" -- components pixel > "$COVERAGE_DIR/pr.diff"
+          uv run --no-sync python tests/coverage_comment.py "$COVERAGE_DIR/report/lines.json" \
+            --base "$COVERAGE_DIR/main/lines.json" --base-run "${BASE_RUN:-}" \
+            --diff "$COVERAGE_DIR/pr.diff" --out "$COVERAGE_DIR/comment.md"
+      # One comment, updated on every push. A pull request from a fork gets
+      # a read-only token, so no comment.
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
-          file: ${{ env.COVERAGE_DIR }}/report/cobertura-cpp.xml
-          language: C++
-          label: coverage/cpp
-      - name: Upload the Python coverage to GitHub
-        if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
-        with:
-          file: ${{ env.COVERAGE_DIR }}/report/cobertura-python.xml
-          language: Python
-          label: coverage/python
+          header: coverage
+          path: ${{ env.COVERAGE_DIR }}/comment.md
 
   # Demo GIFs from the desktop build of this commit, so a pull request
   # can be previewed without a device. The standard screen records the

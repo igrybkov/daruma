@@ -15,8 +15,9 @@ Writes, in --out:
 - coverage.lcov   every line of every file, for an editor or genhtml
 - summary.md      per area (components/<name>, pixel), and the total
 - files.md        per file, and the files no test compiled or loaded
+- lines.json      every line's count, for tests/coverage_comment.py
 - cobertura-cpp.xml, cobertura-python.xml
-                  Cobertura XML per language, for GitHub's code coverage
+                  Cobertura XML per language, for tools that read it
 """
 
 from __future__ import annotations
@@ -222,6 +223,7 @@ def main() -> None:
     if args.out:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "coverage.lcov").write_text(lcov(lines))
+        (args.out / "lines.json").write_text(json.dumps(lines))
         (args.out / "summary.md").write_text(summary(lines))
         (args.out / "files.md").write_text(files(lines))
         (args.out / "cobertura-cpp.xml").write_text(cobertura(lines, "C++"))

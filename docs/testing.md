@@ -175,8 +175,12 @@ pomodoro's rules, the calendar's agenda and the weather words.
 
 CI measures which lines the tests run, in jobs beside the tests. The
 "Coverage report" job puts a table per area in its summary, and the
-`coverage` artifact holds `files.md` (per file) and `coverage.lcov`. It
-never fails the build. On Linux with gcc, the same steps run locally:
+`coverage` artifact holds `files.md` (per file) and `coverage.lcov`. On
+a pull request it posts one comment, updated on every push: how many of
+the changed lines the tests run, the changed lines no test runs, and
+each total against main's newest run
+([tests/coverage_comment.py](../tests/coverage_comment.py)). It never
+fails the build. On Linux with gcc, the same steps run locally:
 
 - C++ host tests: `CXXFLAGS=--coverage DARUMA_CPP_OUT=<folder>` keeps
   the programs and their data, in `tests/run_cpp.sh` and `test_frames.py`.

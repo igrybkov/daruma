@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0](https://github.com/igrybkov/daruma/compare/v0.1.0...v0.2.0) (2026-11-18)
+
+
+### Features
+
+* **demos:** run the scenarios of DARUMA_PERSONA_PATH folders ([c504225](https://github.com/igrybkov/daruma/commit/c50422596afe74874117f3936b40cd74a117a818))
+* **demos:** run the scenarios of DARUMA_PERSONA_PATH folders ([73b7814](https://github.com/igrybkov/daruma/commit/73b78149414e33fcdf6b58e504bbf3b6a972a83c))
+
+
+### Performance Improvements
+
+* **mutation:** end looping mutants sooner and run fast tests first ([688972e](https://github.com/igrybkov/daruma/commit/688972e18382006bfc1f32e3d856d65c81a84a2f))
+* **mutation:** fail a test that runs far past its clean time ([fd6a8fe](https://github.com/igrybkov/daruma/commit/fd6a8fe8bd4ea93b5545f42f85cf14aecfd374d1))
+
 ## 0.1.0 (2026-11-18)
 
 

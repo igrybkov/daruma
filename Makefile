@@ -165,10 +165,10 @@ mutate: ## Mutation tests of all the code the host tests reach: a report, never 
 
 # A fresh mutants/ each time, as in CI: mutmut keeps old mutants when only
 # a comment changed, so it would miss a new pragma.
-mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant
+mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant (MINUTES= caps the Python run)
 	rm -rf mutants
 	@status=0; \
-	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' || status=1; \
+	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' $(if $(MINUTES),--minutes $(MINUTES)) || status=1; \
 	$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)' || status=1; \
 	exit $$status
 

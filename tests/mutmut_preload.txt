@@ -1,0 +1,14 @@
+# Modules the mutmut fork server imports before it forks a mutant
+# (forkserver_warmup = "import"). Only modules from outside this
+# repository: a module of ours imported here would keep the values it
+# computed at import without the mutant.
+pytest
+_pytest.python
+PIL.Image
+PIL.ImageChops
+PIL.ImageDraw
+yaml
+grimp
+esphome.config_validation
+esphome.codegen
+esphome.core

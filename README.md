@@ -24,6 +24,17 @@ message and a doorbell card. See them all in the
 Not just a pet: focus sessions, tasks, calendar, weather and questions
 from Home Assistant.
 
+| | | |
+|:-:|:-:|:-:|
+| ![The focus menu: Focus and Custom, 2 of 4 today](docs/demos/screens/daruma-focus-menu.png) | ![A focus block: the timer on the persona's screen](docs/demos/screens/daruma-focus.png) | ![The Pomodoro page: the timer, today's tomatoes and this week](docs/demos/screens/daruma-pomodoro.png) |
+| **Start a focus block** | **Focus, on the persona's screen** | **The Pomodoro page** |
+| ![The app board: Tasks, Calendar, Weather and Pomodoro](docs/demos/screens/daruma-apps.png) | ![Tasks: one task checked off](docs/demos/screens/daruma-tasks.png) | ![Weather: now, the high and low, and the next hours](docs/demos/screens/daruma-weather.png) |
+| **Apps** | **Tasks** | **Weather** |
+| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-calendar.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-calendar-day.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |
+| **Calendar: the Agenda** | **Calendar: one day** | **Voice assistant** |
+| ![A yes/no question: turn the lights off?](docs/demos/screens/daruma-question.png) | ![A doorbell card: Unlock, Talk, Ignore](docs/demos/screens/daruma-doorbell.png) | ![A quiz question with four answers and a countdown](docs/demos/screens/daruma-quiz.png) |
+| **A question from Home Assistant** | **The doorbell** | **A quiz** |
+
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 
 ## Why Daruma
@@ -148,12 +159,12 @@ plug in the device or click something.
 script from it, and run it. In two minutes you see every kind of card the
 device can show, and each answer coming back to Home Assistant.
 
-| Blueprint | What it does | |
+| Blueprint | What it does | Import |
 |---|---|---|
-| [Prompt demos](blueprints/script/prompt_demos.yaml) (script) | Try every kind of card in two minutes: a yes/no question, an urgent alert, a card that stays, a scrolling list, two stacked alerts. The device shows the answer it sent back. | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fprompt_demos.yaml) |
-| [Doorbell prompt](blueprints/automation/doorbell_prompt.yaml) (automation) | When the doorbell rings, an urgent card offers Unlock, Talk and Ignore. | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fdoorbell_prompt.yaml) |
-| [Quiz](blueprints/script/quiz.yaml) (script) | A quiz from your list of questions, with a score and a 50:50 button. | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fquiz.yaml) |
-| [Task list from a sensor](blueprints/script/task_list.yaml) (script) | Turns a list of tasks in a sensor attribute into a source for the Tasks app. | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Ftask_list.yaml) |
+| [Prompt demos](blueprints/script/prompt_demos.yaml) (script) | Try every kind of card in two minutes: a yes/no question, an urgent alert, a card that stays, a scrolling list, two stacked alerts. The device shows the answer it sent back. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fprompt_demos.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
+| [Doorbell prompt](blueprints/automation/doorbell_prompt.yaml) (automation) | When the doorbell rings, an urgent card offers Unlock, Talk and Ignore. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fdoorbell_prompt.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
+| [Quiz](blueprints/script/quiz.yaml) (script) | A quiz from your list of questions, with a score and a 50:50 button. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fquiz.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
+| [Task list from a sensor](blueprints/script/task_list.yaml) (script) | Turns a list of tasks in a sensor attribute into a source for the Tasks app. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Ftask_list.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 
 Your own automations call the device's actions. Each is
 `esphome.<node>_<action>`, for example `esphome.daruma_show_message`:

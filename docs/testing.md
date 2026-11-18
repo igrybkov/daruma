@@ -47,6 +47,13 @@ size, or the scenario's `gif_scale`. They are kept under `--max-kb` by
 lowering the frame rate, then the colors. The README shows the
 `highlight` GIFs; [gallery.md](gallery.md) shows the rest.
 
+The `screens` scenario has `stills: true`. It records no GIF. Each of
+its snapshots becomes a PNG in [docs/demos/screens](demos/screens/), for
+the README's table of screens. Run `make gifs SCENARIO=screens` after you
+change how an app or a card looks. `tests/test_readme_screens.py` fails
+when an app has no snapshot named after it (`calendar`, `calendar-day`),
+or when a still is missing from the README.
+
 ## Scenarios
 
 A scenario is a YAML list of steps in
@@ -167,15 +174,22 @@ uv run pytest "demos/scenarios/tour.yaml::tour[pixel-corgi]"
   With make, `DARUMA_WORK=/tmp/mine` sets the folder for both.
 
 A persona kept out of this repository can still be recorded and tested.
-Pass its package to either runner:
+Name its repository in `DARUMA_PERSONA_PATH`, a list of folders joined
+like `PATH`. Every tool reads it the same way (`demos/persona_path.py`):
+the desktop build, the scenario tests, the recorder, the frame goldens and
+the prop check.
 
 ```sh
-uv run demos/record.py --private-persona path/to/persona.yaml --personas "<its name>"
-uv run pytest demos -m scenario --private-persona path/to/persona.yaml --persona "<its name>"
+export DARUMA_PERSONA_PATH=/path/to/my-daruma-private
+uv run demos/record.py --personas "<its name>"
+uv run pytest demos -m scenario --persona "<its name>"
+uv run python tests/persona_frames.py check <its pixel_art persona>
 ```
 
-Its GIFs and golden pictures stay in the temp folder (or `$DARUMA_WORK`),
-in `golden/`.
+The pictures go to that folder, never into this repository, laid out as
+Daruma keeps its own: GIFs in `docs/demos/`, goldens in `tests/golden/`.
+`DARUMA_PERSONA_GOLDEN` and `DARUMA_PERSONA_DEMOS` move them. See
+[private-packages.md](private-packages.md#test-before-you-push).
 
 ## Host tests
 

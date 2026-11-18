@@ -3,6 +3,10 @@
     uv run python tests/persona_frames.py check [PERSONA ...]
     uv run python tests/persona_frames.py update [PERSONA ...]
 
+DARUMA_PERSONA_PATH adds the pixel personas of folders outside this
+repository (demos/persona_path.py). Their goldens live in each folder's
+tests/golden/frames/, not here.
+
 test_persona_frames.py runs the check, one test per persona. `update`
 writes the goldens. It keeps a golden whose pixels did not change, so a
 PNG written by another zlib does not show up as a change.
@@ -35,6 +39,9 @@ from pathlib import Path
 import frames_fixture
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "demos"))
+import persona_path  # noqa: E402 - from demos/, put on the path above
+
 GOLDEN = Path(__file__).resolve().parent / "golden" / "frames"
 
 # Every field of personas.Persona that the goldens cover. A new field fails
@@ -54,8 +61,30 @@ FIELDS = {
 
 
 def builds() -> dict[str, object]:
-    """label -> a function that builds the personas of that label."""
-    return dict(frames_fixture.persona_builds())
+    """label -> a function that builds the personas of that label, Daruma's
+    own and the ones DARUMA_PERSONA_PATH adds."""
+    found = dict(frames_fixture.persona_builds())
+    for label, (build, _golden) in extra().items():
+        if label in found:
+            raise ValueError(f"{persona_path.ENV}: a persona is named {label!r} here too")
+        found[label] = build
+    return found
+
+
+def extra() -> dict[str, tuple[object, Path]]:
+    """label -> (build, golden folder) for the pixel personas of DARUMA_PERSONA_PATH."""
+    from daruma_pixel import personas
+
+    def builder(p):
+        return lambda: [personas.build(p.name, p.module())]
+
+    return {p.name: (builder(p), p.folder.frame_golden) for p in persona_path.pixel_personas()}
+
+
+def golden_of(label: str) -> Path:
+    """The golden folder of a label: its own folder's, or tests/golden/frames."""
+    found = extra().get(label)
+    return found[1] if found else GOLDEN
 
 
 def personas_of(label: str, build) -> dict[str, object]:
@@ -139,10 +168,10 @@ def _save(path: Path, img: Image.Image) -> None:
     img.save(path, optimize=True)
 
 
-def check(name: str, persona, out: Path) -> list[str]:
-    """What differs between a persona and its goldens; writes the actual and
-    the expected pictures of each difference under out/name."""
-    folder = GOLDEN / name
+def check(name: str, persona, out: Path, golden: Path = GOLDEN) -> list[str]:
+    """What differs between a persona and its goldens in golden/name; writes
+    the actual and the expected pictures of each difference under out/name."""
+    folder = golden / name
     problems = []
     meta = folder / "persona.json"
     if not meta.is_file() or meta.read_text() != _json_text(numbers(persona)):
@@ -165,9 +194,9 @@ def _save_text(path: Path, text: str) -> None:
     path.write_text(text)
 
 
-def update(name: str, persona) -> list[str]:
-    """Write the goldens of a persona; returns the files it changed."""
-    folder = GOLDEN / name
+def update(name: str, persona, golden: Path = GOLDEN) -> list[str]:
+    """Write the goldens of a persona to golden/name; returns the files it changed."""
+    folder = golden / name
     changed = []
     text = _json_text(numbers(persona))
     meta = folder / "persona.json"
@@ -191,23 +220,23 @@ def results_folder() -> Path:
 
 
 def selected(wanted: set[str]):
-    """(name, persona) for every persona, or only the ones named in wanted
-    (by folder name or by label)."""
+    """(name, persona, golden folder) for every persona, or only the ones
+    named in wanted (by folder name or by label)."""
     for label, build in builds().items():
         if wanted and label not in wanted and not any(w.startswith(label) for w in wanted):
             continue
         for name, persona in personas_of(label, build).items():
             if not wanted or name in wanted or label in wanted:
-                yield name, persona
+                yield name, persona, golden_of(label)
 
 
-def _run(command: str, name: str, persona) -> bool:
+def _run(command: str, name: str, persona, golden: Path) -> bool:
     """Runs one command on one persona; True when its goldens differ."""
     if command == "update":
-        changed = update(name, persona)
+        changed = update(name, persona, golden)
         print(f"{name}: {len(changed)} files written" if changed else f"{name}: unchanged", flush=True)
         return False
-    problems = check(name, persona, results_folder())
+    problems = check(name, persona, results_folder(), golden)
     print(f"{name}: {len(problems)} differ" if problems else f"{name}: ok", flush=True)
     return bool(problems)
 
@@ -215,7 +244,7 @@ def _run(command: str, name: str, persona) -> bool:
 def main(argv: list[str]) -> int:
     if not argv or argv[0] not in ("check", "update"):
         raise SystemExit(__doc__)
-    failed = [_run(argv[0], name, persona) for name, persona in selected(set(argv[1:]))]
+    failed = [_run(argv[0], name, persona, golden) for name, persona, golden in selected(set(argv[1:]))]
     return int(any(failed))
 
 

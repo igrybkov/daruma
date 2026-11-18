@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
 import tomllib
@@ -71,6 +72,7 @@ def _git(repo: Path, *args: str) -> None:
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+@pytest.mark.skipif(importlib.util.find_spec("mutmut") is None, reason="needs mutmut (the mutation group)")
 def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, capsys) -> None:
     (tmp_path / "src" / "pkg").mkdir(parents=True)
     (tmp_path / "src" / "pkg" / "__init__.py").write_text("")

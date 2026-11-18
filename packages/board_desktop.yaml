@@ -210,9 +210,11 @@ display:
     auto_clear_enabled: false
     window_options:
       resizable: true
+    # The hub draws into a canvas in RAM; frame() sends what changed to the
+    # window in one piece (see daruma_desktop/canvas.h).
     lambda: |-
       id(desktop).begin_frame();
-      id(daruma_hub).render(it);
+      id(daruma_hub).render(id(desktop).canvas());
       id(desktop).frame();
 
 touchscreen:

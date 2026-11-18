@@ -7,6 +7,9 @@ and button paths:
 - touch: taps, holds, swipes and strokes move the SDL display's mouse, which
   the `sdl` touchscreen reads;
 - buttons: named binary sensors are pressed and released;
+- screen: the hub draws into `canvas()`, a copy of the screen in RAM.
+  `frame()` sends the rectangle that changed to the window in one call.
+  The sdl display is slow when it gets one pixel at a time;
 - frames: each drawn frame is saved as a BMP named by its time, while a
   recording runs. The display lambda calls `frame()` after the hub renders;
 - sounds: each sound the device plays is rendered by the synth to a WAV file

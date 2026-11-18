@@ -49,6 +49,7 @@ def rotate(points: list[Point], pivot: Point, degrees: float) -> list[Point]:
 
 
 def shear_rows(m: Image.Image, pivot_y: int, per_row: float, max_shift: int = 99) -> Image.Image:
+    # Timing probe: not for merge.
     """Shift each row sideways in proportion to its distance from pivot_y.
 
     Bends a part around a hinge, the pixel-art way: no resampling, no blur.
@@ -62,17 +63,20 @@ def shear_rows(m: Image.Image, pivot_y: int, per_row: float, max_shift: int = 99
 
 
 def shift(m: Image.Image, dx: int, dy: int) -> Image.Image:
+    # Timing probe: not for merge.
     out = Image.new("1", m.size, 0)
     out.paste(m, (dx, dy))
     return out
 
 
 def moved(m: Image.Image, dx: int, dy: int) -> Image.Image:
+    # Timing probe: not for merge.
     """The mask seen from (dx, dy) away: out[x, y] is m[x + dx, y + dy], empty off the edge."""
     return shift(m, -dx, -dy)
 
 
 def touching(m: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Pixels with at least one side neighbour (left, right, up, down) in m."""
     out = moved(m, 1, 0)
     for dx, dy in ((-1, 0), (0, 1), (0, -1)):
@@ -81,11 +85,13 @@ def touching(m: Image.Image) -> Image.Image:
 
 
 def subtract(a: Image.Image, b: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Pixels of a that are not in b."""
     return ImageChops.logical_and(a, ImageChops.logical_xor(b, Image.new("1", b.size, 1)))
 
 
 def intersect(a: Image.Image, b: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     return ImageChops.logical_and(a, b)
 
 
@@ -139,12 +145,14 @@ class Canvas:
 
 
 def cached_picture[**P](draw: Callable[P, Image.Image]) -> Callable[P, Image.Image]:
+    # Timing probe: not for merge.
     """Draw each picture once: `draw` must give the same picture for the same
     (hashable) arguments. Every call gets its own copy to change."""
     memo = functools.cache(draw)
 
     @functools.wraps(draw)
     def picture(*args: P.args, **kwargs: P.kwargs) -> Image.Image:
+        # Timing probe: not for merge.
         return memo(*args, **kwargs).copy()
 
     return picture

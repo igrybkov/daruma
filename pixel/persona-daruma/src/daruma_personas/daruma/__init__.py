@@ -60,6 +60,7 @@ def build(eyes_painted: int | str):
 
 
 def _check_box(persona, eyes_painted: int) -> None:
+    # Timing probe: not for merge.
     """All eye states must crop the same box, or no frame is shared between them."""
     if eyes_painted == 0:
         return
@@ -71,6 +72,7 @@ def _check_box(persona, eyes_painted: int) -> None:
 
 @functools.cache
 def _blank_box() -> tuple[tuple[int, int], tuple[int, int]]:
+    # Timing probe: not for merge.
     """daruma0's crop: where its frames go, and their size."""
     ref = build(0)
     return ref.sprite_offset, ref.animations["Neutral"].frames[0][0].size

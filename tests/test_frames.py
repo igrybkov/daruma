@@ -7,12 +7,16 @@
 - The device's decoder (frame_chain.h, sprite.h), built with the host's
   c++, decodes every frame of every pixel persona to exactly its source
   picture, in full color, gray4 and mono, on its own and played in order
-  (test_frames.cpp). This builds the personas: a minute or two. Set
+  (test_frames.cpp). This builds the personas: some seconds. Set
   DARUMA_SKIP_PERSONAS=1 to check only the made-up frames.
+
+The decoder program is kept in the temp folder, named by a hash of what
+goes into it, so later runs and other workers skip its build.
 
 Skipped without Pillow, and the C++ part without a c++ compiler.
 """
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -99,6 +103,18 @@ class EncoderTest(unittest.TestCase):
 
 
 MODES = ("full", "gray4", "mono")
+_DECODER = _HERE.parent / "src" / "esphome" / "components" / "daruma"
+_BUILDS = Path(tempfile.gettempdir()) / "daruma-test-frames"
+
+
+def _build_key(command: list[str]) -> str:
+    """A hash of the build command, the compiler's version, the test and
+    the decoder's headers."""
+    key = hashlib.sha256("\0".join(command).encode())
+    key.update(subprocess.run(["c++", "--version"], capture_output=True, check=True).stdout)
+    for source in [_HERE / "test_frames.cpp", *sorted(_DECODER.glob("*.h"))]:
+        key.update(source.name.encode() + b"\0" + source.read_bytes())
+    return key.hexdigest()[:16]
 
 
 @unittest.skipIf(Image is None or shutil.which("c++") is None, "needs Pillow and a c++ compiler")
@@ -108,30 +124,33 @@ class DeviceDecoderTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
-        cls.binary = Path(cls._tmp.name) / "test_frames"
-        # For coverage, as tests/conftest.py: extra flags, and a folder that
-        # keeps the program and its data. One program per worker.
-        flags = os.environ.get("CXXFLAGS", "").split()
+        command = [
+            "c++",
+            "-std=c++17",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O1",
+            *os.environ.get("CXXFLAGS", "").split(),
+            f"-I{_DECODER}",
+            str(_HERE / "test_frames.cpp"),
+            "-o",
+        ]
+        # For coverage, as tests/conftest.py: CXXFLAGS above, and a folder
+        # that keeps the program and its data. One program per worker.
         if os.environ.get("DARUMA_CPP_OUT"):
             cls.binary = Path(os.environ["DARUMA_CPP_OUT"]) / f"test_frames-{os.getpid()}"
             cls.binary.parent.mkdir(parents=True, exist_ok=True)
-        include = _HERE.parents[0] / "src" / "esphome" / "components" / "daruma"
-        subprocess.run(
-            [
-                "c++",
-                "-std=c++17",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                "-O1",
-                *flags,
-                f"-I{include}",
-                str(_HERE / "test_frames.cpp"),
-                "-o",
-                str(cls.binary),
-            ],
-            check=True,
-        )
+            subprocess.run([*command, str(cls.binary)], check=True)
+            return
+        # Otherwise one program for every worker and run, named by what
+        # went into it. A worker that finds it skips the build.
+        cls.binary = _BUILDS / f"test_frames-{_build_key(command)}"
+        if not cls.binary.exists():
+            _BUILDS.mkdir(parents=True, exist_ok=True)
+            built = Path(cls._tmp.name) / "test_frames"
+            subprocess.run([*command, str(built)], check=True)
+            os.replace(built, cls.binary)
 
     @classmethod
     def tearDownClass(cls):

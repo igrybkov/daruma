@@ -5,7 +5,7 @@ pixels each frame must decode to.
 
 Without --personas, only small made-up sets. With it, every pixel persona too
 (corgi, The Boss, Jack Russell, the tabby cat and the daruma's three eye states), in full
-color, gray4 and mono. Building the personas takes a minute or two.
+color, gray4 and mono. Building and encoding the personas takes some seconds.
 
 The file is plain text, one record per line:
 

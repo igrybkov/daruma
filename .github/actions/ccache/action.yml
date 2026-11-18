@@ -8,9 +8,9 @@ description: >-
 inputs:
   kind:
     description: >-
-      The kind of build: box3, desktop or coverage. Each kind has its own
-      cache, because a restore brings back only one saved cache, the newest
-      one. Builds of other kinds would push it out.
+      The kind of build: box3, desktop, desktop-variants or coverage. Each
+      kind has its own cache, because a restore brings back only one saved
+      cache, the newest one. Builds of other kinds would push it out.
     required: true
 
 runs:

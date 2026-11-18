@@ -500,6 +500,15 @@ class Device:
         self.close()
 
     def start(self) -> None:
+        """Start the program and connect. If any step fails, the program
+        is stopped before the error goes on: no device is left running."""
+        try:
+            self._start()
+        except BaseException:
+            self.close()
+            raise
+
+    def _start(self) -> None:
         self.workdir.mkdir(parents=True, exist_ok=True)
         prefs = self.workdir / "prefs"
         shutil.rmtree(prefs, ignore_errors=True)

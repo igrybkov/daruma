@@ -1,10 +1,11 @@
-"""Tests of the harness's time zones and the demo calendar. No device needed."""
+"""Tests of the harness: time zones, the demo calendar, and starting a device."""
 
 from __future__ import annotations
 
+import harness
 import pytest
 from demo_data import DemoData
-from harness import EPOCH, TIMEZONE, DeviceError, utc_offset
+from harness import EPOCH, TIMEZONE, Device, DeviceError, utc_offset
 
 HOUR = 3600
 
@@ -50,3 +51,19 @@ def test_the_all_day_event_spans_a_local_sunday():
     start, end = all_day[0][:2]
     assert (start + utc_offset("America/Chicago", start)) % (24 * HOUR) == 0
     assert end - start == 24 * HOUR
+
+
+def test_a_failed_start_stops_the_program(device_build, tmp_path, monkeypatch):
+    started = []
+    real_popen = harness.subprocess.Popen
+
+    def popen(*args, **kwargs):
+        started.append(real_popen(*args, **kwargs))
+        return started[-1]
+
+    monkeypatch.setattr(harness.subprocess, "Popen", popen)
+    device = Device(device_build, tmp_path, persona="No such persona")
+    with pytest.raises(DeviceError, match="No persona named"):
+        device.start()
+    assert len(started) == 1
+    assert started[0].poll() is not None  # The program has ended.

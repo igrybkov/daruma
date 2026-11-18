@@ -1,17 +1,22 @@
 name: Restore the ESPHome build caches
 description: >-
-  Restores what an ESP-IDF build of examples/box3.yaml reuses: the box3
-  ccache, ESPHome's ESP-IDF install and the build folder of main's last
-  build. Run esphome-build-cache-save at the end of the job. Needs
-  ESPHOME_VERSION.
+  Restores what an ESP-IDF build of examples/<device>.yaml reuses: the
+  device's ccache, ESPHome's ESP-IDF install for its chip and the build
+  folder of main's last build. Run esphome-build-cache-save at the end of
+  the job. Needs ESPHOME_VERSION.
 
 inputs:
+  device:
+    description: >-
+      The device the firmware is for, as in examples/<device>.yaml (box3).
+      It names the device's ccache and build folder cache, so two devices
+      never share them.
+    required: true
   idf-target:
     description: >-
-      The chip the build is for. ESPHome installs the toolchain of this chip
-      only.
-    required: false
-    default: esp32s3
+      The chip the device runs on (esp32s3). ESPHome installs the toolchain
+      of this chip only, and the ESP-IDF cache is kept per chip.
+    required: true
 
 runs:
   using: composite
@@ -22,19 +27,23 @@ runs:
     - name: Set up ccache
       uses: ./.github/actions/ccache
       with:
-        kind: box3
+        kind: ${{ inputs.device }}
     # In CI, ESPHome installs the toolchain of every chip by default. The
     # RISC-V one alone is 2.1 GB, more than half of the install, and an
     # ESP32-S3 never uses it. One chip keeps the cache small, so its
-    # restore is fast. The save step reads the key.
+    # restore is fast. The save step reads the key. "slim" names the parts
+    # the save leaves out (esphome-build-cache-save); a new list needs a new
+    # name.
     - name: Pick the ESP-IDF target
       shell: bash
       env:
         TARGET: ${{ inputs.idf-target }}
+        DEVICE: ${{ inputs.device }}
       run: |
         {
+          echo "ESPHOME_BUILD_DEVICE=$DEVICE"
           echo "ESPHOME_IDF_DEFAULT_TARGETS=$TARGET"
-          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET"
+          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET-slim"
         } >> "$GITHUB_ENV"
     # The framework, the toolchain and their Python environment. Pull
     # requests read the one main saves.
@@ -61,5 +70,5 @@ runs:
         path: |
           examples/.esphome/build
           examples/.esphome/storage
-        key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
-        restore-keys: esphome-build-box3-${{ env.ESPHOME_VERSION }}-
+        key: esphome-build-${{ inputs.device }}-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+        restore-keys: esphome-build-${{ inputs.device }}-${{ env.ESPHOME_VERSION }}-

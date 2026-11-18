@@ -59,7 +59,7 @@
       },
       {
         "name": "encode_set",
-        "complexity": 48
+        "complexity": 44
       }
     ]
   },

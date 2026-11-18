@@ -125,27 +125,52 @@ class Persona:
 
 
 def rgb565(img: Image.Image) -> bytes:
-    """Pixels at the screen's color depth; transparent ones as a marker no color can hit."""
-    raw = img.convert("RGBA").tobytes()
-    out = bytearray()
-    for i in range(0, len(raw), 4):
-        r, g, b, a = raw[i : i + 4]
-        out += b"\xff\xff\xff" if a < 128 else bytes((r >> 3, g >> 2, b >> 3))
-    return bytes(out)
+    """Pixels at the screen's color depth; transparent ones as a marker no color can hit.
+
+    Three bytes a pixel: red >> 3, green >> 2, blue >> 3, or ff ff ff where
+    alpha is under 128 (no shifted value reaches ff).
+    """
+    r, g, b, a = img.convert("RGBA").split()
+    out = Image.merge("RGB", (r.point(_SHIFT3), g.point(_SHIFT2), b.point(_SHIFT3)))
+    out.paste((255, 255, 255), mask=a.point(_SEE_THROUGH))
+    return out.tobytes()
 
 
-def check_layers(layers, pose) -> None:
-    """Stacked layers must equal the full scene. The hole shows the room's own glass."""
+_SHIFT3 = [v >> 3 for v in range(256)]
+_SHIFT2 = [v >> 2 for v in range(256)]
+_SEE_THROUGH = [255 if v < 128 else 0 for v in range(256)]
+
+
+@dataclass(frozen=True)
+class Under:
+    """The layers under the persona, drawn once per build: room and plant."""
+
+    background: Image.Image
+    plant: Image.Image | None
+
+
+def under(layers) -> Under:
+    plant = layers.plant(layers.DEFAULT_STAGE, False) if hasattr(layers, "plant") else None
+    return Under(layers.background(), plant)
+
+
+def check_layers(layers, pose, below: Under | None = None, fg: Image.Image | None = None) -> None:
+    """Stacked layers must equal the full scene. The hole shows the room's own glass.
+
+    `below` and `fg` are the layers already drawn, if the caller has them.
+    """
+    below = below or under(layers)
+    fg = layers.foreground(pose) if fg is None else fg
     full = layers.scene(pose)
     glass = Image.new("RGBA", full.size, (0, 0, 0, 0))
     if layers.WINDOW:
         x, y, w, h = layers.WINDOW
         glass.paste(full.crop((x, y, x + w, y + h)), (x, y))
     stacked = glass.copy()
-    stacked.alpha_composite(layers.background())
-    if hasattr(layers, "plant"):
-        stacked.alpha_composite(layers.plant(layers.DEFAULT_STAGE, False))
-    stacked.alpha_composite(layers.foreground(pose))
+    stacked.alpha_composite(below.background)
+    if below.plant is not None:
+        stacked.alpha_composite(below.plant)
+    stacked.alpha_composite(fg)
     # Glass pixels the persona covers come from the persona either way.
     if rgb565(stacked) != rgb565(full):
         raise ValueError("Layers do not add up to the scene; check background()/foreground()")
@@ -193,16 +218,19 @@ def build_spec(s: Spec) -> Persona:
     for frames in source.ANIMATIONS.values():
         poses += [pose for pose, _ in frames]
     poses += list(source.BLINKS.values()) + list(source.WINKS.values())
-    for pose in poses:
-        check_layers(layers, pose)
+    # Each pose is drawn once, however many animations show it.
+    drawn = {pose: layers.foreground(pose) for pose in dict.fromkeys(poses)}
+    below = under(layers)
+    for pose, fg in drawn.items():
+        check_layers(layers, pose, below, fg)
     # One crop box for every frame: the area the persona ever covers.
-    box = union_box(layers.foreground(pose) for pose in poses)
+    box = union_box(drawn.values())
 
     # Identical frames come back as the same picture, so they are stored once.
     by_hash: dict[str, Image.Image] = {}
 
     def frame(pose) -> Image.Image:
-        img = layers.foreground(pose).crop(box)
+        img = drawn[pose].crop(box)
         return by_hash.setdefault(hashlib.sha1(img.tobytes()).hexdigest(), img)
 
     animations = {}
@@ -215,7 +243,7 @@ def build_spec(s: Spec) -> Persona:
 
     persona = Persona(
         background=background,
-        backdrop=layers.background(),
+        backdrop=below.background.copy(),
         sprite_offset=box[:2],
         animations=animations,
         window=layers.WINDOW,

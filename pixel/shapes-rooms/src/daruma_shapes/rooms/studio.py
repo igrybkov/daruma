@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from daruma_pixel.pixelkit import Color
+from daruma_pixel.pixelkit import Color, cached_picture
 from daruma_pixel.scene import WEEKDAY_COLORS, Spot
 
 W, H = 106, 80
@@ -103,6 +103,7 @@ def _wall_tone(x: int, y: int, tones: int) -> int:
     return max(0, min(tones - 1, k))
 
 
+@cached_picture
 def studio(s: Studio) -> Image.Image:
     img = Image.new("RGBA", (W, H), (*s.wall[0], 255))
     d = ImageDraw.Draw(img)

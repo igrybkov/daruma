@@ -26,6 +26,7 @@ frame. See its docstring for what the device would need.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import sys
 from dataclasses import dataclass
@@ -62,11 +63,17 @@ def _check_box(persona, eyes_painted: int) -> None:
     """All eye states must crop the same box, or no frame is shared between them."""
     if eyes_painted == 0:
         return
-    ref = build(0)
-    a = ref.animations["Neutral"].frames[0][0].size
+    offset, a = _blank_box()
     b = persona.animations["Neutral"].frames[0][0].size
-    if ref.sprite_offset != persona.sprite_offset or a != b:
-        raise ValueError(f"daruma{eyes_painted} crops {persona.sprite_offset} {b}, daruma0 {ref.sprite_offset} {a}")
+    if offset != persona.sprite_offset or a != b:
+        raise ValueError(f"daruma{eyes_painted} crops {persona.sprite_offset} {b}, daruma0 {offset} {a}")
+
+
+@functools.cache
+def _blank_box() -> tuple[tuple[int, int], tuple[int, int]]:
+    """daruma0's crop: where its frames go, and their size."""
+    ref = build(0)
+    return ref.sprite_offset, ref.animations["Neutral"].frames[0][0].size
 
 
 PERSONAS = tuple(

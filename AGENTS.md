@@ -130,7 +130,7 @@ make check
 
 - **ESPHome version.** The builds and docs use ESPHome 2026.10.2, from
   `.venv` (`make setup`). Outside the project, pin it with
-  `uvx --from esphome==2026.10.2`; another version may not compile.
+  `uvx --from esphome==2026.11.0`; another version may not compile.
 - **Never flash a scratch build.** A build made with placeholder secrets
   loses its Wi-Fi on the device. Compile to check; flash only with the
   person's real secrets.

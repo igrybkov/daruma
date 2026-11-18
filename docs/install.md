@@ -13,7 +13,7 @@ most of this for you. Give it the install prompt from the
 - An [ESP32-S3-BOX-3](https://github.com/espressif/esp-box) and a USB-C
   data cable.
 - [Home Assistant](https://www.home-assistant.io/installation/).
-- ESPHome 2026.10.2 or later. Use the ESPHome Device Builder app in Home
+- ESPHome 2026.11.0 or later. Use the ESPHome Device Builder app in Home
   Assistant, or ESPHome on your computer. Both are described in
   [Install ESPHome](https://esphome.io/guides/installing_esphome/).
 - For the voice assistant: an Assist pipeline in Home Assistant. See

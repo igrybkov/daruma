@@ -80,7 +80,7 @@ dev = [
     { include-group = "mutation" },
 ]
 # The one place that names the ESPHome version the builds use.
-esphome = ["esphome==2026.10.2"]
+esphome = ["esphome==2026.11.0"]
 
 [tool.uv]
 # The root has a [project] for its version only. Don't build or install it.

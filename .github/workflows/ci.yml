@@ -169,10 +169,60 @@ jobs:
           tests/compile_db.sh
           uv run --no-sync clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
 
-  # The config of every example, then the box3 firmware. The compile runs
-  # when a config fails too, so one run shows both.
-  esphome:
-    name: ESPHome
+  # The config of every example, and the box3 firmware, in two jobs side
+  # by side: the config check needs SDL2 (for the desktop example), the
+  # compile needs the ESP-IDF. "ESPHome" below waits for both.
+  esphome-config:
+    name: ESPHome (configs)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install ESPHome
+        run: |
+          uv sync --locked --only-group esphome --no-install-project
+          echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
+      # The config of the desktop example runs sdl2-config. The ffmpeg isn't
+      # needed here, but one package list for every job means one cache.
+      - name: Install SDL2 and ffmpeg
+        uses: ./.github/actions/apt-packages
+      # Drawing the persona art takes most of a config check. Pull requests
+      # save it too: the key names the exact scripts, and the folder is a
+      # few MB.
+      - name: Restore the persona art
+        id: art
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/daruma_pixel_art
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
+      # The public CI secrets. The ci-head branch names this commit, for
+      # the examples' git package.
+      - name: Prepare the configs
+        run: |
+          cp examples/secrets.ci.yaml examples/secrets.yaml
+          git branch -f ci-head HEAD
+      # Every example, one after another; the failed ones are listed at
+      # the end. The examples fetch Daruma with git: make points them at
+      # this checkout.
+      - name: Check the configs
+        run: make config
+      - name: Save the persona art
+        if: steps.art.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/daruma_pixel_art
+          key: ${{ steps.art.outputs.cache-primary-key }}
+
+  esphome-compile:
+    name: ESPHome (box3 firmware)
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
@@ -189,80 +239,30 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      # SDL2 for the config of the desktop example. The ffmpeg isn't
-      # needed here, but one package list for every job means one cache.
-      - name: Install SDL2 and ffmpeg
-        uses: ./.github/actions/apt-packages
-      # The compiled objects, by the hash of what went in. Every run saves
-      # them, pull requests too, so the next push to a pull request starts
-      # warm. A pull request's first run starts from main's. No trim before
-      # the save: the build cache below makes the compile incremental, so
-      # most objects go unused in a run but are still worth keeping.
-      - name: Set up ccache
-        uses: ./.github/actions/ccache
-        with:
-          kind: box3
-      # Pull requests read the ESP-IDF and build caches that main saves;
-      # only main writes the build cache. A pull request saves the ESP-IDF
-      # cache only when main has none for this ESPHome version yet.
-      - name: Restore the ESP-IDF cache
-        id: idf
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/esphome
-          key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
-      # The build folder and ESPHome's record of the last build (storage).
-      # Without that record ESPHome cleans the build folder, and nothing
-      # is reused. Not .esphome/packages: it holds ESPHome's git clones,
-      # and a restored clone would build old code.
-      - name: Restore the build cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            examples/.esphome/build
-            examples/.esphome/storage
-          key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
-          restore-keys: esphome-build-box3-${{ env.ESPHOME_VERSION }}-
-      # Drawing the persona art takes most of a config check. Pull requests
-      # save it too: the key names the exact scripts, and the folder is a
-      # few MB.
+      # The box3 ccache, the ESP-IDF install and main's build folder.
+      - name: Restore the build caches
+        uses: ./.github/actions/esphome-build-cache
+      # The config job saves the art.
       - name: Restore the persona art
-        id: art
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       # The public CI secrets. Their API key is fixed: ESPHome compiles it
       # into main.cpp, so the compiler cache can reuse that file. The
-      # ci-head branch names this commit, for the examples' git package.
+      # ci-head branch names this commit, for the example's git package.
       - name: Prepare the build
         run: |
           cp examples/secrets.ci.yaml examples/secrets.yaml
           git branch -f ci-head HEAD
-      # Every example, one after another; the failed ones are listed at
-      # the end. The examples fetch Daruma with git: make points them at
-      # this checkout.
-      - name: Check the configs
-        run: make config
       - name: Compile
-        if: ${{ !cancelled() }}
+        id: compile
         working-directory: examples
         run: |
           set -o pipefail
           uv run --no-sync esphome \
             -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
             compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
-      - name: Save the ccache
-        if: ${{ !cancelled() }}
-        uses: ./.github/actions/ccache-save
-        with:
-          save: true
-      - name: Save the persona art
-        if: steps.art.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: examples/.esphome/daruma_pixel_art
-          key: ${{ steps.art.outputs.cache-primary-key }}
       - name: Report the flash size
         run: |
           {
@@ -270,20 +270,26 @@ jobs:
             .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin
-      - name: Save the ESP-IDF cache
-        if: github.event_name == 'push' || steps.idf.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Save the build caches
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/esphome-build-cache-save
         with:
-          path: ~/.cache/esphome
-          key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
-      - name: Save the build cache
-        if: github.event_name == 'push'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            examples/.esphome/build
-            examples/.esphome/storage
-          key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+          compiled: ${{ steps.compile.outcome == 'success' }}
+
+  # One check for both ESPHome jobs, so the name "ESPHome" stays the one a
+  # pull request needs.
+  esphome:
+    name: ESPHome
+    needs: [esphome-config, esphome-compile]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Both ESPHome jobs passed
+        env:
+          CONFIG: ${{ needs.esphome-config.result }}
+          COMPILE: ${{ needs.esphome-compile.result }}
+        run: test "$CONFIG" = success && test "$COMPILE" = success
 
   # The golden pictures match on Linux and macOS (docs/testing.md), so this
   # runs on Linux. The scenario files (the golden check) and the Python

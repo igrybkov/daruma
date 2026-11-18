@@ -1,0 +1,39 @@
+name: Save the ESPHome build caches
+description: >-
+  Saves what esphome-build-cache restored, when it changed: the box3
+  ccache, the ESP-IDF install and the build folder.
+
+inputs:
+  compiled:
+    description: >-
+      "true" when the compile succeeded. A failed compile saves only the
+      ccache: its ESP-IDF install or build folder may be half done.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Every run may save it, pull requests too, so the next push to a pull
+    # request starts warm. It skips the save when the compile added no
+    # object.
+    - name: Save the ccache
+      uses: ./.github/actions/ccache-save
+      with:
+        save: true
+    # The key is fixed for an ESPHome version, and a saved cache can't be
+    # overwritten. On a hit a save would pack about 1 GB, then fail.
+    - name: Save the ESP-IDF cache
+      if: inputs.compiled == 'true' && env.ESPHOME_IDF_CACHE_HIT != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/esphome
+        key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
+    # One per commit on main. Pull requests only read it.
+    - name: Save the build cache
+      if: inputs.compiled == 'true' && github.event_name == 'push'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          examples/.esphome/build
+          examples/.esphome/storage
+        key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}

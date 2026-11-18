@@ -5,6 +5,14 @@ description: >-
   build. Run esphome-build-cache-save at the end of the job. Needs
   ESPHOME_VERSION.
 
+inputs:
+  idf-target:
+    description: >-
+      The chip the build is for. ESPHome installs the toolchain of this chip
+      only.
+    required: false
+    default: esp32s3
+
 runs:
   using: composite
   steps:
@@ -15,14 +23,27 @@ runs:
       uses: ./.github/actions/ccache
       with:
         kind: box3
-    # The framework, the toolchain and their Python environment, one
-    # cache per ESPHome version. Pull requests read the one main saves.
+    # In CI, ESPHome installs the toolchain of every chip by default. The
+    # RISC-V one alone is 2.1 GB, more than half of the install, and an
+    # ESP32-S3 never uses it. One chip keeps the cache small, so its
+    # restore is fast. The save step reads the key.
+    - name: Pick the ESP-IDF target
+      shell: bash
+      env:
+        TARGET: ${{ inputs.idf-target }}
+      run: |
+        {
+          echo "ESPHOME_IDF_DEFAULT_TARGETS=$TARGET"
+          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET"
+        } >> "$GITHUB_ENV"
+    # The framework, the toolchain and their Python environment. Pull
+    # requests read the one main saves.
     - name: Restore the ESP-IDF cache
       id: idf
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/esphome
-        key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
+        key: ${{ env.ESPHOME_IDF_CACHE_KEY }}
     # The save step reads this: it saves the ESP-IDF cache only on a miss.
     - name: Note the ESP-IDF cache hit
       shell: bash

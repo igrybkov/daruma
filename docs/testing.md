@@ -157,6 +157,10 @@ uv run pytest "demos/scenarios/tour.yaml::tour[pixel-corgi]"
   shell there.
 - **Pick a persona** with `@pytest.mark.persona("Pixel corgi")` (default
   Eyes), and a wall clock with `@pytest.mark.clock(epoch=..., timezone=...)`.
+  The time zone is an IANA name, New York by default. The device takes
+  it from "HA", as on the BOX-3, so one build serves every zone. The
+  tests run with the local zone set to Honolulu: a zone that does not
+  reach the device shows as clocks hours off.
 - **Another port or folder.** The runner uses port 6053 and a temp folder.
   When another runner holds them, pass `--port 6062 --out /tmp/mine` to
   record.py, or set `DARUMA_PORT=6062 DARUMA_WORK=/tmp/mine` for pytest.

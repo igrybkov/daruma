@@ -1041,7 +1041,7 @@ requires-dist = [
 
 [[package]]
 name = "daruma-pixel"
-version = "0.0.0"
+version = "0.1.0"
 source = { editable = "pixel/daruma-pixel" }
 dependencies = [
     { name = "pillow" },

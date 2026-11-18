@@ -36,6 +36,7 @@ import fcntl
 import os
 import pickle
 import tempfile
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -47,6 +48,13 @@ from harness import GOLDEN_DIR, Build, Device, build, desktop_personas, persona_
 from media import encode_gif, frames_of
 
 DEFAULT_PERSONA = "Eyes"
+
+# A local time zone far from the tests' own (New York by default). The
+# device must take its zone from "HA" and the harness must send the test's:
+# if either falls back to this machine's zone, every clock is hours off, on
+# every machine. The ESPHome build and the device inherit it too.
+os.environ["TZ"] = "Pacific/Honolulu"
+time.tzset()
 
 
 def pytest_addoption(parser):
@@ -65,7 +73,9 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "persona(name): the persona the device shows (default Eyes)")
-    config.addinivalue_line("markers", "clock(epoch=..., timezone=...): the wall clock at start and the time zone")
+    config.addinivalue_line(
+        "markers", "clock(epoch=..., timezone=...): the wall clock at start and the time zone (default New York)"
+    )
     config.addinivalue_line("markers", "failing(*actions): HA actions the runner refuses, until the test clears them")
     config.addinivalue_line("markers", "scenario: a scenario file run as a test (scenarios/*.yaml)")
     private = [persona_name(Path(p)) for p in config.getoption("--private-persona")]
@@ -118,11 +128,11 @@ class ScenarioFile(pytest.File):
 
 
 def _scenario_test(sc: scenarios.Scenario, persona: str) -> Callable[..., None]:
-    def test(request, device_builds, tmp_path):
+    def test(request, device_build, tmp_path):
         private = persona in request.config.stash[_PRIVATE]
         golden_root = _work() / "golden" if private else GOLDEN_DIR
         device = Device(
-            device_builds("UTC"),
+            device_build,
             tmp_path,
             persona=persona,
             window=request.config.getoption("--window"),
@@ -148,33 +158,26 @@ def _base_port() -> int:
 
 
 @pytest.fixture(scope="session")
-def device_builds(request):
-    """The desktop build for a time zone, compiled once per session."""
+def device_build(request) -> Build:
+    """The desktop build, compiled once per session. It serves every time
+    zone: each device sets its own when it starts."""
     work = _work()
     private = request.config.getoption("--private-persona")
     # Set when pytest-xdist runs the tests in several workers.
     run_id = getattr(request.config, "workerinput", {}).get("testrunuid")
-    builds = {}
-
-    def get(timezone: str):
-        if timezone not in builds:
-            if run_id is None:
-                builds[timezone] = build(work / "build", port=_base_port(), timezone=timezone, private_packages=private)
-            else:
-                builds[timezone] = _shared_build(work, timezone, private, run_id)
-        return builds[timezone]
-
-    return get
+    if run_id is None:
+        return build(work / "build", port=_base_port(), private_packages=private)
+    return _shared_build(work, private, run_id)
 
 
-def _shared_build(work: Path, timezone: str, private: list[str], run_id: str) -> Build:
-    """The build for a time zone, made by the first worker that needs it.
+def _shared_build(work: Path, private: list[str], run_id: str) -> Build:
+    """The build, made by the first worker that needs it.
 
     The others wait for it on a lock, then take it from a stamp file that
     names this test run, so a build from an earlier run is never taken.
     """
     work.mkdir(parents=True, exist_ok=True)
-    stamp = work / f"build-{slug(timezone)}.pickle"
+    stamp = work / "build.pickle"
     with open(work / "build.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if stamp.exists():
@@ -182,26 +185,23 @@ def _shared_build(work: Path, timezone: str, private: list[str], run_id: str) ->
                 made_in, b = pickle.load(f)
             if made_in == run_id:
                 return b
-        b = build(work / "build", port=_base_port(), timezone=timezone, private_packages=private)
+        b = build(work / "build", port=_base_port(), private_packages=private)
         with stamp.open("wb") as f:
             pickle.dump((run_id, b), f)
         return b
 
 
 @pytest.fixture
-def device(request, device_builds, tmp_path):
+def device(request, device_build, tmp_path):
     marker = request.node.get_closest_marker("persona")
     persona = marker.args[0] if marker else DEFAULT_PERSONA
     clock = request.node.get_closest_marker("clock")
     clock_args = dict(clock.kwargs) if clock else {}
-    # A time zone builds the desktop program for it (the board's clock), and
-    # "HA" sends it with the time.
-    timezone = clock_args.setdefault("timezone", "UTC")
     # Set before the device starts: it fetches as soon as "HA" connects.
     failing = request.node.get_closest_marker("failing")
     data = DemoData(failing=set(failing.args)) if failing else None
     b = Device(
-        device_builds(timezone),
+        device_build,
         tmp_path,
         persona=persona,
         **clock_args,

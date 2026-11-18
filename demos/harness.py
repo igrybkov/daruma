@@ -48,6 +48,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,9 +68,12 @@ DEVICE_YAML = "desktop.yaml"  # In examples/, next to the build's config folder.
 SOURCES = ["examples", "packages", "src", "pixel", "art"]
 GOLDEN_DIR = HERE.parent / "tests" / "golden"
 
+# The time zone "Home Assistant" sends the device, unless a run asks for
+# another one.
+TIMEZONE = "America/New_York"
 # The device's wall clock at the start of every run: Wednesday 11 March 2026,
-# 10:00 UTC (the board's time zone). A fixed morning, so screens repeat.
-EPOCH = 1773223200
+# 10:00 in New York (14:00 UTC). A fixed morning, so screens repeat.
+EPOCH = 1773237600
 # Monotonic time at start; millis() starts here.
 START_NS = 1_000_000_000
 # One frame step: the BOX-3 profile draws at most every 100 ms.
@@ -185,22 +189,21 @@ def build(
     variant: str = "standard",
     private_packages: list[str] | None = None,
     port: int = 6053,
-    timezone: str = "UTC",
     quiet: bool = True,
 ) -> Build:
     """Compile the desktop build in `out` (a scratch folder) and return it.
 
     `variant` picks the screen: standard (320x240), wide (480x272) or square
     (240x240). `private_packages` are extra persona packages (paths), whose
-    personas are marked private. `timezone` is the clock's
-    (an IANA name); another than UTC gets a build folder of its own.
+    personas are marked private. One build serves every time zone: the
+    device takes its zone from "Home Assistant", as on the BOX-3.
     """
     out = Path(out)
     src = out / "src"
     _copy_sources(src)
     config_dir = src / "examples"
-    name = _build_name(variant, private_packages, timezone)
-    subs = {"name": name, "desktop_api_port": str(port), "desktop_timezone": timezone, **VARIANTS[variant]}
+    name = _build_name(variant, private_packages)
+    subs = {"name": name, "desktop_api_port": str(port), **VARIANTS[variant]}
     yaml_name, private = _write_config(config_dir, name, private_packages)
     cmd, env = _esphome_command(src)
     for k, v in subs.items():
@@ -216,13 +219,11 @@ def build(
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
 
 
-def _build_name(variant: str, private_packages: list[str] | None, timezone: str) -> str:
+def _build_name(variant: str, private_packages: list[str] | None) -> str:
     """The build's name, which is also its folder: one per kind of build."""
     name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
     if private_packages:
         name += "-private"  # Its own build folder: the public build stays as it is.
-    if timezone != "UTC":
-        name += "-" + slug(timezone.split("/")[-1])[:10]  # Host names: at most 31 characters.
     if COVERAGE:
         name += "-cov"
     return name
@@ -442,7 +443,7 @@ class Device:
         persona: str | None = None,
         seed: int = 1,
         epoch: int = EPOCH,
-        timezone: str = "Etc/UTC",
+        timezone: str = TIMEZONE,
         window: bool = False,
         data: Any = None,
         golden: Path | None = None,
@@ -459,11 +460,13 @@ class Device:
         self.persona = persona
         self.seed = seed
         self.epoch = epoch
-        # The time zone "HA" sends with the time, as Home Assistant does. The
-        # desktop build keeps its own (build(timezone=...)): give both the same.
+        # The clock's time zone (an IANA name). "HA" sends it with the time,
+        # as Home Assistant does, and its calendar keeps the same days.
+        utc_offset(timezone, epoch)  # An unknown zone fails here, not at start.
         self.timezone = timezone
         self.window = window
         self.data = data if data is not None else DemoData()
+        self.data.zone = timezone
         # Where to_match_screenshot() keeps its pictures.
         self.golden = golden
         self.update_golden = update_golden
@@ -509,7 +512,6 @@ class Device:
             DARUMA_API_PORT=str(self.port),
             ESPHOME_PREFDIR=str(prefs),
             ESPHOME_SNAPSHOT_DIR=str(self.workdir),
-            TZ=self.timezone,
         )
         if platform.system() == "Darwin":
             env["DYLD_INSERT_LIBRARIES"] = str(self.build.clock_lib)
@@ -520,6 +522,7 @@ class Device:
         self._log = open(self.workdir / "device.log", "w")  # noqa: SIM115 - the program writes it until close()
         self._proc = subprocess.Popen([str(self.build.program)], env=env, stdout=self._log, stderr=subprocess.STDOUT)
         self._run(self._connect())
+        self._wait_for_timezone()
         # The subscriptions take effect before the clock first moves, so the
         # device sees "HA" arrive at the same time on every run.
         self._settle()
@@ -562,6 +565,9 @@ class Device:
 
         deadline = time.monotonic() + 20
         while True:
+            # The client answers the device's time requests itself. `timezone`
+            # is the zone it sends; without it, this machine's zone goes out.
+            # (Its time goes out too, but the device keeps the runner's clock.)
             client = APIClient("127.0.0.1", self.port, None, client_info="daruma-harness", timezone=self.timezone)
             try:
                 await client.connect(login=True)
@@ -656,6 +662,15 @@ class Device:
                 return
             self._check_deadline(deadline, f"still has work due at this time: {s.get('busy') or 'unknown'}")
             s = self._sync()
+
+    def _wait_for_timezone(self) -> None:
+        # The device keeps the zone it was built in until "HA" answers its
+        # first time request. The clock stands still until the run's zone is
+        # in place, so no screen shows the build's zone.
+        want = utc_offset(self.timezone, self.wall_time())
+        deadline = time.monotonic() + SETTLE_TIMEOUT
+        while self._sync()["utc_offset"] != want:
+            self._check_deadline(deadline, f'did not take the time zone {self.timezone} from "HA"')
 
     def _check_deadline(self, deadline: float, what: str) -> None:
         if time.monotonic() > deadline:
@@ -954,6 +969,17 @@ def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def utc_offset(zone: str, epoch: int) -> int:
+    """The seconds to add to UTC for the local time in `zone` at `epoch`."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    try:
+        tz = ZoneInfo(zone)
+    except (ZoneInfoNotFoundError, ValueError) as err:
+        raise DeviceError(f"Unknown time zone {zone!r}") from err
+    return int(datetime.fromtimestamp(epoch, tz).utcoffset().total_seconds())
 
 
 def _wait_port_free(port: int, timeout: float = 10) -> None:

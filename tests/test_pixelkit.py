@@ -40,8 +40,15 @@ def _set(m: Image.Image, x: int, y: int) -> bool:
     return 0 <= x < m.width and 0 <= y < m.height and bool(m.getpixel((x, y)))
 
 
+def _reader(m: Image.Image):
+    """_set() for one mask, with its pixels read once."""
+    px, w, h = m.load(), m.width, m.height
+    return lambda x, y: 0 <= x < w and 0 <= y < h and bool(px[x, y])
+
+
 def _bits(m: Image.Image) -> list[bool]:
-    return [_set(m, x, y) for y in range(m.height) for x in range(m.width)]
+    on = _reader(m)
+    return [on(x, y) for y in range(m.height) for x in range(m.width)]
 
 
 def _paint_color(m, below, ramp, shade, x, y):
@@ -126,11 +133,12 @@ class DollMasks(unittest.TestCase):
         for i in range(30):
             m = _random_mask(rng, (doll.W, doll.H))
             got = doll._smooth(m.copy())
+            on = _reader(m)
             want = Image.new("1", m.size, 0)
             for y in range(doll.H):
                 for x in range(doll.W):
-                    n = sum(_set(m, x + dx, y + dy) for dx, dy in SIDES)
-                    want.putpixel((x, y), 1 if (n >= 2 if _set(m, x, y) else n >= 3) else 0)
+                    n = sum(on(x + dx, y + dy) for dx, dy in SIDES)
+                    want.putpixel((x, y), 1 if (n >= 2 if on(x, y) else n >= 3) else 0)
             self.assertEqual(_bits(got), _bits(doll._trim_caps(want)), f"case {i}")
 
     def test_trim_caps_drops_a_short_end_row(self):

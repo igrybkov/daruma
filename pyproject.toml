@@ -132,8 +132,10 @@ testpaths = ["tests", "demos"]
 # components come in through tests/esphome_components.py.
 # pytest-xdist, one worker per CPU: on an M-series Mac (5 performance and
 # 6 efficiency cores) that beat 2, 4 and 6 workers for both test sets.
-# Pass -n 0 to run in one process.
-addopts = "-n auto"
+# Pass -n 0 to run in one process. Work stealing: a worker that runs out
+# takes tests queued for another, so one slow test can't hold back the
+# tests queued behind it.
+addopts = "-n auto --dist worksteal"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 

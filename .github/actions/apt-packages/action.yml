@@ -6,11 +6,13 @@ description: >-
 runs:
   using: composite
   steps:
-    # The cache key names the runner image. A cache from an older image
-    # could overwrite newer libraries that the new image ships.
+    # The cache key names the runner image release (ImageVersion up to its
+    # first dot, a date). A cache from an older image could overwrite newer
+    # libraries that the new image ships. The rest of ImageVersion differs
+    # between runners of one release, so it stays out of the key.
     - name: Name the runner image
       shell: bash
-      run: echo "APT_CACHE_VERSION=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+      run: echo "APT_CACHE_VERSION=${ImageOS:-unknown}-${ImageVersion%%.*}" >> "$GITHUB_ENV"
     # On a cache miss the action installs with apt-fast, and fetches an
     # unpinned apt-fast installer when there is none. This stand-in skips
     # that download. It refreshes the package lists first, then installs

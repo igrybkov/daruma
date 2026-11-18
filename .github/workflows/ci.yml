@@ -159,11 +159,10 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      # For the config of the desktop example.
-      - name: Install SDL2
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libsdl2-dev
+      # SDL2 for the config of the desktop example. The ffmpeg isn't
+      # needed here, but one package list for every job means one cache.
+      - name: Install SDL2 and ffmpeg
+        uses: ./.github/actions/apt-packages
       # A static ccache from its release, checked against a fixed hash.
       - name: Install ccache
         env:
@@ -315,9 +314,7 @@ jobs:
             uv.lock
             .python-version
       - name: Install SDL2 and ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
+        uses: ./.github/actions/apt-packages
       # The test tools include ESPHome, which the harness builds with.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
@@ -461,11 +458,10 @@ jobs:
           cache-dependency-glob: |
             uv.lock
             .python-version
-      # No ffmpeg: it only makes GIFs, which coverage doesn't need.
-      - name: Install SDL2
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libsdl2-dev
+      # The ffmpeg only makes GIFs, which coverage doesn't need. One
+      # package list for every job means one cache.
+      - name: Install SDL2 and ffmpeg
+        uses: ./.github/actions/apt-packages
       - name: Install the test and coverage tools
         run: uv sync --locked --only-group test --only-group coverage --no-install-project
       - name: Read the ESPHome version
@@ -649,9 +645,7 @@ jobs:
             uv.lock
             .python-version
       - name: Install SDL2 and ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libsdl2-dev ffmpeg
+        uses: ./.github/actions/apt-packages
       # The test tools include ESPHome, which the harness builds with.
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project

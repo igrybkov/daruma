@@ -303,24 +303,50 @@ make mutate-diff               # only the lines changed since origin/main
 make mutate-diff BASE=main     # or since another branch
 ```
 
-`make mutate` takes about eight minutes on an M-series Mac. It never
-fails on a survivor. `make mutate-diff` takes from seconds to a few
-minutes, by how much changed. It fails when a mutant on a changed line
-survives, or when no test reaches it. The changes count from the merge base, so commits that
-land on main later are not yours. CI runs `make mutate-diff` on every
-pull request. That check is not required.
+`make mutate` mutates all the Python. It takes about 45 minutes on an
+M-series Mac, and it never fails on a survivor. `make mutate-diff`
+mutates only the functions a branch changed. It takes from seconds to
+a few minutes. It fails when a mutant on a changed line survives, or
+when no test reaches it. The changes count from the merge base, so
+commits that land on main later are not yours. CI runs
+`make mutate-diff MINUTES=12` on every pull request. That check is not
+required. `MINUTES` stops the Python run in time: it then lists what it
+found and fails.
 
 - **Python**: [mutmut](https://github.com/boxed/mutmut) mutates the
-  files in `[tool.mutmut]` in `pyproject.toml`. It runs the host tests
-  with the persona tests, even when `DARUMA_SKIP_PERSONAS` is set. Each
-  mutant runs in a fresh process (`process_isolation = "forkserver"`).
-  A process forked after the first test run would keep its drawn
-  pictures, and a mutant in the code that drew them would survive.
+  folders and files in `[tool.mutmut]` in `pyproject.toml`: every
+  component, every pixel package, and the demo modules that a test
+  reaches without a device. `demos/harness.py`, `record.py` and
+  `contact_sheet.py` are left out: only the screen tests reach them, and
+  those build a device. The runs include the persona tests, even when
+  `DARUMA_SKIP_PERSONAS` is set. Each mutant runs in a fresh process
+  (`process_isolation = "forkserver"`). The fork server imports only
+  outside modules first (`tests/mutmut_preload.txt`). So each mutant
+  imports the repository's modules again, with the mutant on, and builds
+  the persona tables and cached pictures again.
 - **C++**: `tests/mutate_cpp.py` mutates the component files that the
   C++ host tests include. It builds and runs every test that includes
   the file. A change that doesn't build doesn't count.
   `test_frames.cpp` reads the frames of every persona from a fixture.
   The Python encoder writes it once, before the mutants run.
+
+### Reading the report
+
+`make mutate` lists two kinds of mutants, then a count per part of the
+code:
+
+- **Survived**: a test runs the code, but no test fails with the
+  change. Add a test that tells the change apart, or mark the line.
+- **No tests**: no test runs the code at all. That code is untested.
+  The diff run fails on it too, so new untested code shows.
+
+The counts give each part's mutants, then how many were killed, timed
+out (a test noticed: the change made it loop), survived, or had no
+tests. A mutant that breaks the test run itself, such as one that makes
+a persona fail to import, counts as a timeout too. A mutant is named by
+its module and function, such as
+`daruma_pixel.pixelkit.xǁCanvasǁdot__mutmut_3`. `uv run python
+tests/mutmut_run.py show <name>` prints its change.
 
 When a mutant survives, add a test that tells the change apart. Some
 changes can't be told apart. For example, a bound that a later check
@@ -331,20 +357,37 @@ after it, to the end of their block. `make mutate-diff` starts from a
 fresh `mutants/` folder, so it sees a new pragma. `make mutate` keeps
 the folder between runs: delete `mutants/` after you add a pragma.
 
-The Python runs skip lines that raise an error or add a build log line.
-That text is for people, and tests match only a few words of it.
+The Python runs skip some lines (`do_not_mutate_patterns`):
 
-The host tests import the components by their ESPHome names, such as
-`esphome.components.daruma.registry` (`tests/esphome_components.py`).
-The files live at that path under `src/`, and mutmut names a module by
-its path without `src/`. So mutmut finds the tests for a mutant.
-`make mutate-diff` names the changed functions the same way. When
-mutmut has no mutants under one of those names, it fails: a wrong name
-would match nothing and pass without running a test.
+- lines that raise an error or add a build log line: that text is for
+  people, and tests match only a few words of it;
+- a `mode="full"` default: any mode but gray4 and mono is full color;
+- a new Pillow picture filled with zeros, `Image.new(..., 0)` or
+  `(0, 0, 0, 0)`: the default fill is the same.
 
-mutmut runs the tests from a copy of the checkout in `mutants/`. A test
-that reads a file outside the copied folders fails there, and so does
-the run. Add the folder to `also_copy` in `pyproject.toml`.
+mutmut names a mutant by its file's path, less a leading `src.`. The
+tests record which test reaches a function by the module's import name.
+The two agree for the components (`src/esphome/components/daruma` is
+`esphome.components.daruma`, through `tests/esphome_components.py`).
+They don't for `pixel/<package>/src/<module>` and `demos/<module>`.
+`tests/mutmut_run.py` runs mutmut with those mapped to their import
+names. It also puts the mutated pixel folders ahead of the editable
+installs on `sys.path`. Both scripts fail when mutmut has a name that
+still starts with a path, or no mutants under a changed module's name.
+Either would match no test and pass without running one.
+
+mutmut runs a mutant only against the tests that reached its function
+in a first, recorded run. Two things hide that reach. A call made while
+a module is imported counts for the one test that imported it first. A
+cache (`functools.cache`, `cached_picture`) skips the call in later
+tests. `tests/mutmut_run.py` handles both in the recorded run. It
+empties the repository's caches before each test. It also charges a
+call made at import to every test that runs code of the same package,
+such as `daruma_personas.corgi` or `daruma_shapes.pets`.
+
+mutmut runs the tests from a copy of the checkout in `mutants/`. The
+copy takes every top-level entry git tracks (`also_copy`). A test fails
+when a new one is missing there.
 
 ## Preview pixel art
 

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import subprocess
+import sys
+import time
 import tomllib
+import types
 from pathlib import Path
 
 import changed_lines
 import mutate_py
+import mutmut_run
 import pytest
 
 
@@ -19,6 +24,10 @@ import pytest
         ("src/esphome/components/daruma/registry.py", "esphome.components.daruma.registry"),
         ("src/esphome/components/daruma_sprites/__init__.py", "esphome.components.daruma_sprites"),
         ("tools/build.py", "tools.build"),
+        ("pixel/daruma-pixel/src/daruma_pixel/pixelkit.py", "daruma_pixel.pixelkit"),
+        ("pixel/shapes-pets/src/daruma_shapes/pets/__init__.py", "daruma_shapes.pets"),
+        ("pixel/persona-corgi/src/daruma_personas/corgi/moods.py", "daruma_personas.corgi.moods"),
+        ("demos/scenario.py", "scenario"),
     ],
 )
 def test_module_name_is_the_name_mutmut_gives(path: str, module: str) -> None:
@@ -28,6 +37,87 @@ def test_module_name_is_the_name_mutmut_gives(path: str, module: str) -> None:
 def test_mutant_module_drops_the_function_and_class() -> None:
     assert mutate_py.mutant_module("a.b.x_run__mutmut_3") == "a.b"
     assert mutate_py.mutant_module("a.b.xǁBoxǁgrow__mutmut_1") == "a.b"
+
+
+@pytest.mark.parametrize(
+    ("function", "group"),
+    [
+        ("esphome.components.daruma.registry.x_check", "esphome.components.daruma"),
+        ("daruma_shapes.pets.rig.x__tail", "daruma_shapes.pets"),
+        ("daruma_personas.corgi.moods.x_animations", "daruma_personas.corgi"),
+        ("daruma_pixel.pixelkit.x_mask", "daruma_pixel"),
+        ("scenario.x_load", "scenario"),
+    ],
+)
+def test_group_is_the_package_a_function_belongs_to(function: str, group: str) -> None:
+    assert mutmut_run.group(function) == group
+
+
+def test_spread_charges_an_import_time_call_to_the_tests_of_its_package() -> None:
+    tests = {
+        "daruma_personas.corgi.moods.x_animations": {"test_first"},
+        "daruma_personas.corgi.breed.x_render": {"test_corgi"},
+        "daruma_personas.daruma.doll.x_egg": {"test_daruma"},
+    }
+    mutmut_run.spread(tests, {"daruma_personas.corgi.moods.x_animations"})
+    assert tests["daruma_personas.corgi.moods.x_animations"] == {"test_first", "test_corgi"}
+    assert tests["daruma_personas.daruma.doll.x_egg"] == {"test_daruma"}
+
+
+def test_importing_is_true_only_under_a_module_top_level(monkeypatch) -> None:
+    def probe():
+        return (lambda: mutmut_run.importing())()
+
+    assert not probe()
+    seen = {}
+    code = compile("seen['at_import'] = probe()", "<scratch>", "exec")
+    exec(code, {"__name__": "scratch", "probe": probe, "seen": seen})
+    assert not seen["at_import"], "exec'd code is no import"
+    module = types.ModuleType("scratch")
+    module.__dict__.update(probe=probe, seen=seen)
+    monkeypatch.setitem(sys.modules, "scratch", module)
+    exec(code, module.__dict__)
+    assert seen["at_import"]
+
+
+def test_clear_caches_empties_only_the_caches_under_the_folder(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "cached_here.py").write_text("import functools\n@functools.cache\ndef f(x):\n    return [x]\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    import cached_here
+
+    first = cached_here.f(1)
+    assert cached_here.f(1) is first
+    mutmut_run.clear_caches()
+    assert cached_here.f(1) is not first
+
+
+def test_a_name_that_starts_with_a_path_stops_the_run(monkeypatch) -> None:
+    out = "    daruma_pixel.pixelkit.x_mask__mutmut_1: killed\n    pixel.x.src.y.x_f__mutmut_1: survived\n"
+    monkeypatch.setattr(mutate_py, "mutmut", lambda *a, **k: subprocess.CompletedProcess(a, 0, out, ""))
+    with pytest.raises(mutate_py.StrayNames):
+        mutate_py.results()
+
+
+def test_report_lists_survivors_and_untested_code_then_counts_per_part() -> None:
+    status = {
+        "daruma_pixel.pixelkit.x_mask__mutmut_1": "killed",
+        "daruma_pixel.pixelkit.x_mask__mutmut_2": "survived",
+        "daruma_shapes.pets.rig.x_render__mutmut_1": "no tests",
+        "esphome.components.daruma.registry.x_f__mutmut_1": "timeout",
+        "scenario.x_flatten__mutmut_1": "killed",
+    }
+    report = mutate_py.report(status).splitlines()
+    assert report[:2] == [
+        "Survived: a test runs the code but misses the change (1):",
+        "  daruma_pixel.pixelkit.x_mask__mutmut_2",
+    ]
+    assert "No tests: no test runs the code (1):" in report
+    rows = {line.split()[0]: line.split()[1:] for line in report if line.startswith(("daruma", "esphome", "demos"))}
+    assert rows["daruma_pixel"] == ["2", "1", "0", "1", "0"]
+    assert rows["daruma_shapes.pets"] == ["1", "0", "0", "0", "1"]
+    assert rows["esphome.components.daruma"] == ["1", "0", "1", "0", "0"]
+    assert rows["demos"] == ["1", "1", "0", "0", "0"]
 
 
 def test_stray_names_are_the_modules_with_no_mutants() -> None:
@@ -102,5 +192,24 @@ def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, ca
 
     assert mutate_py.run_diff("main") == 1
     out = capsys.readouterr().out
-    assert "src/pkg/mod.py:2: survived" in out
+    assert "Survived: a test runs the line but misses the change (2):\nsrc/pkg/mod.py:2: pkg.mod.x_sign" in out
     assert "+ if n > 0:" in out
+
+
+def test_mutmut_past_its_minutes_stops_with_its_children(tmp_path: Path, monkeypatch) -> None:
+    child = tmp_path / "child.pid"
+    script = tmp_path / "slow.py"
+    script.write_text(
+        "import subprocess, sys, time\n"
+        f"p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(child)!r}, 'w').write(str(p.pid))\n"
+        "time.sleep(60)\n"
+    )
+    monkeypatch.setattr(mutate_py, "SHIM", script)
+    with pytest.raises(mutate_py.OutOfTime):
+        mutate_py.mutmut("run", minutes=0.05)
+    pid = int(child.read_text())
+    with pytest.raises(ProcessLookupError):
+        for _ in range(50):
+            os.kill(pid, 0)
+            time.sleep(0.1)

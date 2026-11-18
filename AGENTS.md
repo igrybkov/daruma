@@ -69,6 +69,12 @@ Run them from the repository root. [docs/testing.md](docs/testing.md)
 explains each. `make` lists every goal; `make -n <goal>` prints its
 commands.
 
+Don't run the full suites locally by default. Push and open a draft
+pull request instead, and mark it ready when the work is done. CI is
+tuned for speed and runs every check in under two minutes, which is
+usually faster than a local build. Locally, run only what you need
+while you iterate, such as one test file, a persona preview or a lint.
+
 ```sh
 # Host tests: no ESPHome build needed
 make test                 # test-py and test-cpp
@@ -98,8 +104,8 @@ make check
 
 ## Rules
 
-- Run the checks above before you call a change done. All of them must
-  pass.
+- A change is done when every CI check on its pull request passes.
+  Read the results with `gh pr checks`, and fix what fails.
 - Look at every picture you change. Open the frames and the golden
   pictures up close: limbs attached, nothing floating, props in place.
   A passing test does not prove a picture looks right.
@@ -137,8 +143,8 @@ make check
 - **Ids.** An ESPHome id may not equal an integration name. That is why
   the doll persona's id is `daruma_doll`.
 - **Slow tests.** The host tests build every persona and take minutes.
-  `DARUMA_SKIP_PERSONAS=1` skips those while you iterate; run them all
-  before you finish.
+  `DARUMA_SKIP_PERSONAS=1` skips those when you run tests locally. CI
+  runs them all.
 - **Pixel packages** are uv workspace members (`pixel/*/`), installed
   editable by `uv sync`. A device build installs nothing: it puts every
   `pixel/*/src` on `sys.path`. `daruma_shapes` and `daruma_personas` are

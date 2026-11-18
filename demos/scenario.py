@@ -51,6 +51,9 @@ Steps:
     expect: {event: {type: esphome.daruma_prompt, choice: Unlock}}
     expect: {entity: {name: Pomodoro phase, value: focus}}
 
+A scenario with `stills: true` records no GIF. record.py saves each of
+its snapshots as a PNG instead: docs/demos/screens/<persona>-<name>.png.
+
 A scenario with `showcase: true` is one of the demos that together show
 every state the build knows. covered_states() lists what one shows, and
 demos/test_daruma.py checks that the showcase scenarios cover the registry.
@@ -79,6 +82,7 @@ class Scenario:
     description: str = ""
     showcase: bool = False
     gif_scale: int = 2  # The GIF's size: 2 = twice the screen, 1 = as the screen.
+    stills: bool = False  # Record each snapshot as a PNG, and no GIF.
 
     def runs_on(self, persona: str, test: bool) -> bool:
         wanted = self.test_personas if test else self.personas
@@ -118,6 +122,7 @@ def load(name_or_path: str) -> Scenario:
         description=raw.get("description", ""),
         showcase=bool(raw.get("showcase", False)),
         gif_scale=int(raw.get("gif_scale", 2)),
+        stills=bool(raw.get("stills", False)),
     )
 
 
@@ -152,6 +157,10 @@ def covered_states(scenario: Scenario) -> set[str]:
         elif kind == "expect" and isinstance(arg.get("state"), str):
             out.add(arg["state"])
     return out
+
+
+def _snapshot_name(arg: str | dict[str, Any]) -> str:
+    return arg if isinstance(arg, str) else arg["name"]
 
 
 def _locator(device: Device, spec: dict[str, Any]) -> Locator:
@@ -214,7 +223,7 @@ def run_step(device: Device, step: dict[str, Any], *, test: bool) -> None:
         if test:
             spec = {"name": arg} if isinstance(arg, str) else dict(arg)
             expect(device).to_match_screenshot(
-                spec["name"],
+                _snapshot_name(arg),
                 mask=[tuple(m) for m in spec.get("mask", [])],
                 tolerance=spec.get("tolerance", 0),
                 max_diff_pixels=spec.get("max_diff_pixels", 0),
@@ -248,8 +257,12 @@ def run_setup(device: Device, scenario: Scenario) -> None:
         run_step(device, step, test=False)
 
 
-def run(device: Device, scenario: Scenario, *, test: bool) -> None:
+def run(device: Device, scenario: Scenario, *, test: bool, stills: Path | None = None) -> None:
+    """Run the steps. With `stills`, each snapshot step also saves the
+    screen there as <name>.png."""
     for i, step in enumerate(scenario.steps, 1):
+        if stills is not None and "snapshot" in step:
+            device.screenshot(stills / f"{_snapshot_name(step['snapshot'])}.png")
         try:
             run_step(device, step, test=test)
         except AssertionError as e:

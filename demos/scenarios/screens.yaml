@@ -1,0 +1,113 @@
+name: screens
+description: >-
+  Stills for the README's screens table: the focus menu, a focus block,
+  the Pomodoro page, the app board, Tasks, the Calendar's Agenda and day
+  view, Weather, the voice assistant, and three cards from Home Assistant.
+  Made-up data. Each snapshot becomes a PNG in docs/demos/screens/.
+personas: [Daruma]
+stills: true
+setup:
+  - set: {Outside temperature: 64, Pomodoro daily goal: 4}
+  - wait: 1
+  # Two focus blocks done, so the Pomodoro page has a count.
+  - action: {name: pomodoro_start, minutes: 25}
+  - skip: 1800
+  - action: {name: pomodoro_start, minutes: 25}
+  - skip: 1800
+  # A tap stops the end-of-break chime.
+  - tap: [160, 100]
+  - wait: 2
+  # Open Weather once, so the app has its forecast when the still is taken.
+  - tap: [160, 100]
+  - tap: {text: More}
+  - tap: {role: tile, name: Weather}
+  - expect: {visible: {text: Partly cloudy}}
+  - press: {input: home, seconds: 2}
+  - wait: 1
+steps:
+  # Pomodoro: the focus menu, a block on the persona's screen, its page.
+  - press: home
+  - expect: {visible: {text: Focus}}
+  - wait: 1.5
+  - snapshot: focus-menu
+  - tap: {text: Focus}
+  - expect: {state: focus}
+  - wait: 2
+  - snapshot: focus
+  - tap: {role: target, name: plaque}
+  - expect: {visible: {role: app, name: Pomodoro}}
+  - wait: 1.5
+  - snapshot: pomodoro
+  - tap: {text: Stop}
+  - press: home
+  - expect: {hidden: {role: app}}
+  - wait: 1
+  # The apps.
+  - tap: [160, 100]
+  - tap: {text: More}
+  - expect: {visible: {role: tile, name: Tasks}}
+  - wait: 1.5
+  - snapshot: apps
+  - tap: {role: tile, name: Tasks}
+  - expect: {visible: {role: row, name: Send the invoice}}
+  - tap: {role: row, name: Send the invoice}
+  - wait: 2.5
+  - snapshot: tasks
+  - tap: {role: button, name: Back}
+  - tap: {role: tile, name: Calendar}
+  - expect: {visible: {role: row, name: Today}, timeout: 10}
+  - wait: 2
+  - snapshot: calendar
+  - tap: {role: row, name: Today}
+  - expect: {visible: {role: heading, name: Today}}
+  - wait: 1.5
+  - snapshot: calendar-day
+  - tap: {role: button, name: Back}
+  - wait: 1
+  - tap: {role: button, name: Back}
+  - tap: {role: tile, name: Weather}
+  - expect: {visible: {role: app, name: Weather}}
+  - wait: 1.5
+  - snapshot: weather
+  - press: {input: home, seconds: 2}
+  - wait: 1
+  # The voice assistant.
+  - voice: {phase: thinking, text: "Will it rain tomorrow?"}
+  - wait: 1.5
+  - snapshot: voice
+  - voice: idle
+  - wait: 1
+  # Cards from Home Assistant.
+  - prompt:
+      id: lights
+      title: Lights
+      body: Nobody is downstairs. Turn the lights off?
+      options: [Turn off, Leave on]
+  - expect: {visible: {role: button, name: Turn off}}
+  - wait: 1.5
+  - snapshot: question
+  - tap: {role: button, name: Turn off}
+  - expect: {hidden: {role: dialog}}
+  - wait: 1
+  - prompt:
+      id: door
+      title: Doorbell
+      body: Someone is at the front door.
+      options: [Unlock, Talk, Ignore]
+      style: urgent
+  - expect: {visible: {role: button, name: Unlock}}
+  - wait: 2
+  - snapshot: doorbell
+  - tap: {role: button, name: Unlock}
+  - expect: {hidden: {role: dialog}}
+  - wait: 1
+  - prompt:
+      id: quiz
+      layout: choice
+      title: Quiz 1 of 3
+      body: Which planet is the largest?
+      options: [Mars, Jupiter, Venus, Earth]
+      style: game
+      timeout: 20
+  - wait: 2.5
+  - snapshot: quiz

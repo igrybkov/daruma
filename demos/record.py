@@ -9,7 +9,8 @@ clock it controls, so every run draws the same frames.
 
 It writes docs/demos/<persona>-<scenario>.gif (2x, or the scenario's
 gif_scale; nearest neighbour; kept under --max-kb), and with --mp4 an MP4
-with the sounds. The same scenarios run as tests in pytest (conftest.py):
+with the sounds. A scenario with `stills: true` writes no GIF: each of its
+snapshots becomes docs/demos/screens/<persona>-<name>.png. The same scenarios run as tests in pytest (conftest.py):
 their snapshot and expect steps check the screens there.
 
 Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
@@ -153,6 +154,8 @@ def _run_job(job: Job) -> int:
     run_dir = job.work / "runs" / label
     shutil.rmtree(run_dir, ignore_errors=True)
     print(f"Demo {persona} / {sc.name} ...", flush=True)
+    if sc.stills:
+        return _run_stills(job, run_dir)
     device = Device(b, run_dir, persona=persona, window=job.window)
     failed = 0
     try:
@@ -192,6 +195,31 @@ def _run_job(job: Job) -> int:
         encode_mp4(frames, sounds_of(run_dir / "frames", skipped), mp4)
         print(f"  {mp4}", flush=True)
     return failed
+
+
+def _run_stills(job: Job, run_dir: Path) -> int:
+    """Run a `stills` scenario: each snapshot becomes a PNG, with no GIF.
+    Returns 1 when it failed."""
+    sc, persona = job.scenario, job.persona
+    private = persona in job.build.private_personas
+    shots = run_dir / "stills"
+    try:
+        with Device(job.build, run_dir, persona=persona, window=job.window) as device:
+            scenarios.run_setup(device, sc)
+            scenarios.run(device, sc, test=False, stills=shots)
+    except AssertionError as e:
+        print(f"  FAIL: {e}", flush=True)
+        return 1
+    except Exception:  # noqa: BLE001 - report and go on with the next run
+        traceback.print_exc()
+        return 1
+    target = (job.work / "demos" if private else job.docs) / "screens"
+    target.mkdir(parents=True, exist_ok=True)
+    for png in sorted(shots.glob("*.png")):
+        out = target / f"{slug(persona)}-{png.name}"
+        shutil.copyfile(png, out)
+        print(f"  {out}", flush=True)
+    return 0
 
 
 class _probe:

@@ -1,0 +1,47 @@
+name: Install the apt packages
+description: >-
+  SDL2 and ffmpeg for the desktop build, from a cache of the installed files.
+  Every job installs the same list, so all of them share one cache entry.
+
+runs:
+  using: composite
+  steps:
+    # The cache key names the runner image release (ImageVersion up to its
+    # first dot, a date). A cache from an older image could overwrite newer
+    # libraries that the new image ships. The rest of ImageVersion differs
+    # between runners of one release, so it stays out of the key.
+    - name: Name the runner image
+      shell: bash
+      run: echo "APT_CACHE_VERSION=${ImageOS:-unknown}-${ImageVersion%%.*}" >> "$GITHUB_ENV"
+    # On a cache miss the action installs with apt-fast, and fetches an
+    # unpinned apt-fast installer when there is none. This stand-in skips
+    # that download. It refreshes the package lists first, then installs
+    # without recommended packages, as apt-get did here before. The action
+    # writes the install's output to a file; the copy on stderr shows it
+    # in the job log too, so a slow mirror can be seen.
+    - name: Stand in for apt-fast
+      shell: bash
+      run: |
+        sudo tee /usr/local/bin/apt-fast > /dev/null <<'EOF'
+        #!/bin/bash
+        set -o pipefail
+        if [ "$1" = --version ]; then exec apt-get --version; fi
+        apt-get update -q >&2
+        apt-get -o APT::Install-Recommends=false "$@" | tee /dev/stderr
+        EOF
+        sudo chmod 755 /usr/local/bin/apt-fast
+    # A hit unpacks the files of every package and skips dpkg. That is
+    # most of the time an install takes, and it needs no apt mirror.
+    - uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
+      with:
+        packages: libsdl2-dev ffmpeg
+        version: ${{ env.APT_CACHE_VERSION }}
+    # A restore runs no package scripts, so the libc-bin trigger that
+    # updates the linker cache doesn't run either. The checks fail here,
+    # not deep in a build, when a file is missing.
+    - name: Check the packages
+      shell: bash
+      run: |
+        sudo ldconfig
+        echo "SDL2 $(sdl2-config --version), pkg-config sdl2 $(pkg-config --modversion sdl2)"
+        ffmpeg -hide_banner -version | head -1

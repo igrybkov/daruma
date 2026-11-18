@@ -27,8 +27,6 @@ substitutions:
   desktop_width: "320"
   desktop_height: "240"
   desktop_api_port: "6053"
-  # The clock's time zone. Fixed, so a run gives the same screens anywhere.
-  desktop_timezone: UTC
 
 host:
 
@@ -192,6 +190,8 @@ api:
         - api.respond:
             data: !lambda |-
               root["millis"] = millis();
+              // Local time minus UTC: "HA" sends the time zone on connect.
+              root["utc_offset"] = ESPTime::timezone_offset();
               root["state"] = Daruma::state_name(id(daruma_hub).state());
               root["ui_open"] = id(daruma_hub).ui_open();
               root["message"] = id(daruma_hub).message();
@@ -286,10 +286,6 @@ script:
             switch.is_on: sounds_enabled
           then:
             - lambda: id(desktop).sound(id(daruma_hub), sound);
-
-time:
-  - id: !extend daruma_time
-    timezone: ${desktop_timezone}
 
 daruma:
   display: desktop_lcd

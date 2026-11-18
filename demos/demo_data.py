@@ -9,10 +9,10 @@ repeat exactly.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
-DAY = 24 * 3600
-
-# (start hour, start minute, minutes long, title); hours in the device's time zone (UTC).
+# (start hour, start minute, minutes long, title); hours in the home's time zone.
 DAY_EVENTS = [
     (9, 30, 15, "Team stand-up"),
     (11, 0, 60, "Design review"),
@@ -67,19 +67,30 @@ class DemoData:
     # HA actions to refuse, as HA does when an entity is gone or a call
     # fails: "calendar.get_events", "todo.get_items".
     failing: set[str] = field(default_factory=set)
+    # The home's time zone (an IANA name): its days start at local midnight.
+    zone: str = "UTC"
+
+    def _at(self, day: date, hour: int = 0, minute: int = 0) -> int:
+        """Epoch seconds of a local time on `day`."""
+        return int(datetime.combine(day, time(hour, minute), ZoneInfo(self.zone)).timestamp())
+
+    def _day_of(self, t: int) -> date:
+        """The local date at epoch seconds `t`."""
+        return datetime.fromtimestamp(t, ZoneInfo(self.zone)).date()
 
     def calendar(self, start: int, end: int) -> dict:
         """Events between two epoch seconds, in the shape the device wants."""
         rows: list[list] = []
-        day = start - start % DAY
-        while day < end:
-            if day // DAY % 7 == 3 and start <= day < end:  # one day a week has an all-day event
-                rows.append([day, day + DAY, 1, ALL_DAY])
+        day = self._day_of(start)
+        while self._at(day) < end:
+            midnight, next_midnight = self._at(day), self._at(day + timedelta(days=1))
+            if day.weekday() == 6 and start <= midnight < end:  # Sundays have an all-day event
+                rows.append([midnight, next_midnight, 1, ALL_DAY])
             for hour, minute, length, title in DAY_EVENTS:
-                t0 = day + hour * 3600 + minute * 60
+                t0 = self._at(day, hour, minute)
                 if start <= t0 < end:
                     rows.append([t0, t0 + length * 60, 0, title])
-            day += DAY
+            day += timedelta(days=1)
         rows.sort(key=lambda r: r[0])
         return {"n": len(rows), "e": rows[:25]}
 
@@ -108,8 +119,8 @@ class DemoData:
                 "ws": WEATHER_NOW[2],
                 "h": [[hour + h * 3600, c, t, p] for h, c, t, p in WEATHER_HOURS],
             }
-        day = now - now % DAY
-        return {"d": [[day + d * DAY, c, hi, lo, p, w] for d, c, hi, lo, p, w in WEATHER_DAYS]}
+        today = self._day_of(now)
+        return {"d": [[self._at(today + timedelta(days=d)), c, hi, lo, p, w] for d, c, hi, lo, p, w in WEATHER_DAYS]}
 
     def reply(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:
         """The reply to an HA action: refused when it is failing, else answer()."""

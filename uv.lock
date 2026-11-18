@@ -20,6 +20,7 @@ supported-markers = [
 
 [manifest]
 members = [
+    "daruma",
     "daruma-components",
     "daruma-persona-corgi",
     "daruma-persona-daruma",
@@ -32,84 +33,6 @@ members = [
     "daruma-shapes-plants",
     "daruma-shapes-rooms",
 ]
-
-[manifest.dependency-groups]
-components = [{ name = "daruma-components", editable = "src" }]
-coverage = [
-    { name = "coverage", specifier = ">=7.6" },
-    { name = "pytest-cov", specifier = ">=6" },
-]
-dev = [
-    { name = "aioesphomeapi" },
-    { name = "clang-tidy", specifier = "==23.1.4" },
-    { name = "coverage", specifier = ">=7.6" },
-    { name = "daruma-components", editable = "src" },
-    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
-    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
-    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
-    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
-    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
-    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
-    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
-    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
-    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
-    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
-    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" },
-    { name = "gitlint-core", specifier = "==0.19.1" },
-    { name = "grimp", specifier = ">=3.5" },
-    { name = "mutmut", specifier = "==3.8.1" },
-    { name = "pillow", specifier = ">=10" },
-    { name = "pre-commit", specifier = "==4.7.0" },
-    { name = "pytest", specifier = ">=9" },
-    { name = "pytest-asyncio", specifier = ">=1.5" },
-    { name = "pytest-cov", specifier = ">=6" },
-    { name = "pytest-xdist", specifier = ">=3.8" },
-    { name = "pyyaml", specifier = ">=6" },
-]
-esphome = [{ name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" }]
-lint = [
-    { name = "gitlint-core", specifier = "==0.19.1" },
-    { name = "pre-commit", specifier = "==4.7.0" },
-]
-mutation = [{ name = "mutmut", specifier = "==3.8.1" }]
-pixel = [
-    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
-    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
-    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
-    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
-    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
-    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
-    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
-    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
-    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
-    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
-]
-test = [
-    { name = "aioesphomeapi" },
-    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
-    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
-    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
-    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
-    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
-    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
-    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
-    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
-    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
-    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
-    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" },
-    { name = "grimp", specifier = ">=3.5" },
-    { name = "pillow", specifier = ">=10" },
-    { name = "pytest", specifier = ">=9" },
-    { name = "pytest-asyncio", specifier = ">=1.5" },
-    { name = "pytest-xdist", specifier = ">=3.8" },
-    { name = "pyyaml", specifier = ">=6" },
-]
-tidy = [{ name = "clang-tidy", specifier = "==23.1.4" }]
-
-[manifest.group-requires-python]
-dev = ">=3.12,<3.15"
-esphome = ">=3.12,<3.15"
-test = ">=3.12,<3.15"
 
 [[package]]
 name = "aioesphomeapi"
@@ -946,6 +869,172 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/aa/f3f6e0de7e6253b8baa8b2d8fb9d50924fa75cee3d4624bd4bc1208ee923/cryptography-50.0.2-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:ce47f66801c20ec6c6632453bb5960fe38939e9306970b48b3a5a26de7745d94", size = 5058280, upload-time = "2026-09-30T15:29:44.827Z" },
     { url = "https://files.pythonhosted.org/packages/f6/b6/a1faf3a27ae9405fb34b1713cc73b2d8a26b04d5c561578fa2e6ef3e5bb9/cryptography-50.0.2-cp39-abi3-win_amd64.whl", hash = "sha256:4e81d95e5bafc2d6e34e4bed780e53e4d5b9a2f928573428aa4d35fbec1eb0de", size = 3854095, upload-time = "2026-09-30T15:29:46.782Z" },
 ]
+
+[[package]]
+name = "daruma"
+version = "0.0.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+components = [
+    { name = "daruma-components" },
+]
+coverage = [
+    { name = "coverage" },
+    { name = "pytest-cov" },
+]
+dev = [
+    { name = "aioesphomeapi" },
+    { name = "clang-tidy" },
+    { name = "coverage" },
+    { name = "daruma-components" },
+    { name = "daruma-persona-corgi" },
+    { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat" },
+    { name = "daruma-persona-the-boss" },
+    { name = "daruma-pixel" },
+    { name = "daruma-shapes-office" },
+    { name = "daruma-shapes-pets" },
+    { name = "daruma-shapes-plants" },
+    { name = "daruma-shapes-rooms" },
+    { name = "esphome", marker = "python_full_version < '3.15'" },
+    { name = "gitlint-core" },
+    { name = "grimp" },
+    { name = "mutmut" },
+    { name = "pillow" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+    { name = "pyyaml" },
+]
+esphome = [
+    { name = "esphome", marker = "python_full_version < '3.15'" },
+]
+lint = [
+    { name = "gitlint-core" },
+    { name = "pre-commit" },
+]
+mutation = [
+    { name = "mutmut" },
+]
+pixel = [
+    { name = "daruma-persona-corgi" },
+    { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat" },
+    { name = "daruma-persona-the-boss" },
+    { name = "daruma-pixel" },
+    { name = "daruma-shapes-office" },
+    { name = "daruma-shapes-pets" },
+    { name = "daruma-shapes-plants" },
+    { name = "daruma-shapes-rooms" },
+]
+test = [
+    { name = "aioesphomeapi" },
+    { name = "daruma-persona-corgi" },
+    { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat" },
+    { name = "daruma-persona-the-boss" },
+    { name = "daruma-pixel" },
+    { name = "daruma-shapes-office" },
+    { name = "daruma-shapes-pets" },
+    { name = "daruma-shapes-plants" },
+    { name = "daruma-shapes-rooms" },
+    { name = "esphome", marker = "python_full_version < '3.15'" },
+    { name = "grimp" },
+    { name = "pillow" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-xdist" },
+    { name = "pyyaml" },
+]
+tidy = [
+    { name = "clang-tidy" },
+]
+
+[package.group-requires-python]
+dev = ">=3.12,<3.15"
+esphome = ">=3.12,<3.15"
+test = ">=3.12,<3.15"
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+components = [{ name = "daruma-components", editable = "src" }]
+coverage = [
+    { name = "coverage", specifier = ">=7.6" },
+    { name = "pytest-cov", specifier = ">=6" },
+]
+dev = [
+    { name = "aioesphomeapi" },
+    { name = "clang-tidy", specifier = "==23.1.4" },
+    { name = "coverage", specifier = ">=7.6" },
+    { name = "daruma-components", editable = "src" },
+    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
+    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
+    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
+    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
+    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
+    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
+    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
+    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
+    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" },
+    { name = "gitlint-core", specifier = "==0.19.1" },
+    { name = "grimp", specifier = ">=3.5" },
+    { name = "mutmut", specifier = "==3.8.1" },
+    { name = "pillow", specifier = ">=10" },
+    { name = "pre-commit", specifier = "==4.7.0" },
+    { name = "pytest", specifier = ">=9" },
+    { name = "pytest-asyncio", specifier = ">=1.5" },
+    { name = "pytest-cov", specifier = ">=6" },
+    { name = "pytest-xdist", specifier = ">=3.8" },
+    { name = "pyyaml", specifier = ">=6" },
+]
+esphome = [{ name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" }]
+lint = [
+    { name = "gitlint-core", specifier = "==0.19.1" },
+    { name = "pre-commit", specifier = "==4.7.0" },
+]
+mutation = [{ name = "mutmut", specifier = "==3.8.1" }]
+pixel = [
+    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
+    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
+    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
+    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
+    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
+    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
+    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
+    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
+]
+test = [
+    { name = "aioesphomeapi" },
+    { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
+    { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
+    { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
+    { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
+    { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
+    { name = "daruma-shapes-office", editable = "pixel/shapes-office" },
+    { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
+    { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
+    { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
+    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.10.2" },
+    { name = "grimp", specifier = ">=3.5" },
+    { name = "pillow", specifier = ">=10" },
+    { name = "pytest", specifier = ">=9" },
+    { name = "pytest-asyncio", specifier = ">=1.5" },
+    { name = "pytest-xdist", specifier = ">=3.8" },
+    { name = "pyyaml", specifier = ">=6" },
+]
+tidy = [{ name = "clang-tidy", specifier = "==23.1.4" }]
 
 [[package]]
 name = "daruma-components"

@@ -17,6 +17,17 @@
 # config and compile jobs sync only ESPHome:
 #
 #   uv sync --only-group esphome --no-install-project
+
+# The version of Daruma as a whole. release-please bumps it, and the
+# release tag v<version> names it. The packages under src/ and pixel/
+# keep their own versions. The root is a virtual project: uv installs
+# its dependency groups but builds nothing from it.
+[project]
+name = "daruma"
+version = "0.0.0"
+description = "An ESPHome framework for an animated desk companion"
+requires-python = ">=3.12"
+
 [dependency-groups]
 test = [
     { include-group = "esphome" },
@@ -72,6 +83,8 @@ dev = [
 esphome = ["esphome==2026.10.2"]
 
 [tool.uv]
+# The root has a [project] for its version only. Don't build or install it.
+package = false
 # Linux, Apple Silicon Macs and Windows. Not Intel Macs: aioesphomeapi
 # needs a cryptography that no longer ships for them.
 environments = [

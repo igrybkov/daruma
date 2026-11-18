@@ -20,12 +20,27 @@ runs:
       uses: ./.github/actions/ccache-save
       with:
         save: true
-    # No build reads the framework's docs and examples (about 90 MB), so
-    # the cache leaves them out.
+    # The cache leaves out what a build for this chip never reads:
+    # - the framework's docs and examples (about 90 MB);
+    # - picolibc (about 390 MB): ESP-IDF 5.5 links newlib;
+    # - the other chips' libraries in the Xtensa toolchain (about 330 MB).
+    # GCC picks one chip's libraries by its flags, so the others go unread.
+    # A change to this list needs a new key (esphome-build-cache).
     - name: Drop what the build never reads
       if: inputs.compiled == 'true' && env.ESPHOME_IDF_CACHE_HIT != 'true'
       shell: bash
-      run: rm -rf ~/.cache/esphome/idf/frameworks/*/docs ~/.cache/esphome/idf/frameworks/*/examples
+      run: |
+        idf="$HOME/.cache/esphome/idf"
+        du -sh "$idf"
+        rm -rf "$idf"/frameworks/*/docs "$idf"/frameworks/*/examples
+        for tc in "$idf"/tools/xtensa-esp-elf/*/xtensa-esp-elf; do
+          rm -rf "$tc/picolibc"
+          for chip in esp32 esp32s2 esp32s3; do
+            if [ "$chip" = "$ESPHOME_IDF_DEFAULT_TARGETS" ]; then continue; fi
+            rm -rf "$tc/xtensa-esp-elf/lib/$chip" "$tc"/lib/gcc/xtensa-esp-elf/*/"$chip"
+          done
+        done
+        du -sh "$idf"
     # The key is fixed for an ESPHome version and a chip, and a saved cache
     # can't be overwritten. On a hit a save would pack the whole install,
     # then fail.

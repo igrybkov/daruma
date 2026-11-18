@@ -26,7 +26,9 @@ runs:
     # In CI, ESPHome installs the toolchain of every chip by default. The
     # RISC-V one alone is 2.1 GB, more than half of the install, and an
     # ESP32-S3 never uses it. One chip keeps the cache small, so its
-    # restore is fast. The save step reads the key.
+    # restore is fast. The save step reads the key. "slim" names the parts
+    # the save leaves out (esphome-build-cache-save); a new list needs a new
+    # name.
     - name: Pick the ESP-IDF target
       shell: bash
       env:
@@ -34,7 +36,7 @@ runs:
       run: |
         {
           echo "ESPHOME_IDF_DEFAULT_TARGETS=$TARGET"
-          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET"
+          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET-slim"
         } >> "$GITHUB_ENV"
     # The framework, the toolchain and their Python environment. Pull
     # requests read the one main saves.

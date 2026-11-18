@@ -1,0 +1,40 @@
+name: Restore the desktop build folder
+description: >-
+  Restores the build folders of the desktop builds that demos/harness.py
+  makes in DARUMA_WORK, from the last run of the same kind. ESPHome then
+  compiles only what changed. Run desktop-build-cache-save at the end of
+  the job. Needs DARUMA_WORK and ESPHOME_VERSION.
+
+inputs:
+  kind:
+    description: >-
+      The builds the job makes, such as "previews-standard". Each kind has
+      its own cache: a restore brings back only the newest one.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The harness copies the sources fresh but keeps examples/.esphome
+    # (harness.py, _copy_sources). The build folders and ESPHome's record
+    # of the last build (storage) go there. Without that record ESPHome
+    # cleans the build folder. The save step reads the paths and the key.
+    - name: Name the cache
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+      run: |
+        {
+          echo "DESKTOP_BUILD_DIR=$DARUMA_WORK/build/src/examples/.esphome"
+          echo "DESKTOP_BUILD_PREFIX=desktop-build-$KIND-$ESPHOME_VERSION-"
+        } >> "$GITHUB_ENV"
+    # One cache per commit. The prefix picks the newest: the pull
+    # request's own first, else main's.
+    - name: Restore the build folder
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ env.DESKTOP_BUILD_DIR }}/build
+          ${{ env.DESKTOP_BUILD_DIR }}/storage
+        key: ${{ env.DESKTOP_BUILD_PREFIX }}${{ github.sha }}
+        restore-keys: ${{ env.DESKTOP_BUILD_PREFIX }}

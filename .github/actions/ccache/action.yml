@@ -2,15 +2,15 @@ name: Set up ccache
 description: >-
   Puts ccache on the PATH and restores the newest saved cache of one kind of
   build. ESPHome compiles through ccache when it is on the PATH: the ESP-IDF
-  build (box3) and the host build (desktop) both do. The host tests compile
+  build of a device (box3) and the host build (desktop) both do. The host tests compile
   through it when CXX is "ccache c++" (tests/cpp_build.py). Run ccache-save
   at the end of the job.
 
 inputs:
   kind:
     description: >-
-      The kind of build. ESPHome builds: box3, desktop, desktop-variants or
-      coverage. Host tests: host or host-coverage. Each kind has its own
+      The kind of build. ESPHome builds: one per device firmware (box3,
+      named by esphome-build-cache), desktop, desktop-variants or coverage. Host tests: host or host-coverage. Each kind has its own
       cache, because a restore brings back only one saved cache, the newest
       one. Builds of other kinds would push it out.
     required: true
@@ -20,8 +20,8 @@ runs:
   steps:
     # One folder and one size limit for every kind. A desktop or host job
     # saves only the objects its build used (ccache-save), so its cache is
-    # about the size of one build. The box3 cache keeps old objects up to
-    # the limit (see the ESPHome job).
+    # about the size of one build. A device firmware cache keeps old
+    # objects up to the limit (see the ESPHome job).
     #
     # The key names what the objects come from. An ESPHome build: the
     # ESPHome version (ESPHOME_VERSION), which pins the framework and the

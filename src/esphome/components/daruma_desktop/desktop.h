@@ -10,6 +10,7 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/daruma/hub.h"
 #include "esphome/components/daruma/ui_tree.h"
+#include "esphome/components/daruma_desktop/canvas.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/sdl/sdl_esphome.h"
 #include "esphome/core/component.h"
@@ -52,9 +53,11 @@ class Desktop : public esphome::Component {
   // While paused, frames and sounds are not saved (a runner skips ahead).
   void record_pause(bool paused) { this->paused_ = paused; }
   bool recording() const { return this->recording_; }
-  // The display lambda calls begin_frame() before the hub draws and frame()
-  // after: the parts on screen are listed anew, and the screen is saved.
-  void begin_frame() { UiTree::clear(); }
+  // The display lambda calls begin_frame() before the hub draws into
+  // canvas() and frame() after: the parts on screen are listed anew, what
+  // changed goes to the display, and the screen is saved.
+  void begin_frame();
+  Canvas &canvas() { return this->canvas_; }
   void frame();
   // Saves the screen as it is now to <dir>/<name>.bmp.
   bool screenshot(const std::string &dir, const std::string &name);
@@ -86,7 +89,11 @@ class Desktop : public esphome::Component {
   // What is due at `now`: a timer, a frame or an HA call. Empty when nothing is.
   std::string busy_(uint32_t now);
 
+  // Sends what changed on the canvas to the display.
+  void flush_();
+
   esphome::sdl::Sdl *display_{nullptr};
+  Canvas canvas_;
   Hub *hub_{nullptr};
   std::map<std::string, esphome::binary_sensor::BinarySensor *> buttons_;
   std::deque<Point> points_;

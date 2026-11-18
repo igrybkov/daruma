@@ -188,7 +188,20 @@ void Desktop::record_stop() {
            (unsigned) (esphome::millis() - this->start_ms_));
 }
 
+void Desktop::begin_frame() {
+  UiTree::clear();
+  this->canvas_.reset_clipping();
+  if (this->display_ != nullptr)
+    this->canvas_.fit(this->display_->get_width(), this->display_->get_height());
+}
+
+void Desktop::flush_() {
+  if (this->display_ != nullptr)
+    this->canvas_.flush_to(*this->display_);
+}
+
 void Desktop::frame() {
+  this->flush_();
   if (!this->recording_ || this->paused_ || this->display_ == nullptr)
     return;
   char name[48];
@@ -209,6 +222,7 @@ bool Desktop::screenshot(const std::string &dir, const std::string &name) {
   // The snapshot component writes under this directory and never over a file.
   setenv("ESPHOME_SNAPSHOT_DIR", dir.c_str(), 1);  // NOLINT(concurrency-mt-unsafe)
   std::filesystem::remove(dir + "/" + name + ".bmp", ec);
+  this->flush_();
   const bool ok = this->display_->take_snapshot((name + ".bmp").c_str());
   if (this->recording_)
     setenv("ESPHOME_SNAPSHOT_DIR", this->dir_.c_str(), 1);  // NOLINT(concurrency-mt-unsafe)

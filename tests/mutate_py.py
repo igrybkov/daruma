@@ -6,8 +6,9 @@
 mutmut changes the code one small step at a time (a `<` to a `<=`, a
 `True` to a `False`) and runs the tests that reach it. A change no test
 notices "survived": the tests would miss that bug. The files and the
-tests come from [tool.mutmut] in pyproject.toml. The persona tests take
-minutes and add nothing here, so the runs skip them (DARUMA_SKIP_PERSONAS).
+tests come from [tool.mutmut] in pyproject.toml. The persona tests are
+the slowest host tests and add nothing here. mutmut runs the tests once per
+mutant, so the runs skip them (DARUMA_SKIP_PERSONAS).
 
 --diff runs only the functions the branch changed. It fails when a
 mutant on a changed line survives, or no test reaches it. Mark a line

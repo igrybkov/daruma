@@ -142,9 +142,10 @@ make check
   them at validation time.
 - **Ids.** An ESPHome id may not equal an integration name. That is why
   the doll persona's id is `daruma_doll`.
-- **Slow tests.** The host tests build every persona and take minutes.
-  `DARUMA_SKIP_PERSONAS=1` skips those when you run tests locally. CI
-  runs them all.
+- **Persona tests.** Some host tests build every persona. They are the
+  slowest host tests, a few seconds of the ten or so that `make test`
+  takes. `DARUMA_SKIP_PERSONAS=1` skips them while you iterate. CI runs
+  them all.
 - **Pixel packages** are uv workspace members (`pixel/*/`), installed
   editable by `uv sync`. A device build installs nothing: it puts every
   `pixel/*/src` on `sys.path`. `daruma_shapes` and `daruma_personas` are

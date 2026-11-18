@@ -13,8 +13,8 @@ inputs:
   trim:
     description: >-
       "true" drops the entries this job didn't use before the save. Pass it
-      only when the build succeeded: a failed build uses only part of the
-      cache.
+      only for a build that compiles every file and succeeded: an
+      incremental or failed build uses only part of the cache.
     required: false
     default: "false"
 
@@ -46,5 +46,5 @@ runs:
       if: inputs.save == 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.cache/ccache
+        path: ${{ env.CCACHE_DIR }}
         key: ${{ env.CCACHE_PREFIX_KEY }}${{ github.run_id }}-${{ github.run_attempt }}

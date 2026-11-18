@@ -161,7 +161,9 @@ jobs:
         uses: ./.github/actions/apt-packages
       # The compiled objects, by the hash of what went in. Every run saves
       # them, pull requests too, so the next push to a pull request starts
-      # warm. A pull request's first run starts from main's.
+      # warm. A pull request's first run starts from main's. No trim before
+      # the save: the build cache below makes the compile incremental, so
+      # most objects go unused in a run but are still worth keeping.
       - name: Set up ccache
         uses: ./.github/actions/ccache
         with:
@@ -221,7 +223,6 @@ jobs:
         uses: ./.github/actions/ccache-save
         with:
           save: true
-          trim: ${{ job.status == 'success' }}
       - name: Save the persona art
         if: steps.art.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

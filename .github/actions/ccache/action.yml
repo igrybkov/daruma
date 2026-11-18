@@ -16,9 +16,10 @@ inputs:
 runs:
   using: composite
   steps:
-    # One folder and one size limit for every kind. The jobs save only the
-    # objects their build used (ccache-save), so a cache is about the size
-    # of one build. The limit only matters when a build fails part way.
+    # One folder and one size limit for every kind. A desktop job saves
+    # only the objects its build used (ccache-save), so its cache is about
+    # the size of one build. The box3 cache keeps old objects up to the
+    # limit (see the ESPHome job).
     - name: Configure ccache
       shell: bash
       env:
@@ -58,7 +59,7 @@ runs:
     - name: Restore the ccache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.cache/ccache
+        path: ${{ env.CCACHE_DIR }}
         key: ${{ env.CCACHE_PREFIX_KEY }}${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: ${{ env.CCACHE_PREFIX_KEY }}
     - name: Reset the ccache counters

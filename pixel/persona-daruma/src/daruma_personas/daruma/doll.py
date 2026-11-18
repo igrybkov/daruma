@@ -38,9 +38,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
-from daruma_pixel.pixelkit import Canvas, Ramp, mask
+from daruma_pixel.pixelkit import Canvas, Ramp, cached_picture, intersect, mask, moved, subtract
 from daruma_pixel.scene import Spot
 from daruma_shapes.plants.bonsai import BONSAI
 
@@ -423,80 +423,61 @@ def _poly_mask(f: Frame, pts: list[tuple[float, float]]) -> Image.Image:
 
 def _smooth(m: Image.Image) -> Image.Image:
     """Clean a curve's edge: drop lone tips (one side neighbour), fill notches (three)."""
-    out = m.copy()
-    src, dst = m.load(), out.load()
-    for y in range(H):
-        for x in range(W):
-            n = sum(
-                1
-                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
-                if 0 <= x + dx < W and 0 <= y + dy < H and src[x + dx, y + dy]
-            )
-            if src[x, y] and n <= 1:
-                dst[x, y] = 0
-            elif not src[x, y] and n >= 3:
-                dst[x, y] = 255
-    return _trim_caps(out)
+    n = _neighbours(m)
+    tips = intersect(m, n.point(lambda v: 255 if v <= 1 else 0, "1"))
+    notches = subtract(n.point(lambda v: 255 if v >= 3 else 0, "1"), m)
+    return _trim_caps(ImageChops.logical_or(subtract(m, tips), notches))
+
+
+def _neighbours(m: Image.Image) -> Image.Image:
+    """Per pixel, how many of its four side neighbours are in m: an "L" image of 0..4."""
+    one = m.point(lambda v: 1 if v else 0, "L")
+    total = Image.new("L", m.size, 0)
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        seen = Image.new("L", m.size, 0)
+        seen.paste(one, (-dx, -dy))
+        total = ImageChops.add(total, seen)
+    return total
 
 
 def _trim_caps(m: Image.Image) -> Image.Image:
     """Drop a short top or bottom row sitting on a much longer one: the nub a curve leaves."""
-    px = m.load()
-    rows = [y for y in range(H) if any(px[x, y] for x in range(W))]
+    runs = _row_runs(m)
+    rows = [y for y, n in enumerate(runs) if n]
     if len(rows) < 3:
         return m
-
-    def run(y: int) -> int:
-        return sum(1 for x in range(W) if px[x, y])
-
     for y, nxt in ((rows[0], rows[1]), (rows[-1], rows[-2])):
-        if run(y) <= 4 and run(nxt) >= 3 * run(y):
-            for x in range(W):
-                px[x, y] = 0
+        if runs[y] <= 4 and runs[nxt] >= 3 * runs[y]:
+            m.paste(0, (0, y, m.width, y + 1))
     return m
+
+
+def _row_runs(m: Image.Image) -> list[int]:
+    """How many pixels of m are set in each row."""
+    data, w = m.convert("L").tobytes(), m.width
+    return [w - data[y * w : (y + 1) * w].count(0) for y in range(m.height)]
 
 
 def _mirror(m: Image.Image) -> Image.Image:
     """Upright, the doll is exactly symmetric: copy the left half onto the right."""
     out = m.copy()
-    px = out.load()
-    for y in range(H):
-        for x in range(CX + 1, min(W, 2 * CX + 1)):
-            px[x, y] = px[2 * CX - x, y]
+    left = 2 * CX + 1 - min(W, 2 * CX + 1)  # The leftmost column whose mirror is on the canvas.
+    out.paste(m.crop((left, 0, CX, H)).transpose(Image.Transpose.FLIP_LEFT_RIGHT), (CX + 1, 0))
     return out
 
 
 def _crescent(m: Image.Image, dx: int, dy: int) -> Image.Image:
     """Pixels of m that are not in m shifted by (dx, dy): a rim on the far side."""
-    out = Image.new("1", m.size, 0)
-    src, dst = m.load(), out.load()
-    w, h = m.size
-    for y in range(h):
-        for x in range(w):
-            if src[x, y]:
-                sx, sy = x + dx, y + dy
-                if not (0 <= sx < w and 0 <= sy < h and src[sx, sy]):
-                    dst[x, y] = 1
-    return out
+    return subtract(m, moved(m, dx, dy))
 
 
 def _fill(c: Canvas, m: Image.Image, color) -> None:
-    px, mp, bp = c.img.load(), m.load(), c.body.load()
-    for y in range(H):
-        for x in range(W):
-            if mp[x, y]:
-                px[x, y] = (*color, 255)
-                bp[x, y] = 1
+    c.img.paste((*color, 255), mask=m)
+    c.body.paste(ImageChops.logical_or(c.body, m))
 
 
 def _only(m: Image.Image, keep: Image.Image) -> Image.Image:
-    out = Image.new("1", m.size, 0)
-    a, b, o = m.load(), keep.load(), out.load()
-    for y in range(H):
-        for x in range(W):
-            if a[x, y] and b[x, y]:
-                o[x, y] = 1
-    return out
+    return intersect(m, keep)
 
 
 # --- The doll ---------------------------------------------------------------
@@ -513,6 +494,7 @@ CHEEK_X, CHEEK_Y = 12, -2
 BEARD_Y = 4
 
 
+@cached_picture
 def render(p: Pose) -> Image.Image:
     c = Canvas(W, H)
     f = Frame(p.tilt, _settle(p.tilt))
@@ -807,6 +789,7 @@ def glass() -> set[tuple[int, int]]:
     return {(x, y) for y in range(y0, y0 + h) for x in range(x0, x0 + w)}
 
 
+@cached_picture
 def room() -> Image.Image:
     img = Image.new("RGBA", (W, H), (*WALL, 255))
     d = ImageDraw.Draw(img)

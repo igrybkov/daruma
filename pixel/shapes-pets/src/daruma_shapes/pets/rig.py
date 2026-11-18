@@ -57,7 +57,19 @@ from dataclasses import dataclass, field, replace
 from PIL import Image, ImageDraw
 
 from daruma_pixel.effects import HEART, HEART_SHINE, extras
-from daruma_pixel.pixelkit import Canvas, Color, Point, Ramp, ellipse, mask, poly, rotate, shear_rows, shift
+from daruma_pixel.pixelkit import (
+    Canvas,
+    Color,
+    Point,
+    Ramp,
+    cached_picture,
+    ellipse,
+    mask,
+    poly,
+    rotate,
+    shear_rows,
+    shift,
+)
 from daruma_pixel.scene import Grower, Scene, Spot
 
 W, H = 106, 80  # Logical canvas: 318x240 on screen at 3x.
@@ -216,6 +228,7 @@ class Breed:
 # --- Drawing --------------------------------------------------------------------
 
 
+@cached_picture
 def render(b: Breed, p: Pose, cx: int = W // 2, floor: int = H - 5) -> Image.Image:
     coat = b.coat
     c = Canvas(W, H)

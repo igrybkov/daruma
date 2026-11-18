@@ -7,16 +7,18 @@ rotate a part as geometry and still land on a hard pixel grid.
 
 from __future__ import annotations
 
+import functools
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 Color = tuple[int, int, int]
 Point = tuple[float, float]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Ramp:
     """Three tones of one material. Light comes from the top left."""
 
@@ -53,14 +55,9 @@ def shear_rows(m: Image.Image, pivot_y: int, per_row: float, max_shift: int = 99
     """
     w, h = m.size
     out = Image.new("1", m.size, 0)
-    src, dst = m.load(), out.load()
     for y in range(h):
-        shift = max(-max_shift, min(max_shift, round((y - pivot_y) * per_row)))
-        for x in range(w):
-            if src[x, y]:
-                nx = x + shift
-                if 0 <= nx < w:
-                    dst[nx, y] = 1
+        dx = max(-max_shift, min(max_shift, round((y - pivot_y) * per_row)))
+        out.paste(m.crop((0, y, w, y + 1)), (dx, y))
     return out
 
 
@@ -70,26 +67,26 @@ def shift(m: Image.Image, dx: int, dy: int) -> Image.Image:
     return out
 
 
-def subtract(a: Image.Image, b: Image.Image) -> Image.Image:
-    out = a.copy()
-    pa, pb = out.load(), b.load()
-    w, h = a.size
-    for y in range(h):
-        for x in range(w):
-            if pb[x, y]:
-                pa[x, y] = 0
+def moved(m: Image.Image, dx: int, dy: int) -> Image.Image:
+    """The mask seen from (dx, dy) away: out[x, y] is m[x + dx, y + dy], empty off the edge."""
+    return shift(m, -dx, -dy)
+
+
+def touching(m: Image.Image) -> Image.Image:
+    """Pixels with at least one side neighbour (left, right, up, down) in m."""
+    out = moved(m, 1, 0)
+    for dx, dy in ((-1, 0), (0, 1), (0, -1)):
+        out = ImageChops.logical_or(out, moved(m, dx, dy))
     return out
+
+
+def subtract(a: Image.Image, b: Image.Image) -> Image.Image:
+    """Pixels of a that are not in b."""
+    return ImageChops.logical_and(a, ImageChops.logical_xor(b, Image.new("1", b.size, 1)))
 
 
 def intersect(a: Image.Image, b: Image.Image) -> Image.Image:
-    out = Image.new("1", a.size, 0)
-    pa, pb, po = a.load(), b.load(), out.load()
-    w, h = a.size
-    for y in range(h):
-        for x in range(w):
-            if pa[x, y] and pb[x, y]:
-                po[x, y] = 1
-    return out
+    return ImageChops.logical_and(a, b)
 
 
 @dataclass
@@ -106,32 +103,24 @@ class Canvas:
         self.body = Image.new("1", (self.w, self.h), 0)
 
     def paint(self, m: Image.Image, ramp: Ramp, shade: bool = True) -> None:
-        """Fill a mask with a material: base, shadow toward bottom-right, light toward top-left."""
-        px, mp, bp = self.img.load(), m.load(), self.body.load()
-        below = self.body.copy().load()
-        w, h = self.w, self.h
+        """Fill a mask with a material: base, shadow toward bottom-right, light toward top-left.
 
-        def inside(x: int, y: int) -> bool:
-            return 0 <= x < w and 0 <= y < h and mp[x, y]
-
-        for y in range(h):
-            for x in range(w):
-                if not mp[x, y]:
-                    continue
-                color = ramp.base
-                if shade:
-                    if not inside(x + 2, y + 2) or not inside(x + 1, y + 2):
-                        color = ramp.shadow
-                    elif ramp.light and (not inside(x - 2, y - 2)) and inside(x + 3, y + 3):
-                        color = ramp.light
-                # Inner contour: an edge pixel sitting on top of an earlier part.
-                if ramp.line:
-                    for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                        if not inside(nx, ny) and 0 <= nx < w and 0 <= ny < h and below[nx, ny]:
-                            color = ramp.line
-                            break
-                px[x, y] = (*color, 255)
-                bp[x, y] = 1
+        A pixel is shadow when the mask ends within (+2, +2) or (+1, +2) of
+        it; else light when the mask ends at (-2, -2) but goes on to (+3, +3).
+        An edge pixel next to an earlier part takes the ramp's line color.
+        """
+        layers = [(m, ramp.base)]
+        if shade:
+            dark = subtract(m, intersect(moved(m, 2, 2), moved(m, 1, 2)))
+            layers.append((dark, ramp.shadow))
+            if ramp.light:
+                lit = subtract(subtract(m, dark), moved(m, -2, -2))
+                layers.append((intersect(lit, moved(m, 3, 3)), ramp.light))
+        if ramp.line:
+            layers.append((intersect(m, touching(subtract(self.body, m))), ramp.line))
+        for where, color in layers:
+            self.img.paste((*color, 255), mask=where)
+        self.body.paste(ImageChops.logical_or(self.body, m))
 
     def dot(self, x: int, y: int, color: Color) -> None:
         if 0 <= x < self.w and 0 <= y < self.h:
@@ -144,20 +133,21 @@ class Canvas:
 
     def outline(self, color: Color) -> None:
         """1-px outline around the whole silhouette."""
-        px, bp = self.img.load(), self.body.load()
-        edge = []
-        for y in range(self.h):
-            for x in range(self.w):
-                if bp[x, y]:
-                    continue
-                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                    if 0 <= nx < self.w and 0 <= ny < self.h and bp[nx, ny]:
-                        edge.append((x, y))
-                        break
-        for x, y in edge:
-            px[x, y] = (*color, 255)
-        for x, y in edge:
-            bp[x, y] = 1
+        edge = subtract(touching(self.body), self.body)
+        self.img.paste((*color, 255), mask=edge)
+        self.body.paste(ImageChops.logical_or(self.body, edge))
+
+
+def cached_picture[**P](draw: Callable[P, Image.Image]) -> Callable[P, Image.Image]:
+    """Draw each picture once: `draw` must give the same picture for the same
+    (hashable) arguments. Every call gets its own copy to change."""
+    memo = functools.cache(draw)
+
+    @functools.wraps(draw)
+    def picture(*args: P.args, **kwargs: P.kwargs) -> Image.Image:
+        return memo(*args, **kwargs).copy()
+
+    return picture
 
 
 def upscale(img: Image.Image, factor: int) -> Image.Image:

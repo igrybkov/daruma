@@ -242,20 +242,6 @@
     ]
   },
   {
-    "path": "pixel/daruma-pixel/src/daruma_pixel/pixelkit.py",
-    "file_name": "pixelkit.py",
-    "functions": [
-      {
-        "name": "Canvas::outline",
-        "complexity": 16
-      },
-      {
-        "name": "Canvas::paint",
-        "complexity": 30
-      }
-    ]
-  },
-  {
     "path": "pixel/shapes-plants/src/daruma_shapes/plants/pothos.py",
     "file_name": "pothos.py",
     "functions": [

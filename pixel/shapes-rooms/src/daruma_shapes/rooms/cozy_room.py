@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from daruma_pixel.pixelkit import Color
+from daruma_pixel.pixelkit import Color, cached_picture
 from daruma_pixel.scene import WEEKDAY_COLORS, Spot
 
 W, H = 106, 80
@@ -68,6 +68,7 @@ class Room:
         }
 
 
+@cached_picture
 def room(r: Room) -> Image.Image:
     img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
     d = ImageDraw.Draw(img)

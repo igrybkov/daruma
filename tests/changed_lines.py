@@ -44,12 +44,19 @@ def added_lines(diff: str) -> dict[str, set[int]]:
     return changed
 
 
+def _under(path: str, paths: list[str]) -> bool:
+    """Whether `path` is one of `paths`, or in a folder among them."""
+    return any(path == p or path.startswith(p.rstrip("/") + "/") for p in paths)
+
+
 def changed_lines(base: str, paths: list[str]) -> dict[str, set[int]]:
-    """Path (relative to the repository root) -> its added or changed lines."""
+    """Path (relative to the repository root) -> its added or changed lines.
+
+    `paths` are files or folders; a folder stands for every file in it.
+    """
     merge_base = _git("merge-base", base, "HEAD").strip()
     diff = _git("diff", "-U0", "--find-renames", "--no-color", "--no-ext-diff", merge_base)
-    wanted = set(paths)
-    changed = {path: lines for path, lines in added_lines(diff).items() if path in wanted and lines}
+    changed = {path: lines for path, lines in added_lines(diff).items() if lines and _under(path, paths)}
     for path in _git("ls-files", "--others", "--exclude-standard", "--", *paths).split():
         changed[path] = set(range(1, len((ROOT / path).read_text().splitlines()) + 1))
     return changed

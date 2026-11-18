@@ -10,8 +10,10 @@ no test notices "survived": the tests would miss that bug. A change that
 doesn't build doesn't count.
 
 The files are the ones the C++ host tests include (tests/conftest.py),
-found with the compiler. test_frames.cpp needs a fixture, so its headers
-are left out. --diff fails when a mutant on a changed line survives.
+found with the compiler. test_frames.cpp reads the frames of every persona
+from a fixture (tests/frames_fixture.py). The fixture comes from the Python
+encoder, not the C++, so it is written once for all mutants. --diff fails
+when a mutant on a changed line survives.
 Mark a line `// pragma: no mutate` when no test can tell the change apart.
 """
 
@@ -36,7 +38,9 @@ from changed_lines import ROOT, changed_lines
 FLAGS = ["-std=c++17", "-w"]
 INCLUDES = ["src/esphome/components/daruma", "src/esphome/components/daruma_weather"]
 COMPONENTS = ROOT / "src" / "esphome" / "components"
-SKIP_TESTS = {"test_frames"}
+# Tests that take a fixture file: test -> the arguments of frames_fixture.py.
+FIXTURES = {"test_frames": ["--personas"]}
+FIXTURE_NAME = "fixture.txt"
 
 OPERATORS = [
     (r"<=", "<"),
@@ -71,7 +75,22 @@ class Mutant:
 
 
 def tests() -> list[str]:
-    return sorted(p.stem for p in (ROOT / "tests").glob("test_*.cpp") if p.stem not in SKIP_TESTS)
+    return sorted(p.stem for p in (ROOT / "tests").glob("test_*.cpp"))
+
+
+def run_command(test: str, exe: Path) -> list[str]:
+    """Runs a built test. A test with a fixture reads it from next to the
+    work folders (write_fixtures)."""
+    if test in FIXTURES:
+        return [str(exe), str(exe.parent.parent / f"{test}-{FIXTURE_NAME}")]
+    return [str(exe)]
+
+
+def write_fixtures(root: Path, test_names: set[str]) -> None:
+    for test in sorted(test_names & FIXTURES.keys()):
+        out = root / f"{test}-{FIXTURE_NAME}"
+        script = ROOT / "tests" / "frames_fixture.py"
+        subprocess.run([sys.executable, str(script), str(out), *FIXTURES[test]], check=True)
 
 
 def compile_args(test: str, root: Path) -> list[str]:
@@ -159,7 +178,7 @@ def _build_and_run(work: Path, test_names: list[str]) -> str:
             continue
         built = True
         try:
-            if subprocess.run([str(exe)], capture_output=True, timeout=10).returncode:
+            if subprocess.run(run_command(test, exe), capture_output=True, timeout=10).returncode:
                 return "killed"
         except subprocess.TimeoutExpired:
             return "killed"  # A test that hangs noticed the change too.
@@ -175,7 +194,7 @@ def baseline(work: Path, test_names: list[str]) -> bool:
         if built.returncode:
             print(f"{test} doesn't build:\n{built.stderr[-3000:]}")
             return False
-        ran = subprocess.run([str(exe)], capture_output=True, text=True, timeout=60)
+        ran = subprocess.run(run_command(test, exe), capture_output=True, text=True, timeout=60)
         if ran.returncode:
             print(f"{test} fails before any mutation:\n{ran.stdout[-3000:]}")
             return False
@@ -222,7 +241,9 @@ def main() -> int:
         return 0
     workers = Workers(args.jobs)
     try:
-        if not baseline(workers.root / "0", sorted({t for m in found for t in tests_by_path[m.path]})):
+        needed = {t for m in found for t in tests_by_path[m.path]}
+        write_fixtures(workers.root, needed)
+        if not baseline(workers.root / "0", sorted(needed)):
             return 1
         with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
             states = list(pool.map(lambda m: workers.run(m, tests_by_path[m.path]), found))

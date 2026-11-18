@@ -6,8 +6,9 @@
 mutmut changes the code one small step at a time (a `<` to a `<=`, a
 `True` to a `False`) and runs the tests that reach it. A change no test
 notices "survived": the tests would miss that bug. The files and the
-tests come from [tool.mutmut] in pyproject.toml. The persona tests take
-minutes and add nothing here, so the runs skip them (DARUMA_SKIP_PERSONAS).
+tests come from [tool.mutmut] in pyproject.toml. The runs include the
+persona tests, even with DARUMA_SKIP_PERSONAS set: the persona frames are
+what most of the drawing code is checked against.
 
 --diff runs only the functions the branch changed. It fails when a
 mutant on a changed line survives, or no test reaches it. Mark a line
@@ -38,7 +39,7 @@ def source_paths() -> list[str]:
 
 
 def mutmut(*args: str, check: bool = True) -> subprocess.CompletedProcess:
-    env = {**os.environ, "DARUMA_SKIP_PERSONAS": "1"}
+    env = {k: v for k, v in os.environ.items() if k != "DARUMA_SKIP_PERSONAS"}
     return subprocess.run(
         [sys.executable, "-m", "mutmut", *args], cwd=ROOT, env=env, capture_output=True, text=True, check=check
     )
@@ -65,7 +66,29 @@ def functions(path: str) -> list[tuple[str, int, int]]:
 
 
 def module_name(path: str) -> str:
-    return ".".join(Path(path).with_suffix("").parts)
+    """The module mutmut names a file's mutants by: its path as a dotted
+    name, less a leading `src.`, and a package by its folder."""
+    parts = Path(path).with_suffix("").parts
+    if parts[0] == "src":
+        parts = parts[1:]
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def mutant_module(name: str) -> str:
+    """The module of a mutant name (`pkg.mod.x_func__mutmut_3` -> `pkg.mod`)."""
+    return re.split(r"\.x[_ǁ]", name, maxsplit=1)[0]
+
+
+def stray_names(names: list[str], modules: list[str]) -> list[str]:
+    """The modules among `modules` that no mutant name belongs to.
+
+    A file whose mutants mutmut names differently than module_name() would
+    otherwise match no glob, and --diff would pass without running a test.
+    """
+    known = {mutant_module(n) for n in names}
+    return sorted(m for m in modules if m not in known)
 
 
 def results() -> dict[str, str]:
@@ -145,6 +168,10 @@ def run_diff(base: str) -> int:
         print(f"No changed functions in {', '.join(source_paths())} since {base}: nothing to mutate.")
         return 0
     run = mutmut("run", *targets, check=False)
+    modules = sorted({module_name(path) for path, _ in targets.values()})
+    if missing := stray_names(list(results()), modules):
+        print(f"mutmut has no mutants under the module names {missing}: tests/mutate_py.py names them wrong.")
+        return 1
     if "nothing matches" in run.stdout + run.stderr:
         print("The changed functions have nothing to mutate.")
         return 0

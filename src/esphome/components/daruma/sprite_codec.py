@@ -84,7 +84,7 @@ def reduce_colors(img, mode: str):
             r, g, b, a = src[x, y]
             if a >= 128:
                 gray = gray_for(mode, r, g, b)
-                dst[x, y] = (gray, gray, gray, 255)
+                dst[x, y] = (gray, gray, gray, 255)  # pragma: no mutate (Pillow clamps an alpha of 256)
     return out
 
 
@@ -118,7 +118,8 @@ def _runs(codes: list[int], w: int, h: int, copy: int, bits: int) -> list[int]:
 
     def put(i: int, n: int) -> None:
         while n > 0:
-            if bits == 8:
+            # At 8 bits the long-run branch below writes the same two bytes.
+            if bits == 8:  # pragma: no mutate
                 take = min(n, 256)
                 data.extend((i, take - 1))
             elif n <= short:
@@ -130,7 +131,7 @@ def _runs(codes: list[int], w: int, h: int, copy: int, bits: int) -> list[int]:
             n -= take
 
     for y in range(h):
-        row = codes[y * w : (y + 1) * w]
+        row = codes[y * w : (y + 1) * w]  # pragma: no mutate (a longer slice: the loops stop at w)
         above = codes[(y - 1) * w : y * w] if y else None
         x = 0
         while x < w:
@@ -141,7 +142,7 @@ def _runs(codes: list[int], w: int, h: int, copy: int, bits: int) -> list[int]:
             if above is not None:
                 while x + same < w and row[x + same] == above[x + same]:
                     same += 1
-            if same >= run:
+            if same >= run:  # pragma: no mutate (on a tie both runs decode the same)
                 put(copy, same)
                 x += same
             else:
@@ -282,6 +283,7 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
         codes = []
         for y in range(y0, y1):
             row = slice(y * w + x0, y * w + x1)
+            # pragma: no mutate block, the rows are the same length: strict never fails
             codes.extend(n if p == q else at[p] for p, q in zip(a[row], b[row], strict=True))
         bits = _bits(n + 2)
         data = _runs(codes, x1 - x0, y1 - y0, n + 1, bits)
@@ -299,6 +301,9 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
         )
 
     lanes = [_lanes(px) for px in pixels]
+    # A mask of 2s would count a lane that differs only in bit 0 at the lane
+    # below it instead: the same totals, but for the very first pixel.
+    # pragma: no mutate block, see above
     ones = _lanes([1] * (w * h))
 
     def changed(u: int, v: int) -> int:
@@ -306,10 +311,12 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
 
     frames: dict[int, SetFrame] = {}
 
-    def place(u: int, prev: int | None, first: int, starts: bool) -> None:
+    def place(u: int, prev: int | None, first: int | None, limit: int) -> None:
+        """Stores picture u as the cheapest of a keyframe and patches on the
+        frame before (prev), its animation's first frame and the closest
+        others, among frames less than `limit` deep."""
         if u in frames:
             return
-        limit = FIRST_DEPTH if starts else MAX_DEPTH
         options = [keyframe(u)]
         # The base the screen likely shows, then the closest few others.
         tried = set()
@@ -330,12 +337,12 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
     # First frames first, so a picture that also plays inside another
     # animation still starts its own shallow.
     for seq in sequences or []:
-        place(index[seq[0]], None, index[seq[0]], True)
+        place(index[seq[0]], None, None, FIRST_DEPTH)
     for seq in sequences or []:
         for pos, i in enumerate(seq[1:], 1):
-            place(index[i], index[seq[pos - 1]], index[seq[0]], False)
+            place(index[i], index[seq[pos - 1]], index[seq[0]], MAX_DEPTH)
     for u in range(len(pixels)):  # Pictures no sequence named.
-        place(u, None, u, True)
+        place(u, None, None, FIRST_DEPTH)
     return FrameSet(w, h, [frames[u] for u in range(len(pixels))], index)
 
 
@@ -354,7 +361,8 @@ def decode_set(fs: FrameSet) -> list[list[int]]:
             while x < f.w:
                 b = f.data[at]
                 at += 1
-                if f.bits == 8:
+                # At 8 bits the long-run branch below reads the same two bytes.
+                if f.bits == 8:  # pragma: no mutate
                     i, run = b, f.data[at] + 1
                     at += 1
                 else:

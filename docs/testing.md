@@ -303,7 +303,7 @@ make mutate-diff               # only the lines changed since origin/main
 make mutate-diff BASE=main     # or since another branch
 ```
 
-`make mutate` mutates all the Python. It takes about FULLTIME on an
+`make mutate` mutates all the Python. It takes about 45 minutes on an
 M-series Mac, and it never fails on a survivor. `make mutate-diff`
 mutates only the functions a branch changed. It takes from seconds to
 a few minutes. It fails when a mutant on a changed line survives, or
@@ -363,8 +363,7 @@ The Python runs skip some lines (`do_not_mutate_patterns`):
   people, and tests match only a few words of it;
 - a `mode="full"` default: any mode but gray4 and mono is full color;
 - a new Pillow picture filled with zeros, `Image.new(..., 0)` or
-  `(0, 0, 0, 0)`: the default fill is the same;
-- PATTERNS_MORE
+  `(0, 0, 0, 0)`: the default fill is the same.
 
 mutmut names a mutant by its file's path, less a leading `src.`. The
 tests record which test reaches a function by the module's import name.

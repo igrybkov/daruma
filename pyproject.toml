@@ -196,6 +196,11 @@ pytest_add_cli_args = ["-n", "0", "-p", "no:cacheprovider"]
 # would inherit what the first full test run left behind (drawn pictures,
 # built personas), and a mutant in code that state hides would survive.
 process_isolation = "forkserver"
+# A mutant that loops forever runs until its timeout: (the time its tests
+# took + timeout_constant) x timeout_multiplier, in seconds. mutmut's x15
+# held each looping mutant for minutes. x4 still gives a slow runner room.
+timeout_multiplier = 4.0
+timeout_constant = 2.0
 # Error messages and build log lines are text for people; tests match a
 # few words of them. A `mode="full"` default is equivalent to any string
 # but gray4 and mono, so mutating it can't be told apart.

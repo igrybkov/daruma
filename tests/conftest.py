@@ -20,6 +20,7 @@ For coverage: CXXFLAGS adds compiler flags (--coverage), and
 DARUMA_CPP_OUT names a folder that keeps the programs and their data.
 """
 
+import json
 import os
 import subprocess
 import tempfile
@@ -40,6 +41,23 @@ NOT_COLLECTED = {Path("test_frames.cpp")}
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "cpp: a host C++ test (tests/test_*.cpp)")
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Under mutmut, run a mutant's fastest tests first.
+
+    mutmut stops at the first failing test (-x) but passes the tests in no
+    set order. A fast test kills most mutants, so it saves the slow persona
+    tests for the mutants that survive it. The times come from mutmut's
+    first full run, in mutmut-stats.json at the root of its copy.
+    """
+    if not os.environ.get("MUTANT_UNDER_TEST"):
+        return
+    stats = ROOT / "mutmut-stats.json"
+    if not stats.exists():
+        return
+    durations = json.loads(stats.read_text()).get("duration_by_test", {})
+    items.sort(key=lambda item: durations.get(item.nodeid, 0.0))
 
 
 def pytest_collect_file(parent: pytest.Collector, file_path: Path) -> "CppFile | None":

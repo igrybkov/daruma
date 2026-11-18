@@ -231,7 +231,10 @@ uv run pytest demos -m scenario --persona "My persona" --update-golden
 uv run python tests/persona_frames.py update my_persona
 ```
 
-They find your persona packages in `packages/persona_*.yaml`. They write
+They find your persona packages in `packages/persona_*.yaml`, and your
+own scenarios in `demos/scenarios/*.yaml`. Your scenarios run on your
+personas only: `personas: all` means all of yours. Give them names that
+Daruma's scenarios don't use. The tools write
 to your repository, never into Daruma's, in the layout Daruma uses for
 its own:
 

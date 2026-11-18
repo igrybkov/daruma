@@ -8,6 +8,7 @@ docs/private-packages.md describes, with its pictures where Daruma keeps
 its own:
 
     packages/persona_*.yaml         persona packages; the desktop build adds them
+    demos/scenarios/*.yaml          its own scenarios; they run on its personas only
     tests/golden/frames/<persona>/  goldens of every picture of its pixel personas
     tests/golden/<slug>/<scenario>/ goldens of the scenario tests
     docs/demos/                     its demo GIFs and stills
@@ -18,7 +19,7 @@ docs/demos). A relative path is inside each folder; an absolute one is
 used as it is.
 
 Every tool reads it the same way: the desktop build (harness.py), the
-scenario tests (conftest.py), the recorder (record.py), the frame goldens
+scenario tests (conftest.py), the scenario files (scenario.py), the recorder (record.py), the frame goldens
 (tests/persona_frames.py) and the prop check (tests/test_props.py). Their
 pictures go to the folder, never into this repository.
 """
@@ -39,6 +40,7 @@ GOLDEN_ENV = "DARUMA_PERSONA_GOLDEN"
 DEMOS_ENV = "DARUMA_PERSONA_DEMOS"
 GOLDEN = "tests/golden"
 DEMOS = "docs/demos"
+SCENARIOS = "demos/scenarios"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,14 @@ class Folder:
     @property
     def packages(self) -> list[Path]:
         return sorted((self.root / "packages").glob("persona_*.yaml"))
+
+    @property
+    def scenarios(self) -> list[Path]:
+        return sorted((self.root / SCENARIOS).glob("*.yaml"))
+
+    @property
+    def persona_names(self) -> list[str]:
+        return [persona_name(p) for p in self.packages]
 
     @property
     def frame_golden(self) -> Path:

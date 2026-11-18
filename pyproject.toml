@@ -171,6 +171,7 @@ also_copy = [
     "AGENTS.md",
     "art",
     "blueprints",
+    "CHANGELOG.md",
     "complexipy-snapshot.json",
     "CONTRIBUTING.md",
     "demos",

@@ -68,8 +68,3 @@ daruma:
     top.press: daruma.next_persona
     screen.tap: menu.open
     screen.stroke: daruma.pet
-
-# The pomodoro's clock in the board's time zone too.
-time:
-  - id: !extend pomo_time
-    timezone: ${desktop_timezone}

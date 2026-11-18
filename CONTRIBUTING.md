@@ -132,7 +132,7 @@ Run all four before you open a pull request. Run them from the
 repository root. [docs/testing.md](docs/testing.md) explains each.
 
 ```sh
-make test-py        # 1. Host tests in Python: registry, build checks, pixel art, layout (minutes)
+make test-py        # 1. Host tests in Python: registry, build checks, pixel art, layout
 make test-cpp       # 2. Host tests in C++: gestures, layout, prompts, pomodoro rules, agenda, weather
 make golden         # 3. Golden pictures: the scenario files, on the desktop build
 make test-screens   # 4. Screen tests in Python on the desktop build
@@ -142,7 +142,7 @@ make test-screens   # 4. Screen tests in Python on the desktop build
 runs everything CI blocks on: the four tests, complexity, clang-tidy,
 the config of every example and the box3 compile.
 
-- `DARUMA_SKIP_PERSONAS=1` skips the slow persona tests in step 1 while
+- `DARUMA_SKIP_PERSONAS=1` skips the persona tests in step 1 while
   you work. Run the full set before you finish.
 - pytest runs one worker per CPU (`-n auto`, set in pyproject.toml).
   Pass `PYTEST_ARGS="-n 0"` to run one test at a time. `make gifs`

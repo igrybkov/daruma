@@ -654,7 +654,7 @@ class Device:
                 continue
             if s["idle"] >= mark + 2:
                 return
-            self._check_deadline(deadline, "is still busy at this time")
+            self._check_deadline(deadline, f"still has work due at this time: {s.get('busy') or 'unknown'}")
             s = self._sync()
 
     def _check_deadline(self, deadline: float, what: str) -> None:

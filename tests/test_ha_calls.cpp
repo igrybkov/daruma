@@ -135,8 +135,10 @@ static void test_idle() {
   gate.tick(1000, true);
   CHECK(gate.idle(1000));   // Linked, but HA is still settling.
   CHECK(!gate.idle(4000));  // Settled: the call is due.
+  CHECK(gate.next() == "calendar");
   gate.tick(4000, true);
   CHECK(!gate.idle(4000));  // Sent: waiting for the answer.
+  CHECK(gate.in_flight() == "calendar");
   gate.done(log.tokens[0]);
   CHECK(gate.idle(4000));
 }

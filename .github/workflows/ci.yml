@@ -169,7 +169,7 @@ jobs:
           tests/compile_db.sh
           uv run --no-sync clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
 
-  # The config of every example, and the box3 firmware, in two jobs side
+  # The config of every example, and each device firmware, in jobs side
   # by side: the config check needs SDL2 (for the desktop example), the
   # compile needs the ESP-IDF. "ESPHome" below waits for both.
   esphome-config:
@@ -222,9 +222,20 @@ jobs:
           key: ${{ steps.art.outputs.cache-primary-key }}
 
   esphome-compile:
-    name: ESPHome (box3 firmware)
+    name: ESPHome (${{ matrix.device }} firmware)
     runs-on: ubuntu-26.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per device firmware: examples/<device>.yaml and the
+        # chip it runs on. The device names its caches, and the chip picks
+        # the ESP-IDF toolchain (esphome-build-cache).
+        include:
+          - device: box3
+            chip: esp32s3
+    env:
+      DEVICE: ${{ matrix.device }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -239,9 +250,12 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      # The box3 ccache, the ESP-IDF install and main's build folder.
+      # The device's ccache, the ESP-IDF install and main's build folder.
       - name: Restore the build caches
         uses: ./.github/actions/esphome-build-cache
+        with:
+          device: ${{ matrix.device }}
+          idf-target: ${{ matrix.chip }}
       # The config job saves the art.
       - name: Restore the persona art
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -262,11 +276,11 @@ jobs:
           set -o pipefail
           uv run --no-sync esphome \
             -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
-            compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
+            compile "$DEVICE.yaml" 2>&1 | tee "$RUNNER_TEMP/compile.log"
       - name: Report the flash size
         run: |
           {
-            echo "### Firmware: examples/box3.yaml"
+            echo "### Firmware: examples/$DEVICE.yaml"
             .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin

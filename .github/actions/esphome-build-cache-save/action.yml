@@ -1,7 +1,8 @@
 name: Save the ESPHome build caches
 description: >-
-  Saves what esphome-build-cache restored, when it changed: the box3
-  ccache, the ESP-IDF install and the build folder.
+  Saves what esphome-build-cache restored, when it changed: the device's
+  ccache, the ESP-IDF install and the build folder. The device and the
+  chip come from esphome-build-cache.
 
 inputs:
   compiled:
@@ -58,4 +59,4 @@ runs:
         path: |
           examples/.esphome/build
           examples/.esphome/storage
-        key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+        key: esphome-build-${{ env.ESPHOME_BUILD_DEVICE }}-${{ env.ESPHOME_VERSION }}-${{ github.sha }}

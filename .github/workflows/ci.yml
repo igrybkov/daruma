@@ -49,7 +49,7 @@ jobs:
       # about 95 s (the daruma persona tests set the pace), against 177 s
       # in one process. 2 was a little ahead in every round.
       - name: Run the host tests
-        run: uv run --no-sync pytest tests -n 2
+        run: uv run --no-sync pytest tests -n 2 --durations=20
 
   # Mutation tests of the lines a pull request changes (docs/testing.md).
   # It fails on a mutant no test catches, but it is not a required check:

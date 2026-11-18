@@ -20,7 +20,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
-from daruma_pixel.pixelkit import Canvas, Color, Ramp, mask, poly
+from daruma_pixel.pixelkit import Canvas, Color, Ramp, cached_picture, mask, poly
 from daruma_pixel.scene import WEEKDAY_COLORS, Spot
 
 from . import couch as _couch
@@ -259,6 +259,7 @@ def _throw(img: Image.Image, r: LivingRoom) -> None:
     img.alpha_composite(c.img)
 
 
+@cached_picture
 def living_room(r: LivingRoom) -> Image.Image:
     img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
     _wall(img, r)

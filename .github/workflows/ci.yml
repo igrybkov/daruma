@@ -50,6 +50,13 @@ jobs:
       # sets the pace.
       - name: Run the host tests
         run: uv run --no-sync pytest tests -n 4 --durations=20
+      - name: "Experiment: -n 2, 4, 2, 4"
+        run: |
+          for n in 2 4 2 4; do
+            start=$(date +%s.%N)
+            uv run --no-sync pytest tests -n "$n" -q -p no:cacheprovider > /dev/null
+            echo "workers=$n wall=$(echo "$(date +%s.%N) - $start" | bc)"
+          done
 
   # Mutation tests of the lines a pull request changes (docs/testing.md).
   # It fails on a mutant no test catches, but it is not a required check:

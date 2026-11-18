@@ -12,7 +12,8 @@ gif_scale; nearest neighbour; kept under --max-kb), and with --mp4 an MP4
 with the sounds. A scenario with `stills: true` writes no GIF: each of its
 snapshots becomes docs/demos/screens/<persona>-<name>.png. A persona from
 DARUMA_PERSONA_PATH (persona_path.py) writes to its own folder's docs/demos
-instead, and only when named in --personas. The same scenarios run as tests in pytest (conftest.py):
+instead, and only when named in --personas. Such a folder's own scenarios
+(its demos/scenarios/) run too, on its personas only. The same scenarios run as tests in pytest (conftest.py):
 their snapshot and expect steps check the screens there.
 
 Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
@@ -68,7 +69,7 @@ def main() -> int:
     print(f"Building in {work} ...", flush=True)
     b = build(work / "build", variant=args.variant, port=args.port)
 
-    chosen = scenarios.all_scenarios()
+    chosen = scenarios.every_scenario()
     if args.scenario != "all":
         names = args.scenario.split(",")
         chosen = [scenarios.load(n) for n in names]

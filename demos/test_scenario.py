@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import persona_path
 import pytest
 import scenario as scenarios
 from harness import DeviceError
@@ -65,6 +66,46 @@ def test_every_scenario_loads_with_one_key_steps():
     for sc in scenarios.all_scenarios():
         for step in sc.setup + sc.steps:
             assert len(step) == 1, f"{sc.path.name}: {step}"
+
+
+def _folder(root: Path, scenarios_yaml: dict[str, str]) -> persona_path.Folder:
+    """A DARUMA_PERSONA_PATH folder with one persona, Mine, and these scenario files."""
+    (root / "packages").mkdir(parents=True)
+    (root / "packages" / "persona_mine.yaml").write_text("daruma_sprites:\n  - id: mine\n    name: Mine\n")
+    (root / "demos" / "scenarios").mkdir(parents=True)
+    for name, text in scenarios_yaml.items():
+        (root / "demos" / "scenarios" / f"{name}.yaml").write_text(text)
+    return persona_path.Folder.at(root)
+
+
+def test_a_folder_scenario_runs_on_its_own_personas_only(tmp_path: Path):
+    folder = _folder(
+        tmp_path,
+        {
+            "desk": "name: desk\npersonas: all\ntest_personas: all\nsteps:\n  - wait: 1\n",
+            "picky": "name: picky\npersonas: [Mine, Eyes]\ntest_personas: [Eyes]\nsteps:\n  - wait: 1\n",
+        },
+    )
+    desk, picky = scenarios.folder_scenarios([folder])
+    assert (desk.name, desk.personas, desk.test_personas) == ("desk", ["Mine"], ["Mine"])
+    assert (picky.personas, picky.test_personas) == (["Mine"], [])
+    assert desk.runs_on("Mine", test=True)
+    assert not desk.runs_on("Eyes", test=True)
+
+
+def test_a_folder_scenario_may_not_take_a_daruma_name(tmp_path: Path):
+    folder = _folder(tmp_path, {"mine": "name: tour\nsteps:\n  - wait: 1\n"})
+    with pytest.raises(DeviceError, match="tour"):
+        scenarios.folder_scenarios([folder])
+
+
+def test_load_finds_a_folder_scenario_by_name(tmp_path: Path, monkeypatch):
+    _folder(tmp_path, {"desk": "name: desk\nsteps:\n  - wait: 1\n"})
+    monkeypatch.setenv(persona_path.ENV, str(tmp_path))
+    sc = scenarios.load("desk")
+    assert (sc.name, sc.personas) == ("desk", ["Mine"])
+    assert [s.name for s in scenarios.every_scenario()][-1] == "desk"
+    assert "desk" not in [s.name for s in scenarios.all_scenarios()]
 
 
 def _frames(tmp_path: Path, times: list[int]) -> list[tuple[Path, float]]:

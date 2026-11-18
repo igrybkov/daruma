@@ -19,14 +19,19 @@ runs:
     # (harness.py, _copy_sources). The build folders and ESPHome's record
     # of the last build (storage) go there. Without that record ESPHome
     # cleans the build folder. The save step reads the paths and the key.
+    #
+    # The key names the runner: its image release and its architecture.
+    # The objects come from the runner's own compiler, so a new image or
+    # another architecture starts a new cache.
     - name: Name the cache
       shell: bash
       env:
         KIND: ${{ inputs.kind }}
       run: |
+        runner="${ImageOS:-unknown}-${ImageVersion%%.*}-$RUNNER_ARCH"
         {
           echo "DESKTOP_BUILD_DIR=$DARUMA_WORK/build/src/examples/.esphome"
-          echo "DESKTOP_BUILD_PREFIX=desktop-build-$KIND-$ESPHOME_VERSION-"
+          echo "DESKTOP_BUILD_PREFIX=desktop-build-$KIND-$ESPHOME_VERSION-$runner-"
         } >> "$GITHUB_ENV"
     # One cache per commit. The prefix picks the newest: the pull
     # request's own first, else main's.

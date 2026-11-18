@@ -54,6 +54,10 @@ Steps:
 A scenario with `stills: true` records no GIF. record.py saves each of
 its snapshots as a PNG instead: docs/demos/screens/<persona>-<name>.png.
 
+A folder of DARUMA_PERSONA_PATH may bring its own scenarios, in its
+demos/scenarios/. They run on that folder's personas only: `personas:
+all` means all of its own. A name must not repeat one of Daruma's.
+
 A scenario with `showcase: true` is one of the demos that together show
 every state the build knows. covered_states() lists what one shows, and
 demos/test_daruma.py checks that the showcase scenarios cover the registry.
@@ -65,6 +69,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import persona_path
 import yaml
 from harness import Device, DeviceError, Locator, expect
 
@@ -111,6 +116,14 @@ def load(name_or_path: str) -> Scenario:
     path = Path(name_or_path)
     if not path.exists():
         path = SCENARIO_DIR / f"{name_or_path}.yaml"
+    if not path.exists():
+        for sc in folder_scenarios():
+            if sc.name == name_or_path:
+                return sc
+    return _read(path)
+
+
+def _read(path: Path) -> Scenario:
     raw = yaml.safe_load(path.read_text())
     return Scenario(
         name=raw.get("name", path.stem),
@@ -127,7 +140,39 @@ def load(name_or_path: str) -> Scenario:
 
 
 def all_scenarios() -> list[Scenario]:
-    return [load(str(p)) for p in sorted(SCENARIO_DIR.glob("*.yaml"))]
+    """Daruma's own scenarios."""
+    return [_read(p) for p in sorted(SCENARIO_DIR.glob("*.yaml"))]
+
+
+def folder_scenarios(found: list[persona_path.Folder] | None = None) -> list[Scenario]:
+    """The scenarios of the DARUMA_PERSONA_PATH folders, each held to its folder's personas.
+
+    A name may appear once among these and Daruma's own: goldens and GIFs
+    are named by it.
+    """
+    taken = {sc.name: sc.path for sc in all_scenarios()}
+    out = []
+    for folder in persona_path.folders() if found is None else found:
+        own = folder.persona_names
+        for path in folder.scenarios:
+            sc = _read(path)
+            if sc.name in taken:
+                raise DeviceError(f"Scenario {sc.name!r} in {path} repeats the one in {taken[sc.name]}")
+            taken[sc.name] = path
+            sc.personas = _within(sc.personas, own)
+            sc.test_personas = _within(sc.test_personas, own)
+            out.append(sc)
+    return out
+
+
+def every_scenario() -> list[Scenario]:
+    """Daruma's scenarios and those of the DARUMA_PERSONA_PATH folders."""
+    return all_scenarios() + folder_scenarios()
+
+
+def _within(wanted: list[str] | str, own: list[str]) -> list[str]:
+    """The personas of `wanted` ("all" or a list) that are in `own`."""
+    return list(own) if wanted == "all" else [p for p in wanted or [] if p in own]
 
 
 # The state each voice phase draws (packages/core.yaml, the renderer).

@@ -8,7 +8,7 @@ the art fails here: look at the pictures it writes, then accept them with
 
     make update-frames CONFIRM=1
 
-Builds every persona, a minute or two. DARUMA_SKIP_PERSONAS=1 skips it.
+Builds every persona, a few seconds. DARUMA_SKIP_PERSONAS=1 skips it.
 """
 
 import os

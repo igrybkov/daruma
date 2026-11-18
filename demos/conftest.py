@@ -24,8 +24,9 @@ its `test_personas`, named <scenario>[<persona slug>], with the marker
 `scenario`. It runs the snapshot and expect steps; its golden pictures live
 in tests/golden/<persona>/<scenario>/. `--persona` and `--scenario` narrow
 these tests. DARUMA_PERSONA_PATH adds the personas of folders outside
-this repository (persona_path.py); their golden pictures live in each
-folder's tests/golden/scenarios/.
+this repository (persona_path.py), and their own scenarios
+(demos/scenarios/ there), which run on their personas only. Their golden
+pictures live in each folder's tests/golden/.
 
     uv run pytest demos/scenarios/tour.yaml
     uv run pytest demos -m scenario --persona "Pixel corgi" --scenario tour
@@ -79,7 +80,7 @@ def pytest_configure(config):
     unknown = [p for p in personas if p not in known]
     if unknown:
         raise pytest.UsageError(f"No persona named {unknown}; personas: {known}")
-    names = [sc.name for sc in scenarios.all_scenarios()]
+    names = [sc.name for sc in scenarios.every_scenario()]
     unknown = [n for n in _names(config.getoption("--scenario")) if n not in names]
     if unknown:
         raise pytest.UsageError(f"No scenario named {unknown}; scenarios: {names}")
@@ -105,11 +106,30 @@ def pytest_collect_file(parent: pytest.Collector, file_path: Path) -> ScenarioFi
     return None
 
 
+def pytest_collect_directory(path: Path, parent: pytest.Collector) -> pytest.Collector | None:
+    if path.resolve() == scenarios.SCENARIO_DIR:
+        return ScenarioDir.from_parent(parent, path=path)
+    return None
+
+
+class ScenarioDir(pytest.Dir):
+    """Daruma's scenario folder, with the scenarios of the DARUMA_PERSONA_PATH folders after its own."""
+
+    def collect(self) -> Iterator[pytest.Item | pytest.Collector]:
+        yield from super().collect()
+        for sc in scenarios.folder_scenarios():
+            node = ScenarioFile.from_parent(self, path=sc.path)
+            node.scenario = sc
+            yield node
+
+
 class ScenarioFile(pytest.File):
     """A scenario file: one test per persona it tests."""
 
+    scenario: scenarios.Scenario | None = None  # Set for a folder's scenario: held to its personas.
+
     def collect(self) -> Iterator[pytest.Function]:
-        sc = scenarios.load(str(self.path))
+        sc = self.scenario or scenarios.load(str(self.path))
         wanted = _names(self.config.getoption("--scenario"))
         if wanted and sc.name not in wanted:
             return

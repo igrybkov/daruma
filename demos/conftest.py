@@ -23,8 +23,9 @@ Each scenario file (scenarios/*.yaml) is also a test: one per persona in
 its `test_personas`, named <scenario>[<persona slug>], with the marker
 `scenario`. It runs the snapshot and expect steps; its golden pictures live
 in tests/golden/<persona>/<scenario>/. `--persona` and `--scenario` narrow
-these tests, and `--private-persona` adds a persona kept out of this
-repository. Its golden pictures stay in $DARUMA_WORK/golden.
+these tests. DARUMA_PERSONA_PATH adds the personas of folders outside
+this repository (persona_path.py); their golden pictures live in each
+folder's tests/golden/scenarios/.
 
     uv run pytest demos/scenarios/tour.yaml
     uv run pytest demos -m scenario --persona "Pixel corgi" --scenario tour
@@ -41,10 +42,11 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+import persona_path
 import pytest
 import scenario as scenarios
 from demo_data import DemoData
-from harness import GOLDEN_DIR, Build, Device, build, desktop_personas, persona_name, slug
+from harness import GOLDEN_DIR, Build, Device, build, desktop_personas, slug
 from media import encode_gif, frames_of
 
 DEFAULT_PERSONA = "Eyes"
@@ -62,13 +64,6 @@ def pytest_addoption(parser):
     parser.addoption("--window", action="store_true", help="show the device's window while tests run")
     parser.addoption("--persona", default="", help="scenario tests: only these personas, comma-separated")
     parser.addoption("--scenario", default="", help="scenario tests: only these scenarios, comma-separated")
-    parser.addoption(
-        "--private-persona",
-        action="append",
-        default=[],
-        metavar="PACKAGE",
-        help="an extra persona package (a path) for the scenario tests; its pictures stay in $DARUMA_WORK",
-    )
 
 
 def pytest_configure(config):
@@ -78,8 +73,8 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "failing(*actions): HA actions the runner refuses, until the test clears them")
     config.addinivalue_line("markers", "scenario: a scenario file run as a test (scenarios/*.yaml)")
-    private = [persona_name(Path(p)) for p in config.getoption("--private-persona")]
-    known = desktop_personas() + private
+    private = persona_path.personas()
+    known = desktop_personas() + list(private)
     personas = _names(config.getoption("--persona"))
     unknown = [p for p in personas if p not in known]
     if unknown:
@@ -89,11 +84,11 @@ def pytest_configure(config):
     if unknown:
         raise pytest.UsageError(f"No scenario named {unknown}; scenarios: {names}")
     config.stash[_PERSONAS] = personas or known
-    config.stash[_PRIVATE] = set(private)
+    config.stash[_PRIVATE] = private
 
 
 _PERSONAS = pytest.StashKey[list[str]]()
-_PRIVATE = pytest.StashKey[set[str]]()
+_PRIVATE = pytest.StashKey[dict[str, persona_path.Folder]]()
 
 
 def _names(option: str) -> list[str]:
@@ -129,8 +124,8 @@ class ScenarioFile(pytest.File):
 
 def _scenario_test(sc: scenarios.Scenario, persona: str) -> Callable[..., None]:
     def test(request, device_build, tmp_path):
-        private = persona in request.config.stash[_PRIVATE]
-        golden_root = _work() / "golden" if private else GOLDEN_DIR
+        folder = request.config.stash[_PRIVATE].get(persona)
+        golden_root = folder.scenario_golden if folder else GOLDEN_DIR
         device = Device(
             device_build,
             tmp_path,
@@ -162,15 +157,14 @@ def device_build(request) -> Build:
     """The desktop build, compiled once per session. It serves every time
     zone: each device sets its own when it starts."""
     work = _work()
-    private = request.config.getoption("--private-persona")
     # Set when pytest-xdist runs the tests in several workers.
     run_id = getattr(request.config, "workerinput", {}).get("testrunuid")
     if run_id is None:
-        return build(work / "build", port=_base_port(), private_packages=private)
-    return _shared_build(work, private, run_id)
+        return build(work / "build", port=_base_port())
+    return _shared_build(work, run_id)
 
 
-def _shared_build(work: Path, private: list[str], run_id: str) -> Build:
+def _shared_build(work: Path, run_id: str) -> Build:
     """The build, made by the first worker that needs it.
 
     The others wait for it on a lock, then take it from a stamp file that
@@ -185,7 +179,7 @@ def _shared_build(work: Path, private: list[str], run_id: str) -> Build:
                 made_in, b = pickle.load(f)
             if made_in == run_id:
                 return b
-        b = build(work / "build", port=_base_port(), private_packages=private)
+        b = build(work / "build", port=_base_port())
         with stamp.open("wb") as f:
             pickle.dump((run_id, b), f)
         return b

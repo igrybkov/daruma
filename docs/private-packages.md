@@ -37,6 +37,8 @@ my-daruma-private/
   pixel/
     my_persona.py       the look on a library engine, and its PERSONA
   art/                    picture sets, if you have picture personas
+  tests/golden/           goldens that Daruma's tools write (see below)
+  docs/demos/             demo GIFs that Daruma's recorder writes
   .gitignore              .esphome/, secrets.yaml
 ```
 
@@ -216,33 +218,54 @@ A ref can be a branch or a full commit hash. A short hash cannot be
 fetched. `username` and `password` can stay in the yaml: git ignores them
 for a local path.
 
-To see the persona without a device, record it in Daruma's desktop build,
-from a Daruma clone:
+### Daruma's tools on your repository
+
+Daruma's test tools take your repository through one variable,
+`DARUMA_PERSONA_PATH`: a list of folders joined like `PATH`. Run them from
+a Daruma clone (`make setup` there once):
 
 ```sh
-uv run demos/record.py --private-persona /path/to/my-daruma-private/packages/persona_my_persona.yaml \
-    --personas "My persona" --scenario tour
+export DARUMA_PERSONA_PATH=/path/to/my-daruma-private
+uv run demos/record.py --personas "My persona" --scenario tour
+uv run pytest demos -m scenario --persona "My persona" --update-golden
+uv run python tests/persona_frames.py update my_persona
 ```
 
-Its GIF goes to the temp folder, not into the Daruma repository.
+They find your persona packages in `packages/persona_*.yaml`. They write
+to your repository, never into Daruma's, in the layout Daruma uses for
+its own:
 
-To check it against golden pictures, run the scenario tests with the same
-package. The first run with `--update-golden` writes the pictures to
-`golden/` in the temp folder (or `$DARUMA_WORK`). Later runs compare with
-them:
+| Tool | Writes to |
+|---|---|
+| `demos/record.py` | `docs/demos/` |
+| `pytest demos -m scenario --update-golden` | `tests/golden/<persona>/<scenario>/` |
+| `tests/persona_frames.py update` | `tests/golden/frames/<persona>/` |
+
+Two variables move them:
+
+- `DARUMA_PERSONA_GOLDEN`: the golden folder (default `tests/golden`).
+- `DARUMA_PERSONA_DEMOS`: the demo folder (default `docs/demos`).
+
+A relative path is inside each folder of `DARUMA_PERSONA_PATH`. An
+absolute path is used as it is.
+
+Without `--update-golden` (or with `check`), they compare with those
+goldens and fail on a difference. `tests/test_props.py` checks your
+pixel personas' props too.
+
+To see every frame of a pixel persona on one sheet, name its module and
+persona:
 
 ```sh
-uv run pytest demos -m scenario --scenario tour --update-golden \
-    --private-persona /path/to/my-daruma-private/packages/persona_my_persona.yaml \
-    --persona "My persona"
+PYTHONPATH=/path/to/my-daruma-private/pixel \
+    uv run python -m daruma_pixel.personas /tmp/sheets my_persona:my_persona
 ```
 
-To look at the frames only, run your persona module in the environment
-of a Daruma clone (`uv sync` there installs every pixel package), from
-your repository's root:
+### A Makefile and CI of your own
 
-```sh
-uv run --project /path/to/daruma python -c "import sys; sys.path.insert(0, 'pixel'); \
-from daruma_pixel import personas; \
-print(len(personas.build('my_persona', 'my_persona').animations), 'animations')"
-```
+Wrap these in your repository, so a check is one command. Pin the Daruma
+commit you checked against in a file such as `.daruma-ref`, and pin the
+same `daruma_ref` in your device yaml. In CI, check out Daruma at that
+ref next to your repository and run the same goals. A second, scheduled
+job against Daruma's `main` tells you when a Daruma change breaks your
+persona, before your device build does.

@@ -16,6 +16,9 @@ behavior, its fallbacks, then `during:`) must keep them, in every frame
 and every goal stage. Module reactions (focus_done, goal, ...) are left
 out: the module ends its activity as it plays them.
 
+DARUMA_PERSONA_PATH adds the personas of folders outside this repository
+(demos/persona_path.py).
+
 Personas without PROPS are not checked; adding PROPS to a persona's layers
 module is enough to bring it in. It builds the personas (about a minute); set
 DARUMA_SKIP_PERSONAS=1 to skip it, as test_frames.py does.
@@ -43,6 +46,9 @@ except ImportError:  # pragma: no cover
 import esphome_components  # noqa: E402, F401
 from esphome.components.daruma import registry  # noqa: E402
 
+sys.path.insert(0, str(_ROOT / "demos"))
+import persona_path  # noqa: E402 - from demos/, put on the path above
+
 GOAL_KEYS = ("started", "done")
 KEEP = 0.95  # Share of the prop pixels a reaction frame must show unchanged.
 
@@ -69,11 +75,16 @@ def load_persona_config(path: Path) -> dict:
 
 
 def pixel_personas() -> list[tuple[str, dict]]:
+    """(file name, persona entry) of every pixel_art package: Daruma's own and
+    the ones of DARUMA_PERSONA_PATH. `_dir` holds the package's folder, for
+    its script path."""
+    paths = sorted(_PACKAGES.glob("persona_*.yaml"))
+    paths += [pkg for folder in persona_path.folders() for pkg in folder.packages]
     out = []
-    for path in sorted(_PACKAGES.glob("persona_*.yaml")):
+    for path in paths:
         conf = load_persona_config(path)
         if "pixel_art" in conf:
-            out.append((path.name, conf))
+            out.append((path.name, {**conf, "_dir": path.parent}))
     return out
 
 
@@ -83,16 +94,12 @@ def _script(conf: dict):
     # name, so its relative imports work.
     if "module" in conf["pixel_art"]:
         return importlib.import_module(conf["pixel_art"]["module"])
-    path = (_PACKAGES / conf["pixel_art"]["script"]).resolve()
+    path = (conf.get("_dir", _PACKAGES) / conf["pixel_art"]["script"]).resolve()
     for library in _LIBRARIES:
         if path.is_relative_to(library):
             parts = path.relative_to(library).with_suffix("").parts
             return importlib.import_module(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
-    spec = importlib.util.spec_from_file_location(f"daruma_props_{path.stem}", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return persona_path.load_script(path)
 
 
 def prop_pixels(persona, anim: str, box) -> dict:

@@ -10,7 +10,9 @@ clock it controls, so every run draws the same frames.
 It writes docs/demos/<persona>-<scenario>.gif (2x, or the scenario's
 gif_scale; nearest neighbour; kept under --max-kb), and with --mp4 an MP4
 with the sounds. A scenario with `stills: true` writes no GIF: each of its
-snapshots becomes docs/demos/screens/<persona>-<name>.png. The same scenarios run as tests in pytest (conftest.py):
+snapshots becomes docs/demos/screens/<persona>-<name>.png. A persona from
+DARUMA_PERSONA_PATH (persona_path.py) writes to its own folder's docs/demos
+instead, and only when named in --personas. The same scenarios run as tests in pytest (conftest.py):
 their snapshot and expect steps check the screens there.
 
 Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
@@ -45,13 +47,6 @@ def main() -> int:
         "--personas", default="all", help="'all' or persona names, comma-separated (as in the Persona select)"
     )
     ap.add_argument("--scenario", default="all", help="'all' or scenario names, comma-separated")
-    ap.add_argument(
-        "--private-persona",
-        action="append",
-        default=[],
-        metavar="PACKAGE",
-        help="an extra persona package (a path); its demos go to --out only",
-    )
     ap.add_argument("--variant", default="standard", choices=["standard", "wide", "square"])
     ap.add_argument("--out", type=Path, default=DEFAULT_WORK, help="scratch folder: build, frames, results")
     ap.add_argument("--docs", type=Path, default=DOCS_DEMOS, help="where public GIFs go")
@@ -71,7 +66,7 @@ def main() -> int:
 
     work = args.out
     print(f"Building in {work} ...", flush=True)
-    b = build(work / "build", variant=args.variant, private_packages=args.private_persona, port=args.port)
+    b = build(work / "build", variant=args.variant, port=args.port)
 
     chosen = scenarios.all_scenarios()
     if args.scenario != "all":
@@ -135,6 +130,11 @@ class Job:
     mp4: bool
     window: bool
 
+    def demos(self) -> Path:
+        """The folder this job's GIF or stills go to: docs, or the persona's own folder."""
+        folder = self.build.private_personas.get(self.persona)
+        return folder.demos if folder else self.docs
+
 
 def _run_job_captured(job: Job) -> tuple[int, str]:
     """Run one job in a pool worker. Returns 1 when it failed, and its output,
@@ -178,7 +178,6 @@ def _run_job(job: Job) -> int:
     if not frames:
         print("  no frames recorded", flush=True)
         return 1
-    private = persona in b.private_personas
     (run_dir / "marks.json").write_text(
         json.dumps({"captions": captions, "touches": touches, "skipped": skipped}, indent=1)
     )
@@ -186,7 +185,7 @@ def _run_job(job: Job) -> int:
     frames = with_touches(frames, touches, skipped, run_dir / "touched", split_at=[ms for ms, _ in captions])
     if captions:
         frames = with_captions(frames, captions, run_dir / "captioned")
-    target = (job.work / "demos" if private else job.docs) / f"{label}.gif"
+    target = job.demos() / f"{label}.gif"
     nbytes = encode_gif(frames, target, job.max_kb, scale=sc.gif_scale)
     print(f"  {target} ({nbytes // 1024} KB, {sum(d for _, d in frames):.1f} s)", flush=True)
     if job.mp4:
@@ -201,7 +200,6 @@ def _run_stills(job: Job, run_dir: Path) -> int:
     """Run a `stills` scenario: each snapshot becomes a PNG, with no GIF.
     Returns 1 when it failed."""
     sc, persona = job.scenario, job.persona
-    private = persona in job.build.private_personas
     shots = run_dir / "stills"
     try:
         with Device(job.build, run_dir, persona=persona, window=job.window) as device:
@@ -213,7 +211,7 @@ def _run_stills(job: Job, run_dir: Path) -> int:
     except Exception:  # noqa: BLE001 - report and go on with the next run
         traceback.print_exc()
         return 1
-    target = (job.work / "demos" if private else job.docs) / "screens"
+    target = job.demos() / "screens"
     target.mkdir(parents=True, exist_ok=True)
     for png in sorted(shots.glob("*.png")):
         out = target / f"{slug(persona)}-{png.name}"

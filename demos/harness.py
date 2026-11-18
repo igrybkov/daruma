@@ -52,6 +52,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import persona_path
+from persona_path import Folder, persona_name
+
 HERE = Path(__file__).resolve().parent
 REPO_DIR = HERE.parent
 # Another ESPHome to build with, for a try (a pip spec such as "esphome==<version>"). By
@@ -97,8 +100,9 @@ class Build:
     program: Path
     clock_lib: Path
     port: int
-    # Persona names that come from private packages: demos of them stay out of the repo.
-    private_personas: set[str] = field(default_factory=set)
+    # Personas from DARUMA_PERSONA_PATH, by name, with their folders: their
+    # goldens and demos go there, never into this repository.
+    private_personas: dict[str, Folder] = field(default_factory=dict)
 
 
 def _copy_sources(src: Path) -> None:
@@ -129,15 +133,6 @@ def _clear_but_esphome(folder: Path) -> None:
             shutil.rmtree(child)
         else:
             child.unlink()
-
-
-def persona_name(package: Path) -> str:
-    """The persona name a package adds to the Persona select: its first `name:`."""
-    for line in package.read_text().splitlines():
-        m = re.match(r"\s+name:\s*\"?([^\"#]+?)\"?\s*(#.*)?$", line)
-        if m:
-            return m.group(1)
-    raise DeviceError(f"No persona name in {package}")
 
 
 def desktop_personas() -> list[str]:
@@ -187,24 +182,26 @@ def build(
     out: Path,
     *,
     variant: str = "standard",
-    private_packages: list[str] | None = None,
+    extra: list[Folder] | None = None,
     port: int = 6053,
     quiet: bool = True,
 ) -> Build:
     """Compile the desktop build in `out` (a scratch folder) and return it.
 
     `variant` picks the screen: standard (320x240), wide (480x272) or square
-    (240x240). `private_packages` are extra persona packages (paths), whose
-    personas are marked private. One build serves every time zone: the
+    (240x240). `extra` are folders of persona packages (default: the ones
+    DARUMA_PERSONA_PATH names, see persona_path.py); their personas are
+    marked private. One build serves every time zone: the
     device takes its zone from "Home Assistant", as on the BOX-3.
     """
     out = Path(out)
     src = out / "src"
     _copy_sources(src)
     config_dir = src / "examples"
-    name = _build_name(variant, private_packages)
+    extra = persona_path.folders() if extra is None else extra
+    name = _build_name(variant, extra)
     subs = {"name": name, "desktop_api_port": str(port), **VARIANTS[variant]}
-    yaml_name, private = _write_config(config_dir, name, private_packages)
+    yaml_name, private = _write_config(config_dir, name, extra)
     cmd, env = _esphome_command(src)
     for k, v in subs.items():
         cmd += ["-s", k, v]
@@ -219,29 +216,28 @@ def build(
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
 
 
-def _build_name(variant: str, private_packages: list[str] | None) -> str:
+def _build_name(variant: str, extra: list[Folder]) -> str:
     """The build's name, which is also its folder: one per kind of build."""
     name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
-    if private_packages:
+    if extra:
         name += "-private"  # Its own build folder: the public build stays as it is.
     if COVERAGE:
         name += "-cov"
     return name
 
 
-def _write_config(config_dir: Path, name: str, private_packages: list[str] | None) -> tuple[str, set[str]]:
-    """The config file for build `name`, and the names of its private personas."""
+def _write_config(config_dir: Path, name: str, extra: list[Folder]) -> tuple[str, dict[str, Folder]]:
+    """The config file for build `name`, and its private personas with their folders."""
     if name == "daruma-desktop":
-        return DEVICE_YAML, set()
+        return DEVICE_YAML, {}
     # ESPHome keeps a record of the last build per config file, and cleans
     # the build folder when the name in it differs. A config file per build
     # name keeps each build's objects for the next build.
     lines = ["packages:", f"  base: !include {DEVICE_YAML}"]
-    private: set[str] = set()
-    for i, pkg in enumerate(private_packages or []):
-        pkg = Path(pkg).resolve()
+    packages = [pkg for folder in extra for pkg in folder.packages]
+    for i, pkg in enumerate(packages):
         lines.append(f"  private_{i}: !include {pkg}")
-        private.add(persona_name(pkg))
+    private = persona_path.personas(extra)
     if COVERAGE:
         # Lists merge by joining, so this adds to the board's build flags.
         lines += ["esphome:", "  platformio_options:", "    build_flags:", "      - --coverage"]

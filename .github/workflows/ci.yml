@@ -21,7 +21,7 @@ jobs:
   host:
     name: Host tests (Python ${{ matrix.python }})
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +78,7 @@ jobs:
     name: Mutation tests (changed lines)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     # As in the host tests job, so its cache matches.
     env:
       CXX: ccache c++
@@ -116,7 +116,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-26.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       # The whole history, for the commit messages of a pull request.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -175,7 +175,7 @@ jobs:
   esphome-config:
     name: ESPHome (configs)
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -224,7 +224,7 @@ jobs:
   esphome-compile:
     name: ESPHome (${{ matrix.device }} firmware)
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -313,7 +313,7 @@ jobs:
   screens:
     name: Screen tests (${{ matrix.name }})
     runs-on: ubuntu-26.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -422,7 +422,7 @@ jobs:
   coverage-host:
     name: Coverage (host tests)
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     env:
       COVERAGE_DIR: ${{ github.workspace }}/ci-coverage
     steps:
@@ -482,7 +482,7 @@ jobs:
   coverage-screens:
     name: Coverage (${{ matrix.name }})
     runs-on: ubuntu-26.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -682,7 +682,7 @@ jobs:
   previews:
     name: Previews (${{ matrix.name }})
     runs-on: ubuntu-26.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write

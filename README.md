@@ -24,6 +24,17 @@ message and a doorbell card. See them all in the
 Not just a pet: focus sessions, tasks, calendar, weather and questions
 from Home Assistant.
 
+| | | |
+|:-:|:-:|:-:|
+| ![The focus menu: Focus and Custom, 2 of 4 today](docs/demos/screens/daruma-focus-menu.png) | ![A focus block: the timer on the persona's screen](docs/demos/screens/daruma-focus.png) | ![The Pomodoro page: the timer, today's tomatoes and this week](docs/demos/screens/daruma-pomodoro.png) |
+| **Start a focus block** | **Focus, on the persona's screen** | **The Pomodoro page** |
+| ![The app board: Tasks, Calendar, Weather and Pomodoro](docs/demos/screens/daruma-apps.png) | ![Tasks: one task checked off](docs/demos/screens/daruma-tasks.png) | ![Weather: now, the high and low, and the next hours](docs/demos/screens/daruma-weather.png) |
+| **Apps** | **Tasks** | **Weather** |
+| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-agenda.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-day.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |
+| **Calendar: the Agenda** | **Calendar: one day** | **Voice assistant** |
+| ![A yes/no question: turn the lights off?](docs/demos/screens/daruma-question.png) | ![A doorbell card: Unlock, Talk, Ignore](docs/demos/screens/daruma-doorbell.png) | ![A quiz question with four answers and a countdown](docs/demos/screens/daruma-quiz.png) |
+| **A question from Home Assistant** | **The doorbell** | **A quiz** |
+
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 
 ## Why Daruma

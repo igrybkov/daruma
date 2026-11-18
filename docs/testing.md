@@ -47,6 +47,11 @@ size, or the scenario's `gif_scale`. They are kept under `--max-kb` by
 lowering the frame rate, then the colors. The README shows the
 `highlight` GIFs; [gallery.md](gallery.md) shows the rest.
 
+The `screens` scenario has `stills: true`. It records no GIF. Each of
+its snapshots becomes a PNG in [docs/demos/screens](demos/screens/), for
+the README's table of screens. Run `make gifs SCENARIO=screens` after you
+change how an app or a card looks.
+
 ## Scenarios
 
 A scenario is a YAML list of steps in

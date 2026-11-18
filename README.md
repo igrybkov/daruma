@@ -1,11 +1,26 @@
 # Daruma
 [![CI](https://github.com/igrybkov/daruma/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/igrybkov/daruma/actions/workflows/ci.yml)
 
-A small animated companion for your desk, built on
-[ESPHome](https://esphome.io) and [Home Assistant](https://www.home-assistant.io).
-It keeps you company while you work, runs your focus sessions, shows your
-tasks, calendar and weather, answers by voice, and reacts to your home.
-It runs on an [ESP32-S3-BOX-3](https://github.com/espressif/esp-box).
+Daruma turns a small screen on your desk into a companion for your home.
+It is a framework built on [ESPHome](https://esphome.io) and
+[Home Assistant](https://www.home-assistant.io).
+
+You choose who lives on the screen. A daruma doll, a pixel pet, a pair of
+eyes, or your own pictures. You choose the apps: focus
+sessions, tasks, calendar, weather, a voice assistant. Home Assistant
+sends the device messages and questions, and gets your answers back.
+
+It is ready for the [ESP32-S3-BOX-3](https://github.com/espressif/esp-box),
+but is designed to run on any screen. Wide, square and black-and-white
+screens build on every change. A new screen needs a short board file. A
+desktop build runs Daruma in a window on your computer.
+
+Where to go next:
+
+- **Put it on your desk**: [Install](#install).
+- **Drive it from your home**: [Home Assistant talks to it](#home-assistant-talks-to-it).
+- **Make it your own**: [Make it yours](#make-it-yours) and
+  [docs/customize.md](docs/customize.md).
 
 | | | |
 |:-:|:-:|:-:|
@@ -21,8 +36,27 @@ the voice assistant, a focus block, the menu and apps in its own theme, a
 message and a doorbell card. See them all in the
 [gallery](docs/gallery.md).
 
-Not just a pet: focus sessions, tasks, calendar, weather and questions
-from Home Assistant.
+## What comes with it
+
+Each part is a package. Include it to turn it on. Leave it out to drop it.
+
+- **Pomodoro**: one tap starts a focus block. A daily goal, breaks,
+  tomatoes for the day, this week's bars and a streak.
+- **Tasks**: today's tasks from a Home Assistant to-do list, or from a
+  script that returns any task list. Tap one to check it off.
+- **Calendar**: the Agenda of your coming events, and the next event on
+  the persona's screen.
+- **Weather**: now, today's high and low, rain, wind and the next hours.
+- **Prompts**: Home Assistant puts a card on the screen and gets the
+  answer back: a doorbell with Unlock and Talk, a quiz with a countdown,
+  a yes/no question.
+- **Voice assistant**: a wake word, or the top button, and Home
+  Assistant's Assist.
+- **Sounds**: chimes on the device's speaker for focus, breaks, messages
+  and alerts. Each persona can bring its own, written as short synth
+  tunes. The "Sounds" switch in Home Assistant mutes them.
+- **Menus** you lay out yourself: apps, device actions, other menus, and
+  buttons that fire Home Assistant events.
 
 | | | |
 |:-:|:-:|:-:|
@@ -37,56 +71,24 @@ from Home Assistant.
 
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 
-## Why Daruma
+## The name
 
-**Room to grow.** The example build carries seven personas (five in pixel
-art, the eyes and a picture persona), the voice assistant, every app,
-Home Assistant prompts and the pomodoro. All of that takes 24% of the
-firmware slot: 1.88 MiB of 7.75 MiB (1,973,411 of 8,126,464 bytes, ESPHome
-2026.10.2). And you don't need all seven. Pick the personas you like and
-include only those. The space you save is yours for whatever you want:
-more personas, apps of your own, longer animations.
+A [daruma](https://en.wikipedia.org/wiki/Daruma_doll) is a round Japanese
+doll that holds a goal. It comes with blank eyes. You paint one eye when
+you set the goal, and the other when you reach it. It is weighted at the
+bottom, so it stands back up when you knock it over. The saying that goes
+with it is *nanakorobi yaoki*: "fall down seven times, get up eight".
 
-**Apps that come with it.**
+Daruma started as a focus companion, and the default persona still plays
+the doll. Its first eye fills in after the day's first focus block. The
+second fills in when you reach the day's goal. At midnight both are blank
+again.
 
-- **Pomodoro**: one tap starts a focus block. A daily goal, breaks,
-  tomatoes for the day, this week's bars and a streak.
-- **Tasks**: today's tasks from a Home Assistant to-do list, or from a
-  script that returns any task list. Tap one to check it off.
-- **Calendar**: the Agenda of your coming events, and the next event on
-  the persona's screen.
-- **Weather**: now, today's high and low, rain, wind and the next hours.
-- **Prompts**: Home Assistant puts a card on the screen and gets the
-  answer back: a doorbell with Unlock and Talk, a quiz with a countdown,
-  a yes/no question. Start with the
-  [prompt demos blueprint](#home-assistant-talks-to-it).
-- **Voice assistant**: a wake word, or the top button, and Home
-  Assistant's Assist.
-- **Menus** you lay out yourself, with buttons that fire Home Assistant
-  events.
-
-**Plug in your own.** Personas, rooms, props, reactions, sounds, apps and
-whole modules plug in from your own files or your own repository. The
-build checks every part against every other, so a typo fails on your
-computer and not on your desk. Start at
-[docs/customize.md](docs/customize.md).
-
-**Smooth, with a voice.** The pixel personas are drawn in Python at build
-time and stored as keyframes and small patches: the pixel corgi's 41
-frames take 13 KB. The screen redraws only the part that moved, at up to
-10 frames a second, and the voice assistant runs alongside.
-
-**Your look.** Every persona brings its own theme for the menu and apps:
-wood, paper or outline, with your colors. Change the words in the menu
-and apps, and rebind any button or gesture. Parts of the screen, such as
-the timer or the temperature, open the menu or app you choose when you
-tap them. Pick per-persona options in Home Assistant.
-
-**Test it on your computer.** A desktop build runs Daruma in a window. A
-fake clock makes every run draw the same frames, so golden pictures and a
-pytest harness check the screens, and a 25-minute focus block takes a
-second. The GIFs above come from it. `make desktop` opens the window,
-and `make` lists every other task. See [docs/testing.md](docs/testing.md).
+The framework has no opinion on what you do with it. Pick a pet that
+cheers on your focus blocks. Build a character that keeps score in a game
+of your own, and make it as playful as you like. Or drop the companions and
+every app, show a photo of your family, and still get the doorbell cards
+and messages from your home.
 
 ## Install
 
@@ -183,35 +185,6 @@ fires `petted`, `scared` and `timer_finished`, menu buttons can fire
 `esphome.daruma_menu`, and every setting is an entity. Cards, layouts and
 examples: [docs/prompts.md](docs/prompts.md).
 
-## Make a persona with your agent
-
-Ask your agent to create a persona of your favorite character, animal,
-flower, bird or imaginary friend:
-
-```text
-Create a Daruma persona of <your favorite character, animal, flower, bird
-or imaginary friend>. Follow
-https://github.com/igrybkov/daruma/blob/main/docs/agents/new-persona.md.
-Show me the preview sheet before you build it, and record the showcase
-GIFs when it is done.
-```
-
-## Philosophy
-
-A [daruma](https://en.wikipedia.org/wiki/Daruma_doll) is a round Japanese doll that holds a goal. It comes with blank
-eyes. You paint one eye when you set the goal, and the other when you
-reach it. It is weighted at the bottom, so it stands back up when you
-knock it over. The saying that goes with it is *nanakorobi yaoki*: "fall
-down seven times, get up eight".
-
-That is the idea here. Daruma keeps you company while you work towards
-your goals, and celebrates when you get there. Miss a day, and tomorrow
-you stand back up.
-
-The default persona is a daruma. Its first eye fills in with the day's
-first step, the second when you reach the day's goal. At midnight both
-are blank again.
-
 ## Make it yours
 
 Everything is a part you can swap, change or add to. The manual,
@@ -221,9 +194,8 @@ Everything is a part you can swap, change or add to. The manual,
 |---|---|
 | [Personas](docs/customize.md#personas) | pixel art, pictures or eyes; behaviors, words and params per state |
 | [Pets, rooms and props](docs/customize.md#pixel-art-pets-rooms-and-props) | a new breed in a few shapes and colors, a room of its own, a prop for focus |
-| [States and reactions](docs/customize.md#states-what-the-device-can-show) | moods, activities and reactions with fallbacks, so a new persona works from one picture |
-| [`during:`](docs/customize.md#reactions-during-an-activity-during) | reactions that keep the activity's props in the picture |
-| [Sounds](docs/customize.md#sounds) | each persona's own chimes and yips, from a small synth |
+| [States and reactions](docs/customize.md#states-what-the-device-can-show) | moods, activities and reactions with fallbacks, so a new persona works from one picture. Reactions [blend with the activity under them](docs/customize.md#reactions-during-an-activity-during), so its props and decorations stay in the picture |
+| [Sounds](docs/customize.md#sounds) | each persona's own chimes and yips from a small synth, or silence |
 | [Themes and words](docs/customize.md#themes-and-words) | the menu's style and colors per persona, every word in your language |
 | [Apps](docs/customize.md#apps) | order, switches, copies for a second list or calendar, apps of your own |
 | [Menus](docs/customize.md#menus), [bindings](docs/customize.md#buttons-and-gestures-bindings), [targets](docs/customize.md#parts-of-the-screen-that-lead-somewhere-targets) | which buttons, gestures and taps do what |
@@ -234,6 +206,45 @@ Everything is a part you can swap, change or add to. The manual,
 | [Your own repository](docs/private-packages.md) | keep personas and apps in a repository of your own, private or public |
 
 How it fits together: [docs/architecture/](docs/architecture/README.md).
+
+**Make a persona with your agent.** Ask your coding agent to create a
+persona of your favorite character, animal, flower, bird or imaginary
+friend:
+
+```text
+Create a Daruma persona of <your favorite character, animal, flower, bird
+or imaginary friend>. Follow
+https://github.com/igrybkov/daruma/blob/main/docs/agents/new-persona.md.
+Show me the preview sheet before you build it, and record the showcase
+GIFs when it is done.
+```
+
+## Why pick Daruma
+
+**It speaks Home Assistant.** Every setting on the device is an entity.
+Its actions are Home Assistant actions, and taps and answers come
+back as events. Your automations drive it like any other device. It
+talks to Home Assistant over your own network, with no cloud.
+
+**It is built for a small chip.** The device does as little work as it
+can. Pixel personas are drawn on your computer at build time. Each
+animation frame is stored as a small patch on the frame before it: the
+daruma's 119 frames take 17 KB instead of 80 KB. The screen redraws only
+the box that changed, and only when something changed. When nothing
+moves, nothing is drawn. Seven personas, the voice assistant and every
+app fit in a quarter of the firmware space, with the rest left for your
+own parts. [docs/architecture/rendering.md](docs/architecture/rendering.md)
+has the details.
+
+**You change it without forking it.** Personas, apps, sounds and whole
+modules come from your own files or your own repository. Updates to
+Daruma still reach you.
+
+**Mistakes show up on your computer, not on your desk.** The build checks
+every part against every other, so a typo fails at compile time. The
+desktop build runs the same screens in a window, with a fake clock: a
+25-minute focus block takes a second. Golden pictures and a pytest
+harness check every screen. See [docs/testing.md](docs/testing.md).
 
 ## Contributing
 

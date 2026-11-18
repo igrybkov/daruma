@@ -45,7 +45,12 @@ than dithered: a dither turns mid-tone walls and fur into noise.
 from __future__ import annotations
 
 import math
+import sys
+from array import array
+from collections import Counter
 from dataclasses import dataclass
+from itertools import compress
+from operator import ne
 
 CLEAR = -1  # A see-through pixel, among RGB565 values.
 _KEEP = -2  # A patch pixel equal to its base's.
@@ -83,10 +88,23 @@ def reduce_colors(img, mode: str):
     return out
 
 
+def _screen_value(rgba: int, mode: str) -> int:
+    """One RGBA pixel, packed in a native int, as screen_pixels() sees it."""
+    r, g, b, a = rgba.to_bytes(4, sys.byteorder)
+    if a < 128:
+        return CLEAR
+    if mode in ("gray4", "mono"):
+        r = g = b = gray_for(mode, r, g, b)
+    return rgb565(r, g, b)
+
+
 def screen_pixels(img, mode: str = "full") -> list[int]:
-    """The picture as the screen sees it: RGB565 per pixel, CLEAR for see-through."""
-    img = reduce_colors(img.convert("RGBA"), mode)
-    return [CLEAR if a < 128 else rgb565(r, g, b) for r, g, b, a in img.getdata()]
+    """The picture as the screen sees it: RGB565 per pixel, CLEAR for see-through.
+    `mode` reduces the colors first, as reduce_colors() does. Pixel art has
+    few colors, so each distinct one is worked out once."""
+    raw = array("I", img.convert("RGBA").tobytes())
+    value = {rgba: _screen_value(rgba, mode) for rgba in set(raw)}
+    return list(map(value.__getitem__, raw))
 
 
 def _bits(codes: int) -> int:
@@ -193,11 +211,25 @@ class FrameSet:
 
 
 def _palette(pixels: list[int]) -> tuple[list[int], dict[int, int]]:
-    counts: dict[int, int] = {}
-    for p in pixels:
-        counts[p] = counts.get(p, 0) + 1
+    counts = Counter(pixels)
     palette = sorted(counts, key=lambda c: -counts[c])
     return palette, {c: i for i, c in enumerate(palette)}
+
+
+def _lanes(pixels: list[int]) -> int:
+    """The pixels as one int, 32 bits (a lane) per pixel."""
+    return int.from_bytes(array("i", pixels).tobytes(), "little")
+
+
+def _differing_lanes(x: int, ones: int) -> int:
+    """How many 32-bit lanes of `x` are not zero. The shifts fold every bit
+    of a lane into its lowest bit; `ones` has only those lowest bits set."""
+    x |= x >> 16
+    x |= x >> 8
+    x |= x >> 4
+    x |= x >> 2
+    x |= x >> 1
+    return (x & ones).bit_count()
 
 
 def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "full", label: str = "frames") -> FrameSet:
@@ -240,7 +272,7 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
 
     def patch(u: int, base: int, depth: int) -> SetFrame:
         a, b = pixels[u], pixels[base]
-        diff = [i for i in range(w * h) if a[i] != b[i]]
+        diff = list(compress(range(w * h), map(ne, a, b)))
         x0, x1 = min(i % w for i in diff), max(i % w for i in diff) + 1
         y0, y1 = diff[0] // w, diff[-1] // w + 1
         palette, at = _palette([a[i] for i in diff])
@@ -249,9 +281,8 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
             raise ValueError(f"{label}: {n} colors at RGB565 in one patch; it takes at most 254")
         codes = []
         for y in range(y0, y1):
-            for x in range(x0, x1):
-                i = y * w + x
-                codes.append(n if a[i] == b[i] else at[a[i]])
+            row = slice(y * w + x0, y * w + x1)
+            codes.extend(n if p == q else at[p] for p, q in zip(a[row], b[row], strict=True))
         bits = _bits(n + 2)
         data = _runs(codes, x1 - x0, y1 - y0, n + 1, bits)
         return SetFrame(
@@ -267,8 +298,11 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
             depth + 1,
         )
 
+    lanes = [_lanes(px) for px in pixels]
+    ones = _lanes([1] * (w * h))
+
     def changed(u: int, v: int) -> int:
-        return sum(1 for p, q in zip(pixels[u], pixels[v], strict=False) if p != q)
+        return _differing_lanes(lanes[u] ^ lanes[v], ones)
 
     frames: dict[int, SetFrame] = {}
 

@@ -101,9 +101,21 @@ def nose(img) -> tuple[int, int]:
     raise AssertionError("no nose shine in the frame")
 
 
+# band_shift() results by picture bytes. Many reactions play the same
+# frames over the same activity, so most calls repeat an earlier one.
+_shifts: dict[tuple, tuple[int, int]] = {}
+
+
 def band_shift(base, frame, rows: range) -> tuple[int, int]:
     """Where the rows of `base` best match `frame`: the (dx, dy) under which
     most of their opaque pixels land on the same color."""
+    key = (base.size, base.tobytes(), frame.tobytes(), rows.start, rows.stop)
+    if key not in _shifts:
+        _shifts[key] = _band_shift(base, frame, rows)
+    return _shifts[key]
+
+
+def _band_shift(base, frame, rows: range) -> tuple[int, int]:
     a, b = base.load(), frame.load()
     w, h = base.size
     pixels = [(x, y, a[x, y]) for y in rows for x in range(w) if a[x, y][3]]

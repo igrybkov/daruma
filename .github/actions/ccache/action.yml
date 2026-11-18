@@ -1,0 +1,66 @@
+name: Set up ccache
+description: >-
+  Puts ccache on the PATH and restores the newest saved cache of one kind of
+  build. ESPHome compiles through ccache when it is on the PATH: the ESP-IDF
+  build (box3) and the host build (desktop) both do. Run ccache-save at the
+  end of the job.
+
+inputs:
+  kind:
+    description: >-
+      The kind of build: box3, desktop or coverage. Each kind has its own
+      cache, because a restore brings back only one saved cache, the newest
+      one. Builds of other kinds would push it out.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # One folder and one size limit for every kind. The jobs save only the
+    # objects their build used (ccache-save), so a cache is about the size
+    # of one build. The limit only matters when a build fails part way.
+    - name: Configure ccache
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+      run: |
+        if [ -z "$ESPHOME_VERSION" ]; then
+          echo "::error::Set ESPHOME_VERSION before the ccache setup."
+          exit 1
+        fi
+        {
+          echo "CCACHE_DIR=$HOME/.cache/ccache"
+          echo "CCACHE_MAXSIZE=500M"
+          echo "CCACHE_KIND=$KIND"
+          echo "CCACHE_PREFIX_KEY=ccache-$KIND-$ESPHOME_VERSION-"
+          echo "CCACHE_START=$(date +%s)"
+        } >> "$GITHUB_ENV"
+    # A static ccache from its release, checked against a fixed hash.
+    - name: Install ccache
+      shell: bash
+      env:
+        VERSION: 4.14.2
+        SHA256: b20ff6415151226ac5a10dfd6839700c694bd67d1871c8fddb266d366ff25bfb
+      run: |
+        name="ccache-$VERSION-linux-x86_64-musl-static"
+        curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+          "https://github.com/ccache/ccache/releases/download/v$VERSION/$name.tar.xz"
+        echo "$SHA256  $RUNNER_TEMP/ccache.tar.xz" | sha256sum -c -
+        tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP"
+        mkdir -p "$HOME/.local/bin"
+        mv "$RUNNER_TEMP/$name/ccache" "$HOME/.local/bin/"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    # The key has the run id because a saved cache can't be overwritten:
+    # a fixed key (per pull request, say) would keep the first save
+    # forever. The exact key never matches on restore. The restore-keys
+    # prefix then picks the newest saved cache of this kind: the pull
+    # request's own first, else its base branch's or main's.
+    - name: Restore the ccache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ccache
+        key: ${{ env.CCACHE_PREFIX_KEY }}${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ env.CCACHE_PREFIX_KEY }}
+    - name: Reset the ccache counters
+      shell: bash
+      run: ccache --zero-stats

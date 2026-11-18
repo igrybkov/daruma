@@ -1,0 +1,18 @@
+name: Save the desktop build folder
+description: >-
+  Saves the build folders that desktop-build-cache restored.
+
+runs:
+  using: composite
+  steps:
+    # A new key every commit, since a saved cache can't be overwritten.
+    # Every run saves, pull requests too: the folders are small (about
+    # 20 MB per screen), and a pull request's next push then starts from
+    # its own last build.
+    - name: Save the build folder
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ env.DESKTOP_BUILD_DIR }}/build
+          ${{ env.DESKTOP_BUILD_DIR }}/storage
+        key: ${{ env.DESKTOP_BUILD_PREFIX }}${{ github.sha }}

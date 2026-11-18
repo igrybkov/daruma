@@ -57,11 +57,11 @@ steps:
   - tap: {role: tile, name: Calendar}
   - expect: {visible: {role: row, name: Today}, timeout: 10}
   - wait: 2
-  - snapshot: agenda
+  - snapshot: calendar
   - tap: {role: row, name: Today}
   - expect: {visible: {role: heading, name: Today}}
   - wait: 1.5
-  - snapshot: day
+  - snapshot: calendar-day
   - tap: {role: button, name: Back}
   - wait: 1
   - tap: {role: button, name: Back}

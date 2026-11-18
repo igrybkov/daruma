@@ -50,7 +50,9 @@ lowering the frame rate, then the colors. The README shows the
 The `screens` scenario has `stills: true`. It records no GIF. Each of
 its snapshots becomes a PNG in [docs/demos/screens](demos/screens/), for
 the README's table of screens. Run `make gifs SCENARIO=screens` after you
-change how an app or a card looks.
+change how an app or a card looks. `tests/test_readme_screens.py` fails
+when an app has no snapshot named after it (`calendar`, `calendar-day`),
+or when a still is missing from the README.
 
 ## Scenarios
 

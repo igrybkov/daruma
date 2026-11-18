@@ -30,7 +30,7 @@ from Home Assistant.
 | **Start a focus block** | **Focus, on the persona's screen** | **The Pomodoro page** |
 | ![The app board: Tasks, Calendar, Weather and Pomodoro](docs/demos/screens/daruma-apps.png) | ![Tasks: one task checked off](docs/demos/screens/daruma-tasks.png) | ![Weather: now, the high and low, and the next hours](docs/demos/screens/daruma-weather.png) |
 | **Apps** | **Tasks** | **Weather** |
-| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-agenda.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-day.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |
+| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-calendar.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-calendar-day.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |
 | **Calendar: the Agenda** | **Calendar: one day** | **Voice assistant** |
 | ![A yes/no question: turn the lights off?](docs/demos/screens/daruma-question.png) | ![A doorbell card: Unlock, Talk, Ignore](docs/demos/screens/daruma-doorbell.png) | ![A quiz question with four answers and a countdown](docs/demos/screens/daruma-quiz.png) |
 | **A question from Home Assistant** | **The doorbell** | **A quiz** |

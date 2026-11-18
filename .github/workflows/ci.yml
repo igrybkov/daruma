@@ -28,6 +28,12 @@ jobs:
         # "pinned" is .python-version. 3.12 is the floor: the components'
         # Python runs inside the user's ESPHome, which supports 3.12.
         python: [pinned, "3.12"]
+    # The tests compile the C++ through ccache (tests/cpp_build.py). With
+    # the workspace as the base folder, ccache hashes paths relative to the
+    # working folder, so mutmut's copy of the tests (mutants/) matches too.
+    env:
+      CXX: ccache c++
+      CCACHE_BASEDIR: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,11 +51,25 @@ jobs:
           if [ "$PYTHON" != pinned ]; then echo "UV_PYTHON=$PYTHON" >> "$GITHUB_ENV"; fi
       - name: Install the test tools
         run: uv sync --locked --only-group test --no-install-project
+      # Both Python versions compile the same C++ with the same flags, so
+      # they share one cache. The pinned job saves it.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache
+        with:
+          kind: host
       # 2 workers, with work stealing (pyproject.toml). On these 4-CPU
       # runners 2 took 12-13 s and 4 took 14-15 s: each worker builds the
       # personas it needs again. The daruma's frame test sets the pace.
       - name: Run the host tests
         run: uv run --no-sync pytest tests -n 2 --durations=20
+      # Every C++ test compiles in every run, so the trim keeps exactly the
+      # objects of this commit.
+      - name: Save the ccache
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/ccache-save
+        with:
+          save: ${{ matrix.python == 'pinned' }}
+          trim: ${{ job.status == 'success' }}
 
   # Mutation tests of the lines a pull request changes (docs/testing.md).
   # It fails on a mutant no test catches, but it is not a required check:
@@ -59,6 +79,10 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
+    # As in the host tests job, so its cache matches.
+    env:
+      CXX: ccache c++
+      CCACHE_BASEDIR: ${{ github.workspace }}
     steps:
       # The whole history, for the merge base with the pull request's base.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,10 +97,20 @@ jobs:
             .python-version
       - name: Install the test tools and mutmut
         run: uv sync --locked --only-group test --only-group mutation --no-install-project
+      # The host tests' cache: mutmut runs the host tests, which compile the
+      # C++ as that job does. Each C++ mutant is a new source that no cache
+      # holds. This job doesn't save, so mutants never fill the cache.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache
+        with:
+          kind: host
       - name: Run the mutation tests
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: make mutate-diff BASE="$BASE" UV_RUN="uv run --no-sync"
+      - name: Show the ccache counters
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/ccache-save
 
   # Every check runs, even after one fails, so one run shows them all.
   lint:
@@ -135,10 +169,60 @@ jobs:
           tests/compile_db.sh
           uv run --no-sync clang-tidy -p build/clang-tidy --quiet tests/test_*.cpp
 
-  # The config of every example, then the box3 firmware. The compile runs
-  # when a config fails too, so one run shows both.
-  esphome:
-    name: ESPHome
+  # The config of every example, and the box3 firmware, in two jobs side
+  # by side: the config check needs SDL2 (for the desktop example), the
+  # compile needs the ESP-IDF. "ESPHome" below waits for both.
+  esphome-config:
+    name: ESPHome (configs)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install ESPHome
+        run: |
+          uv sync --locked --only-group esphome --no-install-project
+          echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
+      # The config of the desktop example runs sdl2-config. The ffmpeg isn't
+      # needed here, but one package list for every job means one cache.
+      - name: Install SDL2 and ffmpeg
+        uses: ./.github/actions/apt-packages
+      # Drawing the persona art takes most of a config check. Pull requests
+      # save it too: the key names the exact scripts, and the folder is a
+      # few MB.
+      - name: Restore the persona art
+        id: art
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/daruma_pixel_art
+          key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
+      # The public CI secrets. The ci-head branch names this commit, for
+      # the examples' git package.
+      - name: Prepare the configs
+        run: |
+          cp examples/secrets.ci.yaml examples/secrets.yaml
+          git branch -f ci-head HEAD
+      # Every example, one after another; the failed ones are listed at
+      # the end. The examples fetch Daruma with git: make points them at
+      # this checkout.
+      - name: Check the configs
+        run: make config
+      - name: Save the persona art
+        if: steps.art.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/.esphome/daruma_pixel_art
+          key: ${{ steps.art.outputs.cache-primary-key }}
+
+  esphome-compile:
+    name: ESPHome (box3 firmware)
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
@@ -155,80 +239,30 @@ jobs:
         run: |
           uv sync --locked --only-group esphome --no-install-project
           echo "ESPHOME_VERSION=$(uv run --no-sync esphome version | awk '{print $2}')" >> "$GITHUB_ENV"
-      # SDL2 for the config of the desktop example. The ffmpeg isn't
-      # needed here, but one package list for every job means one cache.
-      - name: Install SDL2 and ffmpeg
-        uses: ./.github/actions/apt-packages
-      # The compiled objects, by the hash of what went in. Every run saves
-      # them, pull requests too, so the next push to a pull request starts
-      # warm. A pull request's first run starts from main's. No trim before
-      # the save: the build cache below makes the compile incremental, so
-      # most objects go unused in a run but are still worth keeping.
-      - name: Set up ccache
-        uses: ./.github/actions/ccache
-        with:
-          kind: box3
-      # Pull requests read the ESP-IDF and build caches that main saves;
-      # only main writes the build cache. A pull request saves the ESP-IDF
-      # cache only when main has none for this ESPHome version yet.
-      - name: Restore the ESP-IDF cache
-        id: idf
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/esphome
-          key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
-      # The build folder and ESPHome's record of the last build (storage).
-      # Without that record ESPHome cleans the build folder, and nothing
-      # is reused. Not .esphome/packages: it holds ESPHome's git clones,
-      # and a restored clone would build old code.
-      - name: Restore the build cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            examples/.esphome/build
-            examples/.esphome/storage
-          key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
-          restore-keys: esphome-build-box3-${{ env.ESPHOME_VERSION }}-
-      # Drawing the persona art takes most of a config check. Pull requests
-      # save it too: the key names the exact scripts, and the folder is a
-      # few MB.
+      # The box3 ccache, the ESP-IDF install and main's build folder.
+      - name: Restore the build caches
+        uses: ./.github/actions/esphome-build-cache
+      # The config job saves the art.
       - name: Restore the persona art
-        id: art
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       # The public CI secrets. Their API key is fixed: ESPHome compiles it
       # into main.cpp, so the compiler cache can reuse that file. The
-      # ci-head branch names this commit, for the examples' git package.
+      # ci-head branch names this commit, for the example's git package.
       - name: Prepare the build
         run: |
           cp examples/secrets.ci.yaml examples/secrets.yaml
           git branch -f ci-head HEAD
-      # Every example, one after another; the failed ones are listed at
-      # the end. The examples fetch Daruma with git: make points them at
-      # this checkout.
-      - name: Check the configs
-        run: make config
       - name: Compile
-        if: ${{ !cancelled() }}
+        id: compile
         working-directory: examples
         run: |
           set -o pipefail
           uv run --no-sync esphome \
             -s daruma_url "file://$GITHUB_WORKSPACE" -s daruma_ref ci-head \
             compile box3.yaml 2>&1 | tee "$RUNNER_TEMP/compile.log"
-      - name: Save the ccache
-        if: ${{ !cancelled() }}
-        uses: ./.github/actions/ccache-save
-        with:
-          save: true
-      - name: Save the persona art
-        if: steps.art.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: examples/.esphome/daruma_pixel_art
-          key: ${{ steps.art.outputs.cache-primary-key }}
       - name: Report the flash size
         run: |
           {
@@ -236,20 +270,26 @@ jobs:
             .github/scripts/flash-size.sh "$RUNNER_TEMP/compile.log"
           } >> "$GITHUB_STEP_SUMMARY"
           ls -l examples/.esphome/build/daruma/build/firmware.*.bin
-      - name: Save the ESP-IDF cache
-        if: github.event_name == 'push' || steps.idf.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Save the build caches
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/esphome-build-cache-save
         with:
-          path: ~/.cache/esphome
-          key: esp-idf-${{ runner.os }}-${{ env.ESPHOME_VERSION }}
-      - name: Save the build cache
-        if: github.event_name == 'push'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            examples/.esphome/build
-            examples/.esphome/storage
-          key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+          compiled: ${{ steps.compile.outcome == 'success' }}
+
+  # One check for both ESPHome jobs, so the name "ESPHome" stays the one a
+  # pull request needs.
+  esphome:
+    name: ESPHome
+    needs: [esphome-config, esphome-compile]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Both ESPHome jobs passed
+        env:
+          CONFIG: ${{ needs.esphome-config.result }}
+          COMPILE: ${{ needs.esphome-compile.result }}
+        run: test "$CONFIG" = success && test "$COMPILE" = success
 
   # The golden pictures match on Linux and macOS (docs/testing.md), so this
   # runs on Linux. The scenario files (the golden check) and the Python
@@ -300,8 +340,9 @@ jobs:
           path: ${{ env.DARUMA_WORK }}/build/src/examples/.esphome/daruma_pixel_art
           key: pixel-art-${{ runner.os }}-${{ env.ESPHOME_VERSION }}-${{ hashFiles('.python-version', 'pixel/**/*.py') }}
       # The desktop build's objects. Every desktop job reads them; the
-      # pytest job saves them. Its builds (UTC and America/Chicago) cover
-      # the golden job's build, and only one job can be the newest save.
+      # pytest job saves them. Both jobs build the same desktop program
+      # (one build serves every time zone), and only one job can be the
+      # newest save.
       - name: Set up ccache
         uses: ./.github/actions/ccache
         with:
@@ -385,14 +426,29 @@ jobs:
             .python-version
       - name: Install the test and coverage tools
         run: uv sync --locked --only-group test --only-group coverage --no-install-project
-      # CXXFLAGS and DARUMA_CPP_OUT reach tests/conftest.py and test_frames.py,
-      # which build the C++ programs.
+      # The --coverage objects differ from the host tests' objects, so they
+      # have a cache of their own. ccache keeps each object's .gcno too.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache
+        with:
+          kind: host-coverage
+      # CXX, CXXFLAGS and DARUMA_CPP_OUT reach tests/conftest.py and
+      # test_frames.py, which build the C++ programs. The objects keep one
+      # path from run to run: --coverage writes it into them, so ccache
+      # only reuses an object built at the same path.
       - name: Run the host tests
         env:
+          CXX: ccache c++
           CXXFLAGS: --coverage
           DARUMA_CPP_OUT: ${{ env.COVERAGE_DIR }}/cpp
           COVERAGE_FILE: ${{ env.COVERAGE_DIR }}/python/.coverage.host
         run: uv run --no-sync pytest tests -n 2 --cov=src/esphome/components --cov=pixel --cov-report=
+      - name: Save the ccache
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/ccache-save
+        with:
+          save: true
+          trim: ${{ job.status == 'success' }}
       - name: Read the C++ coverage
         run: >-
           uv run --no-sync python tests/coverage_report.py

@@ -4,8 +4,9 @@
     uv run pytest tests -m cpp            # every C++ test
     uv run pytest tests -m "not cpp"      # every Python test
 
-The test builds the file with the host's c++ and runs it. The program
-prints FAIL lines and exits non-zero when a check fails.
+The test builds the file with the host's c++ (or $CXX, cpp_build.py)
+and runs it. The program prints FAIL lines and exits non-zero when a
+check fails.
 
 The headers include each other as an ESPHome build sees them
 (esphome/components/<name>/...). src/ has that layout, so the tests
@@ -20,13 +21,13 @@ DARUMA_CPP_OUT names a folder that keeps the programs and their data.
 """
 
 import os
-import shutil
 import subprocess
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import cpp_build
 import esphome_components  # noqa: F401
 import pytest
 
@@ -66,29 +67,25 @@ class CppTest(pytest.Item):
         self.add_marker(pytest.mark.cpp)
 
     def runtest(self) -> None:
-        if shutil.which("c++") is None:
+        if not cpp_build.available():
             pytest.skip("needs a c++ compiler")
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(os.environ.get("DARUMA_CPP_OUT") or tmp)
             out.mkdir(parents=True, exist_ok=True)
             binary = out / self.path.stem
-            _run(
-                "build",
-                [
-                    "c++",
-                    "-std=c++17",
-                    "-Wall",
-                    "-Wextra",
-                    *os.environ.get("CXXFLAGS", "").split(),
-                    f"-I{ROOT / 'src'}",
-                    f"-I{COMPONENTS / 'daruma'}",
-                    f"-I{COMPONENTS / 'daruma_weather'}",
-                    str(self.path),
-                    "-o",
-                    str(binary),
-                ],
-            )
-            _run("run", [str(binary)])
+            extra = os.environ.get("CXXFLAGS", "").split()
+            args = [
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                *extra,
+                f"-I{ROOT / 'src'}",
+                f"-I{COMPONENTS / 'daruma'}",
+                f"-I{COMPONENTS / 'daruma_weather'}",
+                str(self.path),
+            ]
+            _check("build", cpp_build.build(args, binary, extra))
+            _check("run", subprocess.run([str(binary)], capture_output=True, text=True, check=False))
 
     def repr_failure(self, excinfo: pytest.ExceptionInfo[BaseException], style: Any = None) -> Any:
         if isinstance(excinfo.value, CppFailure):
@@ -99,7 +96,6 @@ class CppTest(pytest.Item):
         return self.path, None, self.name
 
 
-def _run(step: str, cmd: list[str]) -> None:
-    done = subprocess.run(cmd, capture_output=True, text=True, check=False)
+def _check(step: str, done: subprocess.CompletedProcess) -> None:
     if done.returncode:
         raise CppFailure(f"{step} exited {done.returncode}\n{done.stdout}{done.stderr}".rstrip())

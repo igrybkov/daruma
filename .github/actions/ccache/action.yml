@@ -2,38 +2,42 @@ name: Set up ccache
 description: >-
   Puts ccache on the PATH and restores the newest saved cache of one kind of
   build. ESPHome compiles through ccache when it is on the PATH: the ESP-IDF
-  build (box3) and the host build (desktop) both do. Run ccache-save at the
-  end of the job.
+  build (box3) and the host build (desktop) both do. The host tests compile
+  through it when CXX is "ccache c++" (tests/cpp_build.py). Run ccache-save
+  at the end of the job.
 
 inputs:
   kind:
     description: >-
-      The kind of build: box3, desktop, desktop-variants or coverage. Each
-      kind has its own cache, because a restore brings back only one saved
-      cache, the newest one. Builds of other kinds would push it out.
+      The kind of build. ESPHome builds: box3, desktop, desktop-variants or
+      coverage. Host tests: host or host-coverage. Each kind has its own
+      cache, because a restore brings back only one saved cache, the newest
+      one. Builds of other kinds would push it out.
     required: true
 
 runs:
   using: composite
   steps:
-    # One folder and one size limit for every kind. A desktop job saves
-    # only the objects its build used (ccache-save), so its cache is about
-    # the size of one build. The box3 cache keeps old objects up to the
-    # limit (see the ESPHome job).
+    # One folder and one size limit for every kind. A desktop or host job
+    # saves only the objects its build used (ccache-save), so its cache is
+    # about the size of one build. The box3 cache keeps old objects up to
+    # the limit (see the ESPHome job).
+    #
+    # The key names what the objects come from. An ESPHome build: the
+    # ESPHome version (ESPHOME_VERSION), which pins the framework and the
+    # toolchain. A host test: the runner image release, which ships the
+    # c++. A new one starts a new cache, so no stale objects stay in it.
     - name: Configure ccache
       shell: bash
       env:
         KIND: ${{ inputs.kind }}
       run: |
-        if [ -z "$ESPHOME_VERSION" ]; then
-          echo "::error::Set ESPHOME_VERSION before the ccache setup."
-          exit 1
-        fi
+        version="${ESPHOME_VERSION:-${ImageOS:-unknown}-${ImageVersion%%.*}}"
         {
           echo "CCACHE_DIR=$HOME/.cache/ccache"
           echo "CCACHE_MAXSIZE=500M"
           echo "CCACHE_KIND=$KIND"
-          echo "CCACHE_PREFIX_KEY=ccache-$KIND-$ESPHOME_VERSION-"
+          echo "CCACHE_PREFIX_KEY=ccache-$KIND-$version-"
           echo "CCACHE_START=$(date +%s)"
         } >> "$GITHUB_ENV"
     # A static ccache from its release, checked against a fixed hash.

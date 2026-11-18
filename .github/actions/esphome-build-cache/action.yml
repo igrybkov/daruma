@@ -1,0 +1,65 @@
+name: Restore the ESPHome build caches
+description: >-
+  Restores what an ESP-IDF build of examples/box3.yaml reuses: the box3
+  ccache, ESPHome's ESP-IDF install and the build folder of main's last
+  build. Run esphome-build-cache-save at the end of the job. Needs
+  ESPHOME_VERSION.
+
+inputs:
+  idf-target:
+    description: >-
+      The chip the build is for. ESPHome installs the toolchain of this chip
+      only.
+    required: false
+    default: esp32s3
+
+runs:
+  using: composite
+  steps:
+    # The compiled objects, by the hash of what went in. No trim before
+    # the save: the build folder below makes the compile incremental, so
+    # most objects go unused in a run but are still worth keeping.
+    - name: Set up ccache
+      uses: ./.github/actions/ccache
+      with:
+        kind: box3
+    # In CI, ESPHome installs the toolchain of every chip by default. The
+    # RISC-V one alone is 2.1 GB, more than half of the install, and an
+    # ESP32-S3 never uses it. One chip keeps the cache small, so its
+    # restore is fast. The save step reads the key.
+    - name: Pick the ESP-IDF target
+      shell: bash
+      env:
+        TARGET: ${{ inputs.idf-target }}
+      run: |
+        {
+          echo "ESPHOME_IDF_DEFAULT_TARGETS=$TARGET"
+          echo "ESPHOME_IDF_CACHE_KEY=esp-idf-$RUNNER_OS-$ESPHOME_VERSION-$TARGET"
+        } >> "$GITHUB_ENV"
+    # The framework, the toolchain and their Python environment. Pull
+    # requests read the one main saves.
+    - name: Restore the ESP-IDF cache
+      id: idf
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/esphome
+        key: ${{ env.ESPHOME_IDF_CACHE_KEY }}
+    # The save step reads this: it saves the ESP-IDF cache only on a miss.
+    - name: Note the ESP-IDF cache hit
+      shell: bash
+      env:
+        HIT: ${{ steps.idf.outputs.cache-hit }}
+      run: echo "ESPHOME_IDF_CACHE_HIT=${HIT:-false}" >> "$GITHUB_ENV"
+    # The build folder and ESPHome's record of the last build (storage).
+    # Without that record ESPHome cleans the build folder, and nothing
+    # is reused. Not .esphome/packages: it holds ESPHome's git clones,
+    # and a restored clone would build old code. Only main saves it, one
+    # per commit; the prefix picks the newest.
+    - name: Restore the build cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          examples/.esphome/build
+          examples/.esphome/storage
+        key: esphome-build-box3-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+        restore-keys: esphome-build-box3-${{ env.ESPHOME_VERSION }}-

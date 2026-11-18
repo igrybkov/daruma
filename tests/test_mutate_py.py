@@ -82,7 +82,19 @@ def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, ca
     (tmp_path / "pyproject.toml").write_text(CONFIG)
     _git(tmp_path, "init", "-q", "-b", "main")
     _git(tmp_path, "add", "-A")
-    _git(tmp_path, "-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-q", "-m", "base")
+    _git(
+        tmp_path,
+        "-c",
+        "user.email=t@example.com",
+        "-c",
+        "user.name=T",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-q",
+        "-m",
+        "base",
+    )
     (tmp_path / "src" / "pkg" / "mod.py").write_text(MODULE)
     (tmp_path / "tests" / "test_mod.py").write_text(TEST)
     monkeypatch.setattr(mutate_py, "ROOT", tmp_path)

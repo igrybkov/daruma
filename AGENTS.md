@@ -66,12 +66,14 @@ compile time.
 ## Commands
 
 Run them from the repository root. [docs/testing.md](docs/testing.md)
-explains each. Don't run the full suites locally by default. Push and
-open a pull request instead: CI is tuned for speed and runs every check
-in under two minutes, which is usually faster than a local build.
-Locally, run only what you need while you iterate, such as one test
-file, a persona preview or a lint. `make` lists every goal; `make -n <goal>` prints its
+explains each. `make` lists every goal; `make -n <goal>` prints its
 commands.
+
+Don't run the full suites locally by default. Push and open a draft
+pull request instead, and mark it ready when the work is done. CI is
+tuned for speed and runs every check in under two minutes, which is
+usually faster than a local build. Locally, run only what you need
+while you iterate, such as one test file, a persona preview or a lint.
 
 ```sh
 # Host tests: no ESPHome build needed

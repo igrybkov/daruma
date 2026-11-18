@@ -85,11 +85,19 @@ def spread(tests_by_function: dict[str, set[str]], at_import: set[str]) -> None:
 AT_IMPORT: set[str] = set()
 
 
+def _is_imported(namespace: dict) -> bool:
+    """True when `namespace` is the namespace of an imported module, not of a
+    script or of code run by exec (xdist's workers)."""
+    name = namespace.get("__name__")
+    module = sys.modules.get(name) if name and name != "__main__" else None
+    return getattr(module, "__dict__", None) is namespace
+
+
 def importing() -> bool:
     """True while the caller runs under the top level of a module being imported."""
     frame = sys._getframe(2)
     while frame is not None:
-        if frame.f_code.co_name == "<module>" and frame.f_globals.get("__name__") != "__main__":
+        if frame.f_code.co_name == "<module>" and _is_imported(frame.f_globals):
             return True
         frame = frame.f_back
     return False

@@ -6,8 +6,10 @@ import importlib.util
 import os
 import shutil
 import subprocess
+import sys
 import time
 import tomllib
+import types
 from pathlib import Path
 
 import changed_lines
@@ -62,14 +64,19 @@ def test_spread_charges_an_import_time_call_to_the_tests_of_its_package() -> Non
     assert tests["daruma_personas.daruma.doll.x_egg"] == {"test_daruma"}
 
 
-def test_importing_is_true_only_under_a_module_top_level() -> None:
+def test_importing_is_true_only_under_a_module_top_level(monkeypatch) -> None:
     def probe():
         return (lambda: mutmut_run.importing())()
 
     assert not probe()
     seen = {}
-    module = {"__name__": "scratch", "probe": probe, "seen": seen}
-    exec(compile("seen['at_import'] = probe()", "<scratch>", "exec"), module)
+    code = compile("seen['at_import'] = probe()", "<scratch>", "exec")
+    exec(code, {"__name__": "scratch", "probe": probe, "seen": seen})
+    assert not seen["at_import"], "exec'd code is no import"
+    module = types.ModuleType("scratch")
+    module.__dict__.update(probe=probe, seen=seen)
+    monkeypatch.setitem(sys.modules, "scratch", module)
+    exec(code, module.__dict__)
     assert seen["at_import"]
 
 

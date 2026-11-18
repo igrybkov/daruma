@@ -1,0 +1,62 @@
+name: Save the ESPHome build caches
+description: >-
+  Saves what esphome-build-cache restored, when it changed: the device's
+  ccache, the ESP-IDF install and the build folder. The device and the
+  chip come from esphome-build-cache.
+
+inputs:
+  compiled:
+    description: >-
+      "true" when the compile succeeded. A failed compile saves only the
+      ccache: its ESP-IDF install or build folder may be half done.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Every run may save it, pull requests too, so the next push to a pull
+    # request starts warm. It skips the save when the compile added no
+    # object.
+    - name: Save the ccache
+      uses: ./.github/actions/ccache-save
+      with:
+        save: true
+    # The cache leaves out what a build for this chip never reads:
+    # - the framework's docs and examples (about 90 MB);
+    # - picolibc (about 390 MB): ESP-IDF 5.5 links newlib;
+    # - the other chips' libraries in the Xtensa toolchain (about 330 MB).
+    # GCC picks one chip's libraries by its flags, so the others go unread.
+    # A change to this list needs a new key (esphome-build-cache).
+    - name: Drop what the build never reads
+      if: inputs.compiled == 'true' && env.ESPHOME_IDF_CACHE_HIT != 'true'
+      shell: bash
+      run: |
+        idf="$HOME/.cache/esphome/idf"
+        du -sh "$idf"
+        rm -rf "$idf"/frameworks/*/docs "$idf"/frameworks/*/examples
+        for tc in "$idf"/tools/xtensa-esp-elf/*/xtensa-esp-elf; do
+          rm -rf "$tc/picolibc"
+          for chip in esp32 esp32s2 esp32s3; do
+            if [ "$chip" = "$ESPHOME_IDF_DEFAULT_TARGETS" ]; then continue; fi
+            rm -rf "$tc/xtensa-esp-elf/lib/$chip" "$tc"/lib/gcc/xtensa-esp-elf/*/"$chip"
+          done
+        done
+        du -sh "$idf"
+    # The key is fixed for an ESPHome version and a chip, and a saved cache
+    # can't be overwritten. On a hit a save would pack the whole install,
+    # then fail.
+    - name: Save the ESP-IDF cache
+      if: inputs.compiled == 'true' && env.ESPHOME_IDF_CACHE_HIT != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/esphome
+        key: ${{ env.ESPHOME_IDF_CACHE_KEY }}
+    # One per commit on main. Pull requests only read it.
+    - name: Save the build cache
+      if: inputs.compiled == 'true' && github.event_name == 'push'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          examples/.esphome/build
+          examples/.esphome/storage
+        key: esphome-build-${{ env.ESPHOME_BUILD_DEVICE }}-${{ env.ESPHOME_VERSION }}-${{ github.sha }}

@@ -29,6 +29,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import cpp_build
 from changed_lines import ROOT, changed_lines
 
 # The same flags as tests/conftest.py, without the warnings.
@@ -73,20 +74,21 @@ def tests() -> list[str]:
     return sorted(p.stem for p in (ROOT / "tests").glob("test_*.cpp") if p.stem not in SKIP_TESTS)
 
 
-def compile_command(test: str, root: Path, out: Path) -> list[str]:
-    """Builds `test` against the components in `root` (this checkout or a copy).
+def compile_args(test: str, root: Path) -> list[str]:
+    """The flags and source that build `test` against the components in
+    `root` (this checkout or a copy), for cpp_build.
 
     src/ has the layout the headers include each other by (esphome/components/...).
     """
     dirs = [root / "src"] + [root / d for d in INCLUDES]
-    return ["c++", *FLAGS, *(f"-I{d}" for d in dirs), str(ROOT / "tests" / f"{test}.cpp"), "-o", str(out)]
+    return [*FLAGS, *(f"-I{d}" for d in dirs), str(ROOT / "tests" / f"{test}.cpp")]
 
 
 def headers_by_test() -> dict[str, list[str]]:
     """Each test -> the component files it includes, directly or not."""
     out = {}
     for test in tests():
-        command = compile_command(test, ROOT, Path(os.devnull))[:-2] + ["-MM"]
+        command = [*cpp_build.compiler(), *compile_args(test, ROOT), "-MM"]
         deps = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=True).stdout
         paths = {Path(os.path.realpath(ROOT / p)) for p in deps.replace("\\\n", " ").split()[1:]}
         out[test] = sorted(str(p.relative_to(ROOT)) for p in paths if p.is_relative_to(COMPONENTS))
@@ -153,8 +155,7 @@ def _build_and_run(work: Path, test_names: list[str]) -> str:
     built = False
     for test in test_names:
         exe = work / test
-        command = compile_command(test, work, exe)
-        if subprocess.run(command, capture_output=True).returncode:
+        if cpp_build.build(compile_args(test, work), exe, []).returncode:
             continue
         built = True
         try:
@@ -170,7 +171,7 @@ def baseline(work: Path, test_names: list[str]) -> bool:
     that, a mutant that doesn't build or a failing test would mean nothing."""
     for test in test_names:
         exe = work / test
-        built = subprocess.run(compile_command(test, work, exe), capture_output=True, text=True)
+        built = cpp_build.build(compile_args(test, work), exe, [])
         if built.returncode:
             print(f"{test} doesn't build:\n{built.stderr[-3000:]}")
             return False

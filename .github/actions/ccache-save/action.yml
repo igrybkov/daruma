@@ -1,7 +1,8 @@
 name: Save the ccache
 description: >-
   Writes the ccache counters to the job summary and, when asked, saves the
-  cache that the ccache action restored.
+  cache that the ccache action restored. A job with no misses added
+  nothing, so it skips the save.
 
 inputs:
   save:
@@ -31,11 +32,22 @@ runs:
           echo '```'
         } >> "$GITHUB_STEP_SUMMARY"
         ccache --show-stats --verbose
+    # A miss is a compile whose object is new to the cache. With none, the
+    # restored cache holds every object this job used: a save would only
+    # upload the same files again.
+    - name: Count the misses
+      id: misses
+      if: inputs.save == 'true'
+      shell: bash
+      run: |
+        misses=$(ccache --print-stats | awk -F '\t' '$1 == "cache_miss" { print $2 }')
+        echo "Misses: ${misses:-unknown}"
+        echo "count=${misses:-unknown}" >> "$GITHUB_OUTPUT"
     # ccache touches an entry on every hit, and the restore keeps the old
     # times. So entries older than this job are the ones it didn't use.
     # Without this, every save would add to the cache until the size limit.
     - name: Drop the entries this job didn't use
-      if: inputs.save == 'true' && inputs.trim == 'true'
+      if: inputs.save == 'true' && inputs.trim == 'true' && steps.misses.outputs.count != '0'
       shell: bash
       run: |
         age=$(( $(date +%s) - CCACHE_START + 60 ))
@@ -43,7 +55,7 @@ runs:
         ccache --show-stats
     # A new key every run, so this run's objects are kept (see the restore).
     - name: Save the ccache
-      if: inputs.save == 'true'
+      if: inputs.save == 'true' && steps.misses.outputs.count != '0'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ env.CCACHE_DIR }}

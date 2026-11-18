@@ -24,7 +24,7 @@ def test_frames_match_goldens(label):
     out = persona_frames.results_folder()
     report = []
     for name, persona in persona_frames.personas_of(label, persona_frames.builds()[label]).items():
-        problems = persona_frames.check(name, persona, out)
+        problems = persona_frames.check(name, persona, out, persona_frames.golden_of(label))
         report += [f"{name}/{p}" for p in problems]
     shown = "\n  ".join(report[:40])
     more = f"\n  ... and {len(report) - 40} more" if len(report) > 40 else ""

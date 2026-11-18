@@ -174,15 +174,22 @@ uv run pytest "demos/scenarios/tour.yaml::tour[pixel-corgi]"
   With make, `DARUMA_WORK=/tmp/mine` sets the folder for both.
 
 A persona kept out of this repository can still be recorded and tested.
-Pass its package to either runner:
+Name its repository in `DARUMA_PERSONA_PATH`, a list of folders joined
+like `PATH`. Every tool reads it the same way (`demos/persona_path.py`):
+the desktop build, the scenario tests, the recorder, the frame goldens and
+the prop check.
 
 ```sh
-uv run demos/record.py --private-persona path/to/persona.yaml --personas "<its name>"
-uv run pytest demos -m scenario --private-persona path/to/persona.yaml --persona "<its name>"
+export DARUMA_PERSONA_PATH=/path/to/my-daruma-private
+uv run demos/record.py --personas "<its name>"
+uv run pytest demos -m scenario --persona "<its name>"
+uv run python tests/persona_frames.py check <its pixel_art persona>
 ```
 
-Its GIFs and golden pictures stay in the temp folder (or `$DARUMA_WORK`),
-in `golden/`.
+The pictures go to that folder, never into this repository, laid out as
+Daruma keeps its own: GIFs in `docs/demos/`, goldens in `tests/golden/`.
+`DARUMA_PERSONA_GOLDEN` and `DARUMA_PERSONA_DEMOS` move them. See
+[private-packages.md](private-packages.md#test-before-you-push).
 
 ## Host tests
 
@@ -202,7 +209,9 @@ pomodoro's rules, the calendar's agenda and the weather words.
 
 The C++ tests run through pytest too. `tests/conftest.py` collects each
 `tests/test_*.cpp` as one test: pytest builds it and runs it. The
-`cpp` marker picks them out. To run one test, name it:
+`cpp` marker picks them out. The compiler is `c++`, or `$CXX` when set.
+`CXX="ccache c++"` caches the objects, as CI does. To run one test, name
+it:
 
 ```sh
 uv run pytest tests/test_registry.py   # one Python file

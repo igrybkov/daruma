@@ -5,7 +5,7 @@
 - The encoder (src/esphome/components/daruma/sprite_codec.py) round trips through
   its own Python decoder, on small made-up frames.
 - The device's decoder (frame_chain.h, sprite.h), built with the host's
-  c++, decodes every frame of every pixel persona to exactly its source
+  c++ (cpp_build.py), decodes every frame of every pixel persona to exactly its source
   picture, in full color, gray4 and mono, on its own and played in order
   (test_frames.cpp). This builds the personas: some seconds. Set
   DARUMA_SKIP_PERSONAS=1 to check only the made-up frames.
@@ -18,11 +18,12 @@ Skipped without Pillow, and the C++ part without a c++ compiler.
 
 import hashlib
 import os
-import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+import cpp_build
 
 _HERE = Path(__file__).resolve().parent
 
@@ -107,25 +108,30 @@ _DECODER = _HERE.parent / "src" / "esphome" / "components" / "daruma"
 _BUILDS = Path(tempfile.gettempdir()) / "daruma-test-frames"
 
 
-def _build_key(command: list[str]) -> str:
-    """A hash of the build command, the compiler's version, the test and
-    the decoder's headers."""
-    key = hashlib.sha256("\0".join(command).encode())
-    key.update(subprocess.run(["c++", "--version"], capture_output=True, check=True).stdout)
+def _build_key(args: list[str]) -> str:
+    """A hash of the compiler and its arguments, the compiler's version, the
+    test and the decoder's headers."""
+    key = hashlib.sha256("\0".join([*cpp_build.compiler(), *args]).encode())
+    key.update(subprocess.run([*cpp_build.compiler(), "--version"], capture_output=True, check=True).stdout)
     for source in [_HERE / "test_frames.cpp", *sorted(_DECODER.glob("*.h"))]:
         key.update(source.name.encode() + b"\0" + source.read_bytes())
     return key.hexdigest()[:16]
 
 
-@unittest.skipIf(Image is None or shutil.which("c++") is None, "needs Pillow and a c++ compiler")
+def _build(args: list[str], binary: Path) -> None:
+    done = cpp_build.build(args, binary, os.environ.get("CXXFLAGS", "").split())
+    if done.returncode:
+        raise RuntimeError(f"building test_frames.cpp failed:\n{done.stdout}{done.stderr}")
+
+
+@unittest.skipIf(Image is None or not cpp_build.available(), "needs Pillow and a c++ compiler")
 class DeviceDecoderTest(unittest.TestCase):
     """One test per frame set, so pytest-xdist can spread the personas."""
 
     @classmethod
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
-        command = [
-            "c++",
+        args = [
             "-std=c++17",
             "-Wall",
             "-Wextra",
@@ -134,22 +140,24 @@ class DeviceDecoderTest(unittest.TestCase):
             *os.environ.get("CXXFLAGS", "").split(),
             f"-I{_DECODER}",
             str(_HERE / "test_frames.cpp"),
-            "-o",
         ]
         # For coverage, as tests/conftest.py: CXXFLAGS above, and a folder
-        # that keeps the program and its data. One program per worker.
+        # that keeps the program and its data. One program per worker,
+        # named by the worker, so ccache finds the object at the same path
+        # in every run.
         if os.environ.get("DARUMA_CPP_OUT"):
-            cls.binary = Path(os.environ["DARUMA_CPP_OUT"]) / f"test_frames-{os.getpid()}"
+            worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
+            cls.binary = Path(os.environ["DARUMA_CPP_OUT"]) / f"test_frames-{worker}"
             cls.binary.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run([*command, str(cls.binary)], check=True)
+            _build(args, cls.binary)
             return
         # Otherwise one program for every worker and run, named by what
         # went into it. A worker that finds it skips the build.
-        cls.binary = _BUILDS / f"test_frames-{_build_key(command)}"
+        cls.binary = _BUILDS / f"test_frames-{_build_key(args)}"
         if not cls.binary.exists():
             _BUILDS.mkdir(parents=True, exist_ok=True)
             built = Path(cls._tmp.name) / "test_frames"
-            subprocess.run([*command, str(built)], check=True)
+            _build(args, built)
             os.replace(built, cls.binary)
 
     @classmethod

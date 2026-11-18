@@ -16,15 +16,18 @@ runs:
     # On a cache miss the action installs with apt-fast, and fetches an
     # unpinned apt-fast installer when there is none. This stand-in skips
     # that download. It refreshes the package lists first, then installs
-    # without recommended packages, as apt-get did here before.
+    # without recommended packages, as apt-get did here before. The action
+    # writes the install's output to a file; the copy on stderr shows it
+    # in the job log too, so a slow mirror can be seen.
     - name: Stand in for apt-fast
       shell: bash
       run: |
         sudo tee /usr/local/bin/apt-fast > /dev/null <<'EOF'
-        #!/bin/sh
+        #!/bin/bash
+        set -o pipefail
         if [ "$1" = --version ]; then exec apt-get --version; fi
-        apt-get update -q
-        exec apt-get -o APT::Install-Recommends=false "$@"
+        apt-get update -q >&2
+        apt-get -o APT::Install-Recommends=false "$@" | tee /dev/stderr
         EOF
         sudo chmod 755 /usr/local/bin/apt-fast
     # A hit unpacks the files of every package and skips dpkg. That is

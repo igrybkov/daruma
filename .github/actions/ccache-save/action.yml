@@ -1,0 +1,50 @@
+name: Save the ccache
+description: >-
+  Writes the ccache counters to the job summary and, when asked, saves the
+  cache that the ccache action restored.
+
+inputs:
+  save:
+    description: >-
+      "true" to save. One job per kind saves; the other jobs of that kind
+      only restore.
+    required: false
+    default: "false"
+  trim:
+    description: >-
+      "true" drops the entries this job didn't use before the save. Pass it
+      only for a build that compiles every file and succeeded: an
+      incremental or failed build uses only part of the cache.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Show the ccache counters
+      shell: bash
+      run: |
+        {
+          echo "### ccache: $CCACHE_KIND"
+          echo '```'
+          ccache --show-stats
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        ccache --show-stats --verbose
+    # ccache touches an entry on every hit, and the restore keeps the old
+    # times. So entries older than this job are the ones it didn't use.
+    # Without this, every save would add to the cache until the size limit.
+    - name: Drop the entries this job didn't use
+      if: inputs.save == 'true' && inputs.trim == 'true'
+      shell: bash
+      run: |
+        age=$(( $(date +%s) - CCACHE_START + 60 ))
+        ccache --evict-older-than "${age}s"
+        ccache --show-stats
+    # A new key every run, so this run's objects are kept (see the restore).
+    - name: Save the ccache
+      if: inputs.save == 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_PREFIX_KEY }}${{ github.run_id }}-${{ github.run_attempt }}

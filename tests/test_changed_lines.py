@@ -53,3 +53,14 @@ def test_only_the_asked_paths_and_untracked_files_whole(repo: Path) -> None:
     (repo / "components" / "x" / "kept.py").write_text(BODY + "line 21\n")
     (repo / "components" / "x" / "new.py").write_text("a\nb\n")
     assert cl.changed_lines("main", ["components/x/new.py"]) == {"components/x/new.py": {1, 2}}
+
+
+def test_a_folder_stands_for_every_file_in_it(repo: Path) -> None:
+    (repo / "components" / "x" / "kept.py").write_text(BODY + "line 21\n")
+    (repo / "components" / "x" / "new.py").write_text("a\n")
+    (repo / "components" / "xy").mkdir()
+    (repo / "components" / "xy" / "other.py").write_text("b\n")
+    assert cl.changed_lines("main", ["components/x"]) == {
+        "components/x/kept.py": {21},
+        "components/x/new.py": {1},
+    }

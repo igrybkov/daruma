@@ -303,18 +303,24 @@ make mutate-diff               # only the lines changed since origin/main
 make mutate-diff BASE=main     # or since another branch
 ```
 
-`make mutate` takes about three minutes. It never fails on a survivor.
-`make mutate-diff` takes seconds. It fails when a mutant on a changed
-line survives. The changes count from the merge base, so commits that
+`make mutate` takes about eight minutes on an M-series Mac. It never
+fails on a survivor. `make mutate-diff` takes from seconds to a few
+minutes, by how much changed. It fails when a mutant on a changed line
+survives, or when no test reaches it. The changes count from the merge base, so commits that
 land on main later are not yours. CI runs `make mutate-diff` on every
 pull request. That check is not required.
 
 - **Python**: [mutmut](https://github.com/boxed/mutmut) mutates the
-  files in `[tool.mutmut]` in `pyproject.toml`. Only the files the host
-  tests can load are there. The others import ESPHome.
+  files in `[tool.mutmut]` in `pyproject.toml`. It runs the host tests
+  with the persona tests, even when `DARUMA_SKIP_PERSONAS` is set. Each
+  mutant runs in a fresh process (`process_isolation = "forkserver"`).
+  A process forked after the first test run would keep its drawn
+  pictures, and a mutant in the code that drew them would survive.
 - **C++**: `tests/mutate_cpp.py` mutates the component files that the
   C++ host tests include. It builds and runs every test that includes
   the file. A change that doesn't build doesn't count.
+  `test_frames.cpp` reads the frames of every persona from a fixture.
+  The Python encoder writes it once, before the mutants run.
 
 When a mutant survives, add a test that tells the change apart. Some
 changes can't be told apart. For example, a bound that a later check
@@ -332,6 +338,13 @@ The host tests import the components by their ESPHome names, such as
 `esphome.components.daruma.registry` (`tests/esphome_components.py`).
 The files live at that path under `src/`, and mutmut names a module by
 its path without `src/`. So mutmut finds the tests for a mutant.
+`make mutate-diff` names the changed functions the same way. When
+mutmut has no mutants under one of those names, it fails: a wrong name
+would match nothing and pass without running a test.
+
+mutmut runs the tests from a copy of the checkout in `mutants/`. A test
+that reads a file outside the copied folders fails there, and so does
+the run. Add the folder to `also_copy` in `pyproject.toml`.
 
 ## Preview pixel art
 

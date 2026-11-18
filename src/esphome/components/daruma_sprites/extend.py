@@ -31,9 +31,9 @@ MIN_WINDOW = 4
 
 def _period(lines: list[list], max_period: int = MAX_PERIOD) -> tuple[int, list[bool]]:
     """The repeat period most lines share, and which lines repeat with it."""
-    longest = max((len(line) for line in lines), default=0)
+    longest = max((len(line) for line in lines), default=0)  # pragma: no mutate (no lines: any window is too long)
     best, best_ok = 1, [False] * len(lines)
-    best_score = -1
+    best_score = -1  # pragma: no mutate (any negative number: the first period wins)
     for p in range(1, max_period + 1):
         window = max(2 * p, MIN_WINDOW)
         if window > longest:
@@ -91,7 +91,7 @@ def right_strip(rows: list[list]) -> list[list]:
 def top_strip(rows: list[list]) -> list[list]:
     """Rows of the strip at the top edge: row r is the room's row r. Row
     y < 0 of the extended room is row y mod p of the strip."""
-    width = len(rows[0]) if rows else 0
+    width = len(rows[0]) if rows else 0  # pragma: no mutate (no rows give no strip either way)
     columns = [[row[x] for row in rows] for x in range(width)]
     lines = _strip(columns)
     height = len(lines[0]) if lines else 0

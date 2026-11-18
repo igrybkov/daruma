@@ -153,15 +153,64 @@ source_paths = [
     "src/esphome/components/daruma/sprite_codec.py",
     "src/esphome/components/daruma_sprites/extend.py",
 ]
-# The tests read the persona art and the C++ headers from the checkout.
-also_copy = ["src", "pixel", "packages", "art"]
+# mutmut runs the tests from a copy in mutants/. The tests read the whole
+# checkout (art, headers, docs, the paths the docs name), so the copy takes
+# every top-level entry git tracks. mutmut copies tests/ and pyproject.toml
+# itself. tests/test_mutate_py.py fails when a new entry is missing here.
+also_copy = [
+    ".clang-format",
+    ".clang-tidy",
+    ".git-blame-ignore-revs",
+    ".gitattributes",
+    ".github",
+    ".gitignore",
+    ".gitlint",
+    ".pre-commit-config.yaml",
+    ".python-version",
+    ".release-please-manifest.json",
+    "AGENTS.md",
+    "art",
+    "blueprints",
+    "CHANGELOG.md",
+    "complexipy-snapshot.json",
+    "CONTRIBUTING.md",
+    "demos",
+    "docs",
+    "examples",
+    "LICENSE",
+    "Makefile",
+    "packages",
+    "pixel",
+    "README.md",
+    "release-please-config.json",
+    "renovate.json",
+    "sounds",
+    "src",
+    "uv.lock",
+    "whitelizard.txt",
+]
 pytest_add_cli_args_test_selection = ["tests"]
 # One process: mutmut records which test reaches which function, and an
 # xdist worker's records never reach it.
 pytest_add_cli_args = ["-n", "0", "-p", "no:cacheprovider"]
+# Each mutant runs in a process forked from a clean server. With "fork" it
+# would inherit what the first full test run left behind (drawn pictures,
+# built personas), and a mutant in code that state hides would survive.
+process_isolation = "forkserver"
+# A mutant that loops forever runs until its timeout: (the time its tests
+# took + timeout_constant) x timeout_multiplier, in seconds. mutmut's x15
+# held each looping mutant for minutes. x4 still gives a slow runner room.
+timeout_multiplier = 4.0
+timeout_constant = 2.0
 # Error messages and build log lines are text for people; tests match a
-# few words of them.
-do_not_mutate_patterns = ["raise RegistryError\\(", "raise ValueError\\(", "^\\s*log\\.append\\("]
+# few words of them. A `mode="full"` default is equivalent to any string
+# but gray4 and mono, so mutating it can't be told apart.
+do_not_mutate_patterns = [
+    "raise RegistryError\\(",
+    "raise ValueError\\(",
+    "^\\s*log\\.append\\(",
+    "^def \\w+\\(.*mode: str = \"full\"",
+]
 
 # Cognitive complexity (not cyclomatic) per function. Functions above the
 # limit today are listed in complexipy-snapshot.json and may not grow; a

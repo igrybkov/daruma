@@ -725,11 +725,19 @@ jobs:
       # The standard screen's objects, which the screen tests save (see
       # there). The wide and square screens change the headers that every
       # file includes, so none of their objects match: that job keeps a
-      # cache of its own.
+      # cache of its own. It saves without a trim: with the build folder
+      # below, a build compiles only a few files, and a trim would drop the
+      # objects of all the others.
       - name: Set up ccache
         uses: ./.github/actions/ccache
         with:
           kind: ${{ matrix.name == 'standard' && 'desktop' || 'desktop-variants' }}
+      # Main's last build folders of this job's screens. With them the
+      # build only compiles what changed.
+      - name: Restore the build folder
+        uses: ./.github/actions/desktop-build-cache
+        with:
+          kind: previews-${{ matrix.name }}
       - name: Record the GIFs
         run: |
           for variant in $VARIANTS; do
@@ -754,7 +762,8 @@ jobs:
         uses: ./.github/actions/ccache-save
         with:
           save: ${{ matrix.name != 'standard' }}
-          trim: ${{ job.status == 'success' }}
+      - name: Save the build folder
+        uses: ./.github/actions/desktop-build-cache-save
       - name: Upload the previews
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

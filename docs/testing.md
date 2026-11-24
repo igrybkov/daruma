@@ -107,6 +107,40 @@ from any module, needs a step in a showcase scenario:
 `show:` works for any state: it forces a mood, holds an activity or plays
 a reaction. `show: ""` goes back to normal.
 
+### Random events
+
+The standard desktop build has no random events engine
+([desktop.yaml](../examples/desktop.yaml) sets `random_events: false`).
+A quirk at a random moment would move the screen tests' pictures. A
+scenario that plays events picks the other build:
+
+```yaml
+name: one_shots
+build: events
+personas: []
+test_personas: [Pixel corgi]
+steps:
+  - random_event: lick_paw
+  - expect: {event: {type: esphome.daruma_random_event, name: lick_paw}}
+  - wait: 0.55
+  - snapshot: lick-paw
+```
+
+- `build: events` turns the engine on with its switch off. No roll plays
+  an event on its own. Only `random_event:` steps play them. The build
+  compiles only when a test needs it.
+- `random_event: lick_paw` calls `play_random_event` as HA does. It plays
+  that event of the active persona. `random_event: ""` picks one.
+- These scenarios live in
+  [demos/scenarios/random_events/](../demos/scenarios/random_events/).
+  A scenario in a subfolder is a test only: it makes no GIF for the
+  gallery or the README. Its golden pictures live in a matching
+  subfolder, such as `tests/golden/pixel-corgi/random_events/spell/`.
+- Name one by its subfolder and name, or by its name alone:
+  `make golden SCENARIO=random_events/spell` or `SCENARIO=spell`.
+- A Python test marks itself with `@pytest.mark.events` to run on that
+  build, and calls `device.random_event("lick_paw")`.
+
 ## Screen tests
 
 ```sh

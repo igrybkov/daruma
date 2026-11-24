@@ -467,6 +467,7 @@ def _poly_mask(f: Frame, pts: list[tuple[float, float]]) -> Image.Image:
 
 
 def _smooth(m: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Clean a curve's edge: drop lone tips (one side neighbour), fill notches (three)."""
     n = _neighbours(m)
     tips = intersect(m, n.point(lambda v: 255 if v <= 1 else 0, "1"))
@@ -475,6 +476,7 @@ def _smooth(m: Image.Image) -> Image.Image:
 
 
 def _neighbours(m: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Per pixel, how many of its four side neighbours are in m: an "L" image of 0..4."""
     one = m.point(lambda v: 1 if v else 0, "L")
     total = Image.new("L", m.size, 0)
@@ -486,6 +488,7 @@ def _neighbours(m: Image.Image) -> Image.Image:
 
 
 def _trim_caps(m: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Drop a short top or bottom row sitting on a much longer one: the nub a curve leaves."""
     runs = _row_runs(m)
     rows = [y for y, n in enumerate(runs) if n]
@@ -498,12 +501,14 @@ def _trim_caps(m: Image.Image) -> Image.Image:
 
 
 def _row_runs(m: Image.Image) -> list[int]:
+    # Timing probe: not for merge.
     """How many pixels of m are set in each row."""
     data, w = m.convert("L").tobytes(), m.width
     return [w - data[y * w : (y + 1) * w].count(0) for y in range(m.height)]
 
 
 def _mirror(m: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     """Upright, the doll is exactly symmetric: copy the left half onto the right."""
     out = m.copy()
     left = 2 * CX + 1 - min(W, 2 * CX + 1)  # The leftmost column whose mirror is on the canvas.
@@ -512,16 +517,19 @@ def _mirror(m: Image.Image) -> Image.Image:
 
 
 def _crescent(m: Image.Image, dx: int, dy: int) -> Image.Image:
+    # Timing probe: not for merge.
     """Pixels of m that are not in m shifted by (dx, dy): a rim on the far side."""
     return subtract(m, moved(m, dx, dy))
 
 
 def _fill(c: Canvas, m: Image.Image, color) -> None:
+    # Timing probe: not for merge.
     c.img.paste((*color, 255), mask=m)
     c.body.paste(ImageChops.logical_or(c.body, m))
 
 
 def _only(m: Image.Image, keep: Image.Image) -> Image.Image:
+    # Timing probe: not for merge.
     return intersect(m, keep)
 
 
@@ -840,6 +848,7 @@ plant, PLANT_STAGES, DEFAULT_STAGE = _bonsai["plant"], _bonsai["PLANT_STAGES"], 
 
 
 def glass() -> set[tuple[int, int]]:
+    # Timing probe: not for merge.
     """Room pixels that show the sky."""
     x0, y0, w, h = WINDOW
     return {(x, y) for y in range(y0, y0 + h) for x in range(x0, x0 + w)}

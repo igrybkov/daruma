@@ -221,6 +221,7 @@ def _cushion(img: Image.Image, r: LivingRoom) -> None:
 
 
 def _throw(img: Image.Image, r: LivingRoom) -> None:
+    # Timing probe: not for merge.
     """A knitted throw over the left arm: it lies over the roll, hangs down
     the front of the arm to a fringe, and one corner spills onto the seat.
     Drawn in its three colors only (outline included), so the device can

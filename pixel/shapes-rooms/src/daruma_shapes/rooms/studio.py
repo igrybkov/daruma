@@ -96,6 +96,7 @@ def _is_bar(x: int, y: int) -> bool:
 
 
 def _wall_tone(x: int, y: int, tones: int) -> int:
+    # Timing probe: not for merge.
     """Which wall paint, lightest first: light from the window falls off toward
     the floor and the backdrop. A thin checker where two tones meet."""
     t = math.hypot(x - 13, (y - 18) * 0.8) / 14 + max(0, y - 46) / 10 + max(0, x - 22) / 8

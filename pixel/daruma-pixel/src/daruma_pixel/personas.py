@@ -129,6 +129,7 @@ class Persona:
 
 
 def rgb565(img: Image.Image) -> bytes:
+    # Timing probe: not for merge.
     """Pixels at the screen's color depth; transparent ones as a marker no color can hit.
 
     Three bytes a pixel: red >> 3, green >> 2, blue >> 3, or ff ff ff where
@@ -154,11 +155,13 @@ class Under:
 
 
 def under(layers) -> Under:
+    # Timing probe: not for merge.
     plant = layers.plant(layers.DEFAULT_STAGE, False) if hasattr(layers, "plant") else None
     return Under(layers.background(), plant)
 
 
 def check_layers(layers, pose, below: Under | None = None, fg: Image.Image | None = None) -> None:
+    # Timing probe: not for merge.
     """Stacked layers must equal the full scene. The hole shows the room's own glass.
 
     `below` and `fg` are the layers already drawn, if the caller has them.
@@ -216,6 +219,7 @@ def build(name: str, module: ModuleType | str | None = None) -> Persona:
 
 
 def build_spec(s: Spec) -> Persona:
+    # Timing probe: not for merge.
     background, layers, source = s.background, s.layers, s.animations
 
     poses = []

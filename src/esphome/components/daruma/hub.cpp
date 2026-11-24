@@ -59,6 +59,12 @@ void Hub::loop() {
 
   if (!this->message_.empty() && (int32_t) (now - this->message_until_) >= 0)
     this->clear_message();
+  // Messages that waited for a hold: the next one once the bubble is free.
+  if (this->message_.empty() && !this->card_queue_.empty() && !this->holds_cards()) {
+    QueuedMessage next;
+    if (this->card_queue_.pop(now, this->card_limits_, &next))
+      this->show_card_(next.text, next.seconds);
+  }
 
   for (size_t i = 0; i < this->inputs_.size(); i++) {
     const Gesture g = this->inputs_[i].press.tick(now, this->bound_mask_(i));
@@ -214,7 +220,7 @@ std::string Hub::sound_for(StateId state) const {
 StateId Hub::compute_mood_() {
   if (this->has_forced_mood_)
     return this->forced_mood_;
-  if (this->muted() || this->sleeping)
+  if (this->muted() || this->sleeping || this->asleep_)
     return StateId::SLEEPING;
   if (this->sleepy)
     return StateId::SLEEPY;
@@ -271,6 +277,11 @@ void Hub::set_mute(bool muted) {
   this->dirty_ = true;
 }
 
+void Hub::set_asleep(bool asleep) {
+  this->asleep_ = asleep;
+  this->dirty_ = true;
+}
+
 void Hub::set_hardware_mute(bool muted) {
   this->hardware_mute_ = muted;
   this->dirty_ = true;
@@ -281,6 +292,39 @@ bool Hub::has_happiness_changed_(uint32_t ms) const { return esphome::millis() -
 bool Hub::has_mood_changed_(uint32_t ms) const { return esphome::millis() - this->last_mood_change_ < ms; }
 
 // --- Message bubble -----------------------------------------------------------
+
+bool Hub::holds_cards() const {
+  for (const auto &hold : this->card_holds_) {
+    if (hold())
+      return true;
+  }
+  return false;
+}
+
+void Hub::post_message(const std::string &text, int seconds) {
+  if (text.empty()) {
+    this->clear_message();
+    return;
+  }
+  // Behind the ones still waiting, so they keep their order.
+  if (this->holds_cards() || !this->card_queue_.empty()) {
+    this->card_queue_.push(text, seconds, esphome::millis(), this->card_limits_);
+    ESP_LOGD(TAG, "Message waits (%u in all)", (unsigned) this->card_queue_.size());
+    return;
+  }
+  this->show_card_(text, seconds);
+}
+
+void Hub::show_card_(const std::string &text, int seconds) {
+  // A new message chimes; the same one again does not.
+  if (this->message_ != text)
+    this->play_sound("notify");
+  this->show_message(text, seconds);
+  this->poke();
+  this->scheduler_.invalidate();
+}
+
+void Hub::poke() { this->last_activity_ = esphome::millis(); }
 
 void Hub::show_message(const std::string &text, int seconds) {
   this->message_ = text;
@@ -496,6 +540,10 @@ void Hub::render(esphome::display::Display &display) {
       if (!r.empty())
         UiTree::add("target", entry.first, r, false, entry.second.action);
     }
+    // The message bubble, over the lower half (core's layer draws it).
+    if (!this->message_.empty())
+      UiTree::add("text", this->message_,
+                  Rect{0, this->layout_.height / 2, this->layout_.width, this->layout_.height / 2});
   }
 }
 
@@ -561,17 +609,33 @@ bool Hub::draw_idle_delta(esphome::display::Display &display) {
   return true;
 }
 
-Rect Hub::info_line() const {
-  if (!this->info_used_)
-    return Rect{};
-  switch (this->theme().info_line) {
+// The info line's place for the current persona, used or not.
+static Rect info_place(const Layout &layout, InfoPlace place) {
+  switch (place) {
     case InfoPlace::TOP:
-      return this->layout_.info_top;
+      return layout.info_top;
     case InfoPlace::OFF:
       return Rect{};
     default:
-      return this->layout_.info;
+      return layout.info;
   }
+}
+
+Rect Hub::info_mark() const {
+  const Rect place = info_place(this->layout_, this->theme().info_line);
+  if (!this->info_mark_ || place.empty())
+    return Rect{};
+  return Rect{place.x + place.w - place.h, place.y, place.h, place.h};
+}
+
+Rect Hub::info_line() const {
+  if (!this->info_used_)
+    return Rect{};
+  Rect line = info_place(this->layout_, this->theme().info_line);
+  const Rect mark = this->info_mark();
+  if (!mark.empty())
+    line.w = std::max(0, line.w - mark.w - this->layout_.px(4));
+  return line;
 }
 
 void Hub::draw_still(esphome::display::Display &display, StateId state) {
@@ -762,6 +826,7 @@ void Hub::emit_(int input, Gesture gesture, int x, int y) {
   const InputSlot &slot = this->inputs_[input];
   ESP_LOGD(TAG, "Gesture: %s.%s", slot.name.c_str(), gesture_name(gesture));
   const GestureEvent event{slot.name, gesture, slot.touch, x, y};
+  this->poke();
   for (auto &filter : this->filters_) {
     if (filter.value(event)) {
       this->dirty_ = true;

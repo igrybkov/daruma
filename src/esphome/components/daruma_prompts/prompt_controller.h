@@ -32,7 +32,8 @@ class PromptController : public esphome::Component, public Module {
     this->title_font_ = title;
     this->text_font_ = text;
   }
-  // Info prompts wait while any owner holds this activity (focus).
+  // Info prompts wait while any owner holds this activity (focus), and
+  // while the hub holds cards (Do not disturb).
   void add_hold_back(StateId activity) { this->hold_back_.push_back(activity); }
   // (prompt id, choice, index, reason) for every answer, except a close from HA.
   template<typename F> void add_on_answer_callback(F &&callback) {
@@ -135,6 +136,7 @@ class PromptController : public esphome::Component, public Module {
   esphome::display::BaseFont *title_font_{nullptr};
   esphome::display::BaseFont *text_font_{nullptr};
   std::vector<StateId> hold_back_;
+  bool was_holding_{false};
   esphome::CallbackManager<void(const std::string &, const std::string &, int, const std::string &)> answer_callback_;
   esphome::CallbackManager<void(const std::string &, const std::string &, const std::string &)> shown_callback_;
 

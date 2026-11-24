@@ -105,15 +105,10 @@ api:
         message: string
         seconds: int
       then:
-        # A new message from HA chimes; the same one again does not.
-        - lambda: |-
-            const std::string text = message;
-            if (!text.empty() && id(daruma_hub).message() != text)
-              id(daruma_hub).play_sound("notify");
-        - script.execute:
-            id: show_message
-            text: !lambda return message;
-            seconds: !lambda return seconds;
+        # A new message chimes; the same one again does not. While cards
+        # are held (Do not disturb), it waits, and chimes when it shows.
+        - lambda: id(daruma_hub).post_message(message, seconds);
+        - script.execute: draw_display
     - action: wink
       then:
         - lambda: id(daruma_hub).wink();

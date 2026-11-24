@@ -15,6 +15,8 @@ yaml sets their first value.
   entity IDs, "Days ahead", and "Tasks source".
 - Persona params with `expose: true`.
 - Bindings, with `expose_bindings: true`.
+- Quiet hours: "Quiet start" and "Quiet end" (time entities) and "Dim
+  after". The module's options give their first values (`quiet.yaml`).
 - The home button action, the jokes switch and the theme options already
   work like this, or will.
 

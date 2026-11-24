@@ -1,0 +1,47 @@
+name: night
+description: >-
+  Quiet hours on the fake clock. Night falls: the screen goes dark, the
+  persona sleeps, Sounds goes off and a message waits. A tap wakes the
+  screen and does nothing else. An urgent prompt still shows. Morning
+  comes: Sounds is back and the message shows.
+personas: [Eyes]
+test_personas: [Eyes]
+setup:
+  # The clock starts at 10:00. Night is 10:01 to 10:04.
+  - set: {Quiet start: "10:01", Quiet end: "10:04"}
+  - wait: 1
+steps:
+  - expect: {entity: {name: Quiet, value: false}, state: neutral}
+  - expect: {entity: {name: Screen, value: 1.0}}
+  - skip: 60
+  - expect: {entity: {name: Quiet, value: true}, state: sleeping}
+  - expect: {entity: {name: Screen, value: 0}, timeout: 35}
+  - expect: {entity: {name: Sounds, value: false}}
+  - message: {text: Laundry is done, seconds: 300}
+  - wait: 1
+  - expect: {hidden: {text: Laundry is done}}
+  - snapshot: night
+  # The first tap only wakes the screen; the menu stays shut.
+  - tap: [160, 120]
+  - expect: {entity: {name: Screen, value: 1.0}}
+  - expect: {hidden: {text: Tasks}}
+  - expect: {entity: {name: Screen, value: 0}, timeout: 35}
+  # Urgent prompts pass Do not disturb and light the screen.
+  - prompt:
+      id: door
+      title: Doorbell
+      body: Someone is at the front door.
+      options: [Unlock, Ignore]
+      style: urgent
+  - expect: {visible: {role: button, name: Unlock}}
+  - expect: {entity: {name: Screen, value: 1.0}}
+  - tap: {role: button, name: Ignore}
+  - expect: {hidden: {role: dialog}}
+  # Morning: Sounds comes back and the message that waited shows.
+  - skip: 180
+  - expect: {entity: {name: Quiet, value: false}}
+  - expect: {entity: {name: Sounds, value: true}}
+  - expect: {visible: {text: Laundry is done}}
+  - expect: {entity: {name: Screen, value: 1.0}}
+  - wait: 1
+  - snapshot: morning

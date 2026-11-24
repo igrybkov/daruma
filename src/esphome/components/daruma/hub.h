@@ -17,6 +17,7 @@
 #include "esphome/core/color.h"
 #include "esphome/core/component.h"
 #include "persona.h"
+#include "card_queue.h"
 #include "focus.h"
 #include "gesture.h"
 #include "ha_calls.h"
@@ -199,11 +200,21 @@ class Hub : public esphome::Component {
   // audio guards live there) and shows words in the speech bubble.
   void set_sound_player(std::function<void(const std::string &)> player) { this->sound_player_ = std::move(player); }
   // Plays a sound by name through that player, which skips it when the
-  // Sounds switch is off or the speaker is busy. "" plays nothing.
-  void play_sound(const std::string &name) {
-    if (!name.empty() && this->sound_player_)
-      this->sound_player_(name);
+  // Sounds switch is off or the speaker is busy. "" plays nothing. An
+  // urgent sound plays even when Sounds is off because of a hold (see
+  // set_sounds_held()).
+  void play_sound(const std::string &name, bool urgent = false) {
+    if (name.empty() || !this->sound_player_)
+      return;
+    this->urgent_sound_ = urgent && this->sounds_held_;
+    this->sound_player_(name);
+    this->urgent_sound_ = false;
   }
+  // A module turned Sounds off for a while (Do not disturb), not the person.
+  void set_sounds_held(bool held) { this->sounds_held_ = held; }
+  // True while the player runs for an urgent sound that may pass Sounds
+  // being off. The player's guard reads it next to the Sounds switch.
+  bool urgent_sound() const { return this->urgent_sound_; }
 
   // --- Mood ---------------------------------------------------------------
   bool sleepy{false};
@@ -220,11 +231,32 @@ class Hub : public esphome::Component {
   void set_mute(bool muted);
   void set_hardware_mute(bool muted);
   bool muted() const { return this->mute_ || this->hardware_mute_; }
+  // Asleep on purpose (quiet hours): the mood stays sleeping while it lasts.
+  void set_asleep(bool asleep);
 
   // --- Message bubble -----------------------------------------------------------
   void show_message(const std::string &text, int seconds);
   void clear_message();
   const std::string &message() const { return this->message_; }
+
+  // --- Cards: messages and info prompts from Home Assistant ------------------
+  // A module holds them back while its test is true (Do not disturb). The
+  // prompts module asks holds_cards() too. When the hold ends, the waiting
+  // cards show one by one, oldest first, within card_limits().
+  void add_card_hold(std::function<bool()> hold) { this->card_holds_.push_back(std::move(hold)); }
+  bool holds_cards() const;
+  void set_card_limits(CardLimits limits) { this->card_limits_ = limits; }
+  const CardLimits &card_limits() const { return this->card_limits_; }
+  // A message from HA: shows now with the `notify` chime, or waits while
+  // cards are held. "" clears the bubble at once.
+  void post_message(const std::string &text, int seconds);
+  size_t messages_waiting() const { return this->card_queue_.size(); }
+
+  // --- Activity ----------------------------------------------------------------
+  // The last input, prompt or HA message, in millis(). The screen dims
+  // when nothing happened for a while. The bubble's own words don't count.
+  void poke();
+  uint32_t last_activity() const { return this->last_activity_; }
 
   // --- Personas --------------------------------------------------------------
   void add_persona(Persona *persona);
@@ -323,7 +355,18 @@ class Hub : public esphome::Component {
     }
   }
   // Where the line goes for the current persona; empty when unused or off.
+  // A mark takes the right end of it (set_info_mark()).
   Rect info_line() const;
+  // A small square at the right end of the info line's place, for a status
+  // mark (Do not disturb). Shown even when no module uses the line.
+  void set_info_mark(bool on) {
+    if (on != this->info_mark_) {
+      this->info_mark_ = on;
+      this->dirty_ = true;
+    }
+  }
+  bool info_mark_on() const { return this->info_mark_; }
+  Rect info_mark() const;
   bool needs_redraw();
 
   // --- Home Assistant calls that wait for a reply ------------------------------------
@@ -379,6 +422,7 @@ class Hub : public esphome::Component {
   // under a prompt leaves the prompt's input alone.
   void set_prompt_open(bool open) { this->prompt_open_ = open; }
   bool ui_open() const { return this->ui_open_ || this->prompt_open_; }
+  bool prompt_open() const { return this->prompt_open_; }
   // The last idle frame showed a screen (the menu, a prompt), not the persona.
   bool screen_shown() const { return this->screen_shown_; }
   // Higher priority is asked first. True takes the gesture.
@@ -472,9 +516,17 @@ class Hub : public esphome::Component {
   esphome::number::Number *happiness_meter_{nullptr};
   bool mute_{false};
   bool hardware_mute_{false};
+  bool asleep_{false};
+  bool sounds_held_{false};
+  bool urgent_sound_{false};
 
   std::string message_;
   uint32_t message_until_{0};
+  std::vector<std::function<bool()>> card_holds_;
+  CardLimits card_limits_;
+  CardQueue card_queue_;
+  uint32_t last_activity_{0};
+  void show_card_(const std::string &text, int seconds);
 
   std::vector<Persona *> personas_;
   Persona *persona_{nullptr};
@@ -540,6 +592,7 @@ class Hub : public esphome::Component {
   bool dirty_{true};
   Rect area_;  // Layers to redraw there, without the persona (request_area).
   bool info_used_{false};
+  bool info_mark_{false};
   bool screen_shown_{false};
   StateId drawn_state_{static_cast<StateId>(0)};
   bool drawn_valid_{false};

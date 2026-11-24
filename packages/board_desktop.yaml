@@ -35,9 +35,8 @@ host:
 # not changes a pixel's color here and there. Off everywhere, every
 # compiler draws the same pictures.
 esphome:
-  platformio_options:
-    build_flags:
-      - -ffp-contract=off
+  build_flags:
+    - -ffp-contract=off
 
 logger:
   level: DEBUG

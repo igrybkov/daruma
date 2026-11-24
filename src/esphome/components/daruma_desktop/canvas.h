@@ -35,7 +35,7 @@ class Canvas final : public esphome::display::Display {
   void draw_pixel_at(int x, int y, esphome::Color color) override {
     if (this->is_point_clipped(x, y))
       return;
-    this->buffer_.set(x, y, esphome::display::ColorUtil::color_to_565(color, esphome::display::COLOR_ORDER_RGB));
+    this->buffer_.set(x, y, esphome::display::ColorUtil::color_to_565(color));
   }
 
   // Draws the pixels that changed since the last flush onto `display`.
@@ -46,7 +46,7 @@ class Canvas final : public esphome::display::Display {
     // The values are in the host's byte order.
     const bool big_endian = __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
     display.draw_pixels_at(a.x, a.y, a.w, a.h, reinterpret_cast<const uint8_t *>(this->buffer_.data()),
-                           esphome::display::COLOR_ORDER_RGB, esphome::display::COLOR_BITNESS_565, big_endian, a.x, a.y,
+                           esphome::display::COLOR_BITNESS_565, big_endian, a.x, a.y,
                            this->buffer_.width() - a.x - a.w);
   }
 

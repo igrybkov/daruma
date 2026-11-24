@@ -385,6 +385,21 @@ empties the repository's caches before each test. It also charges a
 call made at import to every test that runs code of the same package,
 such as `daruma_personas.corgi` or `daruma_shapes.pets`.
 
+mutmut wraps every function of a mutated module in a trampoline. On
+each call it reads which mutant is on, and calls that mutant or the
+original. That made the drawing tests run about three times slower.
+`tests/mutmut_fast.py` puts a cheaper wrapper in its place. It works the
+target out once for each mutant, then calls it straight. Classmethods,
+generators, async functions and the recorded run keep mutmut's own.
+`tests/mutmut_run.py` installs it before mutmut starts.
+
+These scripts change mutmut's internals, so `uv.lock` pins mutmut. An
+upgrade can still move what they rely on. Then a test fails and names
+it: `tests/test_mutmut_fast.py` checks each internal the wrapper uses,
+and that it calls what mutmut's own would. A small real run in
+`tests/test_mutate_py.py` checks that each mutant runs under the cheap
+wrapper, and still kills and finds the planted mutants.
+
 mutmut runs the tests from a copy of the checkout in `mutants/`. The
 copy takes every top-level entry git tracks (`also_copy`). A test fails
 when a new one is missing there.

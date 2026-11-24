@@ -25,9 +25,13 @@ repository's caches before each test. With forkserver_warmup = "import" and only
 outside modules in tests/mutmut_preload.txt, each mutant imports the
 repository's modules afresh, with the mutant on.
 
-It changes three functions inside mutmut, a version uv.lock pins.
+It changes four functions inside mutmut, a version uv.lock pins.
 mutate_py.py fails when a mutant name still starts with a path
 (STRAY_PREFIXES): a newer mutmut that moves them would show up there.
+
+It also puts mutmut_fast.py's cheaper trampoline in place first, before
+any module of ours is imported. tests/test_mutmut_fast.py fails when a
+mutmut upgrade breaks it or drops it.
 """
 
 from __future__ import annotations
@@ -123,6 +127,10 @@ class ClearCaches:
 
 
 def _patch() -> None:
+    import mutmut_fast
+
+    mutmut_fast.install()
+
     import mutmut.__main__ as main
     import mutmut.mutation.file_mutation as file_mutation
     import mutmut.mutation.trampoline as trampoline

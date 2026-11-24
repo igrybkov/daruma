@@ -137,15 +137,28 @@ def test_the_mutants_copy_has_every_top_level_entry() -> None:
 
 
 # A module with a gap: no test tells `>=` from `>`, because none passes 0.
+# The call at import runs in mutmut's fork server, before it forks a
+# mutant: a trampoline that kept its target past the fork would miss the
+# mutant, and no mutant would be killed.
 MODULE = """def sign(n):
     if n >= 0:
         return 1
     return -1
+
+
+ONE = sign(1)
 """
-TEST = """from pkg.mod import sign
+# In a mutant child the test notes whether sign is mutmut_fast's trampoline.
+TEST = """import os
+
+from pkg.mod import sign
 
 
 def test_sign():
+    mutant = os.environ.get("MUTANT_UNDER_TEST", "")
+    if "__mutmut_" in mutant:
+        with open(os.environ["DARUMA_PROBE"], "a") as probe:
+            probe.write(f"{mutant} {getattr(sign, '_daruma_fast', False)}\\n")
     assert sign(5) == 1
     assert sign(-5) == -1
 """
@@ -189,11 +202,19 @@ def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, ca
     (tmp_path / "tests" / "test_mod.py").write_text(TEST)
     monkeypatch.setattr(mutate_py, "ROOT", tmp_path)
     monkeypatch.setattr(changed_lines, "ROOT", tmp_path)
+    probe = tmp_path / "probe.txt"
+    monkeypatch.setenv("DARUMA_PROBE", str(probe))
 
     assert mutate_py.run_diff("main") == 1
     out = capsys.readouterr().out
     assert "Survived: a test runs the line but misses the change (2):\nsrc/pkg/mod.py:2: pkg.mod.x_sign" in out
     assert "+ if n > 0:" in out
+    status = mutate_py.results()
+    assert "killed" in status.values(), status
+    # tests/mutmut_fast.py: a mutmut upgrade must not drop the cheap trampoline.
+    seen = dict(line.split() for line in probe.read_text().splitlines())
+    assert set(seen) == set(status), "each mutant ran the probe test"
+    assert set(seen.values()) == {"True"}, "a mutant ran under mutmut's own trampoline, not mutmut_fast's"
 
 
 def test_mutmut_past_its_minutes_stops_with_its_children(tmp_path: Path, monkeypatch) -> None:

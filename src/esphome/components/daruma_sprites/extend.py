@@ -51,6 +51,7 @@ def _repeats(line: list, p: int) -> bool:
 
 
 def _strip(lines: list[list], max_period: int = MAX_PERIOD) -> list[list]:
+    # A one-line probe: time a small pull request.
     """The first p pixels of every line, from the edge inward. A line that
     does not repeat every p pixels may repeat with a shorter period that
     divides p (a floor row repeats every pixel); else it borrows the nearest

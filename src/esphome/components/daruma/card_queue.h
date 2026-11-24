@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <deque>
 #include <string>
+#include <utility>
 
 namespace Daruma {
 
@@ -40,10 +41,10 @@ class CardQueue {
   // The oldest message still in time. False when none is left.
   bool pop(uint32_t now, const CardLimits &limits, QueuedMessage *out) {
     while (!this->queue_.empty()) {
-      QueuedMessage m = this->queue_.front();
+      QueuedMessage m = std::move(this->queue_.front());
       this->queue_.pop_front();
       if (now - m.arrived <= limits.keep_ms) {
-        *out = m;
+        *out = std::move(m);
         return true;
       }
     }

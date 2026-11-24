@@ -105,6 +105,32 @@ looks like in its own package. A persona never imports another persona.
     the build before. A pixel persona's frames take tens of KB, not
     hundreds.
 
+## Optional: random events
+
+A persona may play quirks now and then: a paw lick, a sneeze, a line in
+a bubble. Ask the person which quirks fit the character. Skip this when
+they want none.
+
+1. **Draw the quirks.** Add each as an animation in `ANIMATIONS`, with a
+   name no state uses (`LickPaw`, not `Petted`). A one-shot plays once
+   and holds its last frame. Start and end it on the neutral pose. A
+   spell needs a loop, and optionally an enter and an exit. Copy the
+   corgi's `pixel/persona-corgi/src/daruma_personas/corgi/quirks.py`.
+2. **Look at them** in `sheet.png`, as in step 4.
+3. **Declare them** in the package's `random_events:`, as
+   `packages/persona_pixel_corgi.yaml` does. Keep most at frequency 8
+   or lower. The keys and the frequency table are in
+   [customize.md](../customize.md#random-events-quirks-now-and-then).
+4. **Test them.** Add a scenario to `demos/scenarios/random_events/`
+   with `build: events`, a `random_event:` step per quirk and a snapshot
+   mid-animation. Copy `one_shots.yaml` there. Then write its golden
+   pictures and look at them:
+   `make update-golden CONFIRM=1 PERSONA="<Name>" SCENARIO=<scenario>`.
+
+A picture persona has say-only events: `say:` and `sound:`, no
+animation. See
+[customize.md](../customize.md#pictures-say-only-events).
+
 ## Picture personas
 
 Draw PNGs up to 320x240 named after the states (`neutral.png`,

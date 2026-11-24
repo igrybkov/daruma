@@ -2,6 +2,7 @@
 
     uv run python tests/mutate_py.py               every mutant: a report
     uv run python tests/mutate_py.py --diff BASE   the lines changed since BASE
+    ... --shard 2/3                                one of three parts of either run
 
 mutmut changes the code one small step at a time (a `<` to a `<=`, a
 `True` to a `False`) and runs the tests that reach it. A change no test
@@ -13,6 +14,12 @@ what most of the drawing code is checked against.
 --diff runs only the functions the branch changed. It fails when a
 mutant on a changed line survives, or no test reaches it. Mark a line
 `# pragma: no mutate` when no test can tell the change apart.
+
+--shard K/N runs one of N parts, so N runners can share a run. A part is
+a set of whole functions. Each function goes to the part with the least
+cost so far, biggest first: the persona and shape functions cost the
+most, since their mutants run the persona tests. Each part reports only
+its own mutants. A mutant in no part, or in two, stops the run.
 """
 
 from __future__ import annotations
@@ -83,6 +90,73 @@ def functions(path: str) -> list[tuple[str, int, int]]:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     out.append((f"xǁ{node.name}ǁ{item.name}", item))
     return [(key, min([n.lineno] + [d.lineno for d in n.decorator_list]), n.end_lineno) for key, n in out]
+
+
+# What a mutant's tests cost, per line of its function, by its module's prefix.
+WEIGHTS = (("daruma_personas.", 10), ("daruma_shapes.", 3), ("daruma_pixel", 2))
+
+
+def weight(module: str) -> int:
+    return next((w for prefix, w in WEIGHTS if module.startswith(prefix)), 1)
+
+
+def source_files() -> list[str]:
+    """Every Python file under [tool.mutmut] source_paths, relative to ROOT."""
+    out = set()
+    for entry in source_paths():
+        path = ROOT / entry
+        for file in [path] if path.is_file() else path.rglob("*.py"):
+            out.add(file.relative_to(ROOT).as_posix())
+    return sorted(out)
+
+
+def all_targets() -> dict[str, tuple[str, tuple[int, int]]]:
+    """Mutant-name glob -> (path, function span), for every function."""
+    return {
+        f"{module_name(path)}.{key}__mutmut_*": (path, (first, last))
+        for path in source_files()
+        for key, first, last in functions(path)
+    }
+
+
+def shards(targets: dict[str, tuple[str, tuple[int, int]]], count: int) -> list[list[str]]:
+    """The globs split into `count` parts of about equal cost, the same way each time."""
+
+    def cost(glob: str) -> int:
+        path, (first, last) = targets[glob]
+        return weight(module_name(path)) * (last - first + 1)
+
+    parts: list[list[str]] = [[] for _ in range(count)]
+    loads = [0] * count
+    for glob in sorted(targets, key=lambda g: (-cost(g), g)):
+        part = min(range(count), key=lambda i: (loads[i], i))
+        parts[part].append(glob)
+        loads[part] += cost(glob)
+    return parts
+
+
+class Unsharded(Exception):
+    """A mutant is in no part, or in more than one."""
+
+
+def check_shards(names: list[str], parts: list[list[str]]) -> None:
+    """Fails unless each mutant name belongs to exactly one part."""
+    part_of: dict[str, int] = {}
+    for index, part in enumerate(parts):
+        for glob in part:
+            if glob in part_of or any(c in glob[: -len("__mutmut_*")] for c in "*?["):
+                raise Unsharded(f"{glob} is in more than one part, or has glob characters")
+            part_of[glob] = index
+    if missing := sorted(n for n in names if _glob(n) not in part_of):
+        raise Unsharded(f"{len(missing)} mutants in no part, such as {missing[0]}")
+
+
+def parse_shard(text: str) -> tuple[int, int]:
+    """'2/3' -> (1, 3): the part's index from 0, and the number of parts."""
+    k, _, n = text.partition("/")
+    if not (k.isdigit() and n.isdigit() and 1 <= int(k) <= int(n)):
+        raise argparse.ArgumentTypeError(f"--shard takes K/N with 1 <= K <= N, not {text!r}")
+    return int(k) - 1, int(n)
 
 
 def mutant_module(name: str) -> str:
@@ -188,12 +262,20 @@ def mutant_lines(name: str, file_lines: list[str], span: tuple[int, int]) -> lis
     return out
 
 
-def run_all() -> int:
-    run = mutmut("run", check=False)
+def run_all(shard: tuple[int, int] = (0, 1)) -> int:
+    targets = all_targets()
+    parts = shards(targets, shard[1])
+    mine = parts[shard[0]]
+    run = mutmut("run", *(mine if shard[1] > 1 else []), check=False)
     if run.returncode:
         print(tail(run.stdout + run.stderr), "mutmut failed.", sep="\n")
         return run.returncode
-    print(report(results()))
+    status = results()
+    check_shards(list(status), parts)
+    if shard[1] > 1:
+        print(f"Part {shard[0] + 1} of {shard[1]}: {len(mine)} of {len(targets)} functions.")
+        status = {n: s for n, s in status.items() if _glob(n) in set(mine)}
+    print(report(status))
     return 0
 
 
@@ -207,18 +289,25 @@ def _targets(changed: dict[str, set[int]]) -> dict[str, tuple[str, tuple[int, in
     return targets
 
 
-def run_diff(base: str, minutes: float | None = None) -> int:
+def run_diff(base: str, minutes: float | None = None, shard: tuple[int, int] = (0, 1)) -> int:
     changed = changed_lines(base, source_paths())
-    targets = _targets(changed)
-    if not targets:
+    every = _targets(changed)
+    if not every:
         print(f"No changed functions in {', '.join(source_paths())} since {base}: nothing to mutate.")
+        return 0
+    parts = shards(every, shard[1])
+    targets = {glob: every[glob] for glob in parts[shard[0]]}
+    if not targets:
+        print(f"Part {shard[0] + 1} of {shard[1]} has none of the {len(every)} changed functions.")
         return 0
     try:
         run = mutmut("run", *targets, check=False, minutes=minutes)
     except OutOfTime:
         run = None
     modules = sorted({module_name(path) for path, _ in targets.values()})
-    if missing := stray_names(list(results()), modules):
+    names = list(results())
+    check_shards([n for n in names if _glob(n) in every], parts)
+    if missing := stray_names(names, modules):
         print(f"mutmut has no mutants under the module names {missing}: tests/mutate_py.py names them wrong.")
         return 1
     if run is None:
@@ -276,11 +365,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--diff", metavar="BASE", help="only the lines changed since the merge base with BASE")
     parser.add_argument("--minutes", type=float, help="--diff: stop mutmut after this long, and fail")
+    parser.add_argument("--shard", type=parse_shard, default=(0, 1), metavar="K/N", help="run part K of N")
     args = parser.parse_args()
     try:
-        return run_diff(args.diff, args.minutes) if args.diff else run_all()
+        return run_diff(args.diff, args.minutes, args.shard) if args.diff else run_all(args.shard)
     except StrayNames as err:
         print(f"{err}: tests/mutmut_run.py maps the layouts to import names.")
+        return 1
+    except Unsharded as err:
+        print(f"{err}: tests/mutate_py.py splits the mutants by function.")
         return 1
 
 

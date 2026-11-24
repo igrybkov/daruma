@@ -26,6 +26,7 @@ GROUP ?= ## One dependency group for setup: test, lint, tidy, dev or esphome
 CONFIRM ?= ## Set to 1 to let update-golden write golden pictures
 BUILD_REF ?= ci-head## The scratch branch that config and compile point at HEAD (default: ci-head)
 BASE ?= origin/main## What mutate-diff compares with, from the merge base (default: origin/main)
+SHARD ?= ## Part K of N of a mutation run, such as 2/3 (default: the whole run)
 
 # DARUMA_WORK is the scratch folder of record.py (--out) and pytest. Empty
 # means each uses its default temp folder.
@@ -156,20 +157,24 @@ test-cpp: ## Host tests in C++, through pytest (PYTEST_ARGS="-k layout" for one)
 	$(UV_RUN) pytest tests -m cpp $(PYTEST_ARGS)
 
 # Mutation tests (docs/testing.md). Python, then C++; both run when the
-# first fails.
-mutate: ## Mutation tests of all the code the host tests reach: a report, never fails on survivors
+# first fails. SHARD=K/N runs part K of N of the Python mutants; the C++
+# runs in part 1 only.
+MUTATE_SHARD = $(if $(SHARD),--shard $(SHARD))
+MUTATE_CPP = $(if $(filter-out 1/%,$(SHARD)),true,$(UV_RUN) python tests/mutate_cpp.py)
+
+mutate: ## Mutation tests of all the code the host tests reach: a report, never fails on survivors (SHARD=K/N for one part)
 	@status=0; \
-	$(UV_RUN) python tests/mutate_py.py || status=1; \
-	$(UV_RUN) python tests/mutate_cpp.py || status=1; \
+	$(UV_RUN) python tests/mutate_py.py $(MUTATE_SHARD) || status=1; \
+	$(MUTATE_CPP) || status=1; \
 	exit $$status
 
 # A fresh mutants/ each time, as in CI: mutmut keeps old mutants when only
 # a comment changed, so it would miss a new pragma.
-mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant (MINUTES= caps the Python run)
+mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant (MINUTES= caps the Python run, SHARD=K/N)
 	rm -rf mutants
 	@status=0; \
-	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' $(if $(MINUTES),--minutes $(MINUTES)) || status=1; \
-	$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)' || status=1; \
+	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' $(if $(MINUTES),--minutes $(MINUTES)) $(MUTATE_SHARD) || status=1; \
+	$(MUTATE_CPP) --diff '$(BASE)' || status=1; \
 	exit $$status
 
 screens: secrets ## The golden check and the screen tests, in one pytest run (PERSONA=, SCENARIO=, PYTEST_ARGS=)

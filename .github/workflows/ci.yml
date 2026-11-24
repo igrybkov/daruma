@@ -76,14 +76,22 @@ jobs:
   # Mutation tests of the lines a pull request changes (docs/testing.md).
   # It fails on a mutant no test catches, but it is not a required check:
   # a person decides whether to add a test or mark the line.
-  mutation:
-    name: Mutation tests (changed lines)
+  mutation-part:
+    name: Mutation tests (changed lines, part ${{ matrix.shard }}/3)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
+    # Three runners share the changed functions (tests/mutate_py.py
+    # --shard). Each part fails on its own survivors, so the job fails
+    # when any part does.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # A change to drawing code runs the persona tests for each mutant.
     # MINUTES stops the Python run first, so a big pull request reports
-    # what it found instead of timing out.
-    timeout-minutes: 15
+    # what it found instead of timing out. A part has a third of the
+    # mutants, but each part still pays for mutmut's recorded run.
+    timeout-minutes: 11
     # As in the host tests job, so its cache matches.
     env:
       CXX: ccache c++
@@ -112,10 +120,24 @@ jobs:
       - name: Run the mutation tests
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: make mutate-diff BASE="$BASE" MINUTES=12 UV_RUN="uv run --no-sync"
+          SHARD: ${{ matrix.shard }}/3
+        run: make mutate-diff BASE="$BASE" MINUTES=8 SHARD="$SHARD" UV_RUN="uv run --no-sync"
       - name: Show the ccache counters
         if: ${{ !cancelled() }}
         uses: ./.github/actions/ccache-save
+
+  # One check for the three parts: it fails when a part found a survivor.
+  mutation:
+    name: Mutation tests (changed lines)
+    needs: [mutation-part]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          PARTS: ${{ needs.mutation-part.result }}
+        run: test "$PARTS" = success
 
   # Every check runs, even after one fails, so one run shows them all.
   lint:

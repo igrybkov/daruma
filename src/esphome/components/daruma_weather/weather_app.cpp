@@ -5,6 +5,7 @@
 #include "esphome/components/api/api_server.h"
 #include "esphome/components/daruma/text.h"
 #include "esphome/components/daruma/ui_tree.h"
+#include "esphome/core/alloc_helpers.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 

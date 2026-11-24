@@ -3,7 +3,7 @@ draws them, on the rectangles prompt_layout.h computes from the hub's
 Layout. Drawn at 320x240 (the BOX-3) and 480x272 (variant_wide.yaml, with
 its larger fonts).
 
-    uvx --python 3.14 --from esphome==2026.10.2 python \
+    uvx --python 3.14 --from esphome==2026.11.0 python \
         tests/prompt_preview.py <out dir> <Manrope 700 ttf> <Manrope 800 ttf>
 
 The fonts are the ones ESPHome downloads into .esphome/font/ on a compile.

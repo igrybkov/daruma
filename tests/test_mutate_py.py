@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -264,3 +265,15 @@ def test_mutmut_past_its_minutes_stops_with_its_children(tmp_path: Path, monkeyp
         for _ in range(50):
             os.kill(pid, 0)
             time.sleep(0.1)
+
+
+def test_a_plan_switch_never_reaches_a_run_a_test_starts(tmp_path: Path, monkeypatch) -> None:
+    script = tmp_path / "env.py"
+    script.write_text("import json, os, sys\nprint(json.dumps(dict(os.environ)))\n")
+    monkeypatch.setattr(mutate_py, "SHIM", script)
+    monkeypatch.setenv(mutate_py.PLAN, "1")
+    monkeypatch.setenv(mutate_py.NO_STATS, "1")
+    seen = json.loads(mutate_py.mutmut("results").stdout)
+    assert mutate_py.PLAN not in seen and mutate_py.NO_STATS not in seen
+    seen = json.loads(mutate_py.mutmut("results", env={mutate_py.NO_STATS: "1"}).stdout)
+    assert seen[mutate_py.NO_STATS] == "1", "a switch passed on purpose gets through"

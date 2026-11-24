@@ -64,7 +64,10 @@ def mutmut(
 ) -> subprocess.CompletedProcess:
     """Runs mutmut through the shim. Past `minutes` it stops mutmut and
     every process it started, and raises OutOfTime."""
-    env = {k: v for k, v in os.environ.items() if k != "DARUMA_SKIP_PERSONAS"} | (env or {})
+    # A plan's or a part's switch is for this run only, never for a run a
+    # test starts inside it (the planted run in test_mutate_py.py).
+    dropped = {"DARUMA_SKIP_PERSONAS", PLAN, NO_STATS}
+    env = {k: v for k, v in os.environ.items() if k not in dropped} | (env or {})
     command = [sys.executable, str(SHIM), *args]
     with subprocess.Popen(
         command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True

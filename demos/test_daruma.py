@@ -387,3 +387,23 @@ def test_rug_follows_the_local_weekday(device):
     assert rug_day(device) == "Saturday"
     device.advance(60)
     assert rug_day(device) == "Sunday"
+
+
+def played(device) -> list:
+    """The random events the device has played."""
+    return [e for e in device.events if e.type == "esphome.daruma_random_event"]
+
+
+@pytest.mark.events
+@pytest.mark.persona("Pixel corgi")
+def test_play_random_event(device):
+    # A name the persona has no event for: a warning, and nothing plays.
+    device.random_event("no_such_event")
+    device.advance(1)
+    assert "has no event 'no_such_event'" in (device.workdir / "device.log").read_text()
+    assert not played(device), device.events
+    # An empty name rolls the pool: one event plays.
+    device.random_event("")
+    event = expect(device).to_fire_event("esphome.daruma_random_event", persona="pixel_corgi", manual="true")
+    assert event.data["name"] in {"look_out_window", "lick_paw", "scratch_nose", "sneeze", "walk_q", "bathroom"}
+    assert len(played(device)) == 1

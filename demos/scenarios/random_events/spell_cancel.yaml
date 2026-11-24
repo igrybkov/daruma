@@ -1,0 +1,35 @@
+name: spell_cancel
+description: >-
+  The bathroom trip cut short. A tap while the corgi is away brings it back
+  at once, with no walk back, and the tap opens the menu. Then a pet does
+  the same: the petted reaction plays, and the trip is over.
+build: events
+personas: []
+test_personas: [Pixel corgi]
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  # A tap while away, with its "brb" still up: the trip and its words end,
+  # and the tap reaches the menu.
+  - random_event: bathroom
+  - wait: 3.5
+  - snapshot: away
+  - tap: [160, 100]
+  - expect: {visible: {text: More}}
+  - snapshot: menu
+  # Closed well inside the time WalkBack would take: the corgi sits home.
+  - press: home
+  - expect: {hidden: {text: More}}
+  - wait: 0.3
+  - snapshot: back-at-once
+  # A pet while away: the reaction ends the trip and plays.
+  - random_event: bathroom
+  - wait: 4.5
+  - snapshot: away-again
+  - show: petted
+  - wait: 0.5
+  - snapshot: petted
+  # After the reaction: home, no sign.
+  - wait: 2.5
+  - snapshot: after-petted

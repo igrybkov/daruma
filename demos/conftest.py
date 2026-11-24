@@ -10,6 +10,7 @@ workers share that build, and each device takes a free API port.
 
     @pytest.mark.persona("Pixel corgi")      # default: Eyes
     @pytest.mark.failing("todo.get_items")   # "HA" refuses these actions
+    @pytest.mark.events                      # the build with random events
     def test_pet(device):
         device.pet()
         expect(device).to_have_state("petted")
@@ -77,6 +78,7 @@ def pytest_configure(config):
         "markers", "clock(epoch=..., timezone=...): the wall clock at start and the time zone (default New York)"
     )
     config.addinivalue_line("markers", "failing(*actions): HA actions the runner refuses, until the test clears them")
+    config.addinivalue_line("markers", "events: the device runs the build with random events (`build: events`)")
     config.addinivalue_line("markers", "scenario: a scenario file run as a test (scenarios/*.yaml)")
     private = persona_path.personas()
     known = desktop_personas() + list(private)
@@ -226,7 +228,10 @@ def _shared_build(work: Path, run_id: str, *, events: bool = False) -> Build:
 
 
 @pytest.fixture
-def device(request, device_build, tmp_path):
+def device(request, tmp_path):
+    # By name, so a session compiles only the builds its tests use.
+    events = request.node.get_closest_marker("events") is not None
+    device_build = request.getfixturevalue("events_build" if events else "device_build")
     marker = request.node.get_closest_marker("persona")
     persona = marker.args[0] if marker else DEFAULT_PERSONA
     clock = request.node.get_closest_marker("clock")

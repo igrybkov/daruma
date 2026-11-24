@@ -1,0 +1,28 @@
+name: one_shots
+description: >-
+  The pixel corgi's one-shot quirks, each caught mid-animation: a look out
+  the window, a paw lick, a nose scratch and a sneeze.
+build: events
+personas: []
+test_personas: [Pixel corgi]
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - random_event: look_out_window
+  - expect: {event: {type: esphome.daruma_random_event, name: look_out_window}}
+  - wait: 0.9
+  - snapshot: look-out-window
+  - wait: 3
+  - random_event: lick_paw
+  - wait: 0.25
+  - snapshot: lick-paw
+  - wait: 3
+  - random_event: scratch_nose
+  - wait: 0.6
+  - snapshot: scratch-nose
+  - wait: 3
+  - random_event: sneeze
+  - wait: 0.83
+  - snapshot: sneeze
+  - wait: 3

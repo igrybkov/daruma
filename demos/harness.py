@@ -183,6 +183,7 @@ def build(
     *,
     variant: str = "standard",
     extra: list[Folder] | None = None,
+    events: bool = False,
     port: int = 6053,
     quiet: bool = True,
 ) -> Build:
@@ -191,17 +192,18 @@ def build(
     `variant` picks the screen: standard (320x240), wide (480x272) or square
     (240x240). `extra` are folders of persona packages (default: the ones
     DARUMA_PERSONA_PATH names, see persona_path.py); their personas are
-    marked private. One build serves every time zone: the
-    device takes its zone from "Home Assistant", as on the BOX-3.
+    marked private. `events` turns the random events engine on, with its
+    switch off: only play_random_event plays events. One build serves every
+    time zone: the device takes its zone from "Home Assistant", as on the BOX-3.
     """
     out = Path(out)
     src = out / "src"
     _copy_sources(src)
     config_dir = src / "examples"
     extra = persona_path.folders() if extra is None else extra
-    name = _build_name(variant, extra)
+    name = _build_name(variant, extra, events)
     subs = {"name": name, "desktop_api_port": str(port), **VARIANTS[variant]}
-    yaml_name, private = _write_config(config_dir, name, extra)
+    yaml_name, private = _write_config(config_dir, name, extra, events)
     cmd, env = _esphome_command(src)
     for k, v in subs.items():
         cmd += ["-s", k, v]
@@ -216,9 +218,11 @@ def build(
     return Build(program=program, clock_lib=build_clock_lib(out), port=port, private_personas=private)
 
 
-def _build_name(variant: str, extra: list[Folder]) -> str:
+def _build_name(variant: str, extra: list[Folder], events: bool = False) -> str:
     """The build's name, which is also its folder: one per kind of build."""
     name = "daruma-desktop" if variant == "standard" else f"daruma-desktop-{variant}"
+    if events:
+        name += "-events"
     if extra:
         name += "-private"  # Its own build folder: the public build stays as it is.
     if COVERAGE:
@@ -226,7 +230,9 @@ def _build_name(variant: str, extra: list[Folder]) -> str:
     return name
 
 
-def _write_config(config_dir: Path, name: str, extra: list[Folder]) -> tuple[str, dict[str, Folder]]:
+def _write_config(
+    config_dir: Path, name: str, extra: list[Folder], events: bool = False
+) -> tuple[str, dict[str, Folder]]:
     """The config file for build `name`, and its private personas with their folders."""
     if name == "daruma-desktop":
         return DEVICE_YAML, {}
@@ -238,6 +244,11 @@ def _write_config(config_dir: Path, name: str, extra: list[Folder]) -> tuple[str
     for i, pkg in enumerate(packages):
         lines.append(f"  private_{i}: !include {pkg}")
     private = persona_path.personas(extra)
+    if events:
+        # The main config merges over its packages, and a mapping replaces
+        # a `random_events: false` there. The switch starts off, so no roll
+        # plays on its own.
+        lines += ["daruma:", "  random_events:", "    enabled: false"]
     if COVERAGE:
         # Lists merge by joining, so this adds to the board's build flags.
         lines += ["esphome:", "  platformio_options:", "    build_flags:", "      - --coverage"]
@@ -842,6 +853,15 @@ class Device:
     def action(self, name: str, **data: Any) -> None:
         """Call one of the device's API actions, as an HA automation would."""
         self._call(name, **data)
+        self._settle()
+
+    def random_event(self, name: str = "") -> None:
+        """Play a random event by name, as an HA automation does. "" rolls the pool.
+
+        Only a build with the engine has the action (build(events=True)).
+        action() can't take it: its first parameter is called `name` too.
+        """
+        self._call("play_random_event", name=name)
         self._settle()
 
     def show_message(self, text: str, seconds: int = 5) -> None:

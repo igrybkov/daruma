@@ -50,6 +50,17 @@ Steps:
     expect: {hidden: {role: dialog}}
     expect: {event: {type: esphome.daruma_prompt, choice: Unlock}}
     expect: {entity: {name: Pomodoro phase, value: focus}}
+    random_event: lick_paw          play a random event by name, as HA does;
+                                    random_event: "" rolls the pool
+
+A scenario picks its desktop build with `build:`. `standard` (the
+default) has no random events. `events` turns the engine on with its
+switch off, so only `random_event` steps play events.
+
+The scenarios of a subfolder, such as random_events/, are tests only.
+all_scenarios() leaves them out, so they make no gallery or README GIF.
+pytest collects them, and their golden pictures live in a matching
+subfolder. Name one by its key: `random_events/spell`.
 
 A scenario with `stills: true` records no GIF. record.py saves each of
 its snapshots as a PNG instead: docs/demos/screens/<persona>-<name>.png.
@@ -72,9 +83,10 @@ from typing import Any
 
 import persona_path
 import yaml
-from harness import Device, DeviceError, Locator, expect
+from harness import Device, DeviceError, Locator, expect, slug
 
 SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
+BUILDS = ("standard", "events")
 
 
 @dataclass
@@ -89,6 +101,17 @@ class Scenario:
     showcase: bool = False
     gif_scale: int = 2  # The GIF's size: 2 = twice the screen, 1 = as the screen.
     stills: bool = False  # Record each snapshot as a PNG, and no GIF.
+    group: str = ""  # The subfolder of SCENARIO_DIR it is in, or "".
+    build: str = "standard"  # The desktop build it runs on: one of BUILDS.
+
+    @property
+    def key(self) -> str:
+        """The name with its subfolder, as in `random_events/spell`."""
+        return f"{self.group}/{self.name}" if self.group else self.name
+
+    def golden(self, root: Path, persona: str) -> Path:
+        """The folder of this scenario's golden pictures for `persona`."""
+        return root / slug(persona) / self.key
 
     def runs_on(self, persona: str, test: bool) -> bool:
         wanted = self.test_personas if test else self.personas
@@ -126,6 +149,10 @@ def load(name_or_path: str) -> Scenario:
 
 def _read(path: Path) -> Scenario:
     raw = yaml.safe_load(path.read_text())
+    kind = raw.get("build", "standard")
+    if kind not in BUILDS:
+        raise DeviceError(f"{path}: no build {kind!r}; builds: {', '.join(BUILDS)}")
+    in_group = path.resolve().parent.parent == SCENARIO_DIR
     return Scenario(
         name=raw.get("name", path.stem),
         path=path,
@@ -137,12 +164,19 @@ def _read(path: Path) -> Scenario:
         showcase=bool(raw.get("showcase", False)),
         gif_scale=int(raw.get("gif_scale", 2)),
         stills=bool(raw.get("stills", False)),
+        group=path.parent.name if in_group else "",
+        build=kind,
     )
 
 
 def all_scenarios() -> list[Scenario]:
-    """Daruma's own scenarios."""
+    """Daruma's own scenarios, without those of subfolders."""
     return [_read(p) for p in sorted(SCENARIO_DIR.glob("*.yaml"))]
+
+
+def group_scenarios() -> list[Scenario]:
+    """The scenarios in the subfolders of SCENARIO_DIR: tests only."""
+    return [_read(p) for p in sorted(SCENARIO_DIR.glob("*/*.yaml"))]
 
 
 def folder_scenarios(found: list[persona_path.Folder] | None = None) -> list[Scenario]:
@@ -278,6 +312,7 @@ STEPS: dict[str, Callable[[Device, Any], None]] = {
     "update_prompt": lambda device, arg: device.update_prompt(**arg),
     "snapshot": _snapshot,
     "expect": lambda device, arg: _expect(device, dict(arg)),
+    "random_event": lambda device, arg: device.random_event(str(arg or "")),
 }
 
 

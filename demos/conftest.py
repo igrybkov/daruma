@@ -22,8 +22,12 @@ trace.gif of every frame, and the actual, expected and diff pictures.
 Each scenario file (scenarios/*.yaml) is also a test: one per persona in
 its `test_personas`, named <scenario>[<persona slug>], with the marker
 `scenario`. It runs the snapshot and expect steps; its golden pictures live
-in tests/golden/<persona>/<scenario>/. `--persona` and `--scenario` narrow
-these tests. DARUMA_PERSONA_PATH adds the personas of folders outside
+in tests/golden/<persona>/<scenario>/. A scenario in a subfolder, such as
+scenarios/random_events/spell.yaml, keeps its golden pictures in the same
+subfolder: tests/golden/<persona>/random_events/spell/. A scenario with
+`build: events` runs on a second build, compiled only when a test needs
+it. `--persona` and `--scenario` narrow these tests; `--scenario` takes
+`spell` or `random_events/spell`. DARUMA_PERSONA_PATH adds the personas of folders outside
 this repository (persona_path.py), and their own scenarios
 (demos/scenarios/ there), which run on their personas only. Their golden
 pictures live in each folder's tests/golden/.
@@ -80,7 +84,7 @@ def pytest_configure(config):
     unknown = [p for p in personas if p not in known]
     if unknown:
         raise pytest.UsageError(f"No persona named {unknown}; personas: {known}")
-    names = [sc.name for sc in scenarios.every_scenario()]
+    names = [n for sc in scenarios.every_scenario() + scenarios.group_scenarios() for n in {sc.name, sc.key}]
     unknown = [n for n in _names(config.getoption("--scenario")) if n not in names]
     if unknown:
         raise pytest.UsageError(f"No scenario named {unknown}; scenarios: {names}")
@@ -101,7 +105,8 @@ def _work() -> Path:
 
 
 def pytest_collect_file(parent: pytest.Collector, file_path: Path) -> ScenarioFile | None:
-    if file_path.suffix == ".yaml" and file_path.resolve().parent == scenarios.SCENARIO_DIR:
+    folder = file_path.resolve().parent
+    if file_path.suffix == ".yaml" and scenarios.SCENARIO_DIR in (folder, folder.parent):
         return ScenarioFile.from_parent(parent, path=file_path)
     return None
 
@@ -131,7 +136,7 @@ class ScenarioFile(pytest.File):
     def collect(self) -> Iterator[pytest.Function]:
         sc = self.scenario or scenarios.load(str(self.path))
         wanted = _names(self.config.getoption("--scenario"))
-        if wanted and sc.name not in wanted:
+        if wanted and not {sc.name, sc.key} & set(wanted):
             return
         for persona in self.config.stash[_PERSONAS]:
             if sc.runs_on(persona, test=True):
@@ -143,15 +148,17 @@ class ScenarioFile(pytest.File):
 
 
 def _scenario_test(sc: scenarios.Scenario, persona: str) -> Callable[..., None]:
-    def test(request, device_build, tmp_path):
+    def test(request, tmp_path):
         folder = request.config.stash[_PRIVATE].get(persona)
         golden_root = folder.scenario_golden if folder else GOLDEN_DIR
+        # By name, so a session compiles only the builds its scenarios use.
+        b = request.getfixturevalue("events_build" if sc.build == "events" else "device_build")
         device = Device(
-            device_build,
+            b,
             tmp_path,
             persona=persona,
             window=request.config.getoption("--window"),
-            golden=golden_root / slug(persona) / sc.name,
+            golden=sc.golden(golden_root, persona),
             update_golden=request.config.getoption("--update-golden"),
         )
         with _running(request, device, before_recording=lambda d: scenarios.run_setup(d, sc)):
@@ -176,22 +183,35 @@ def _base_port() -> int:
 def device_build(request) -> Build:
     """The desktop build, compiled once per session. It serves every time
     zone: each device sets its own when it starts."""
+    return _session_build(request, events=False)
+
+
+@pytest.fixture(scope="session")
+def events_build(request) -> Build:
+    """The desktop build with the random events engine (`build: events`),
+    compiled once per session, and only when a test asks for it."""
+    return _session_build(request, events=True)
+
+
+def _session_build(request, *, events: bool) -> Build:
     work = _work()
     # Set when pytest-xdist runs the tests in several workers.
     run_id = getattr(request.config, "workerinput", {}).get("testrunuid")
     if run_id is None:
-        return build(work / "build", port=_base_port())
-    return _shared_build(work, run_id)
+        return build(work / "build", events=events, port=_base_port())
+    return _shared_build(work, run_id, events=events)
 
 
-def _shared_build(work: Path, run_id: str) -> Build:
+def _shared_build(work: Path, run_id: str, *, events: bool = False) -> Build:
     """The build, made by the first worker that needs it.
 
     The others wait for it on a lock, then take it from a stamp file that
     names this test run, so a build from an earlier run is never taken.
+    Every kind of build shares the lock, as they share the sources in
+    `work`/build, but each kind has its own stamp file.
     """
     work.mkdir(parents=True, exist_ok=True)
-    stamp = work / "build.pickle"
+    stamp = work / ("build-events.pickle" if events else "build.pickle")
     with open(work / "build.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if stamp.exists():
@@ -199,7 +219,7 @@ def _shared_build(work: Path, run_id: str) -> Build:
                 made_in, b = pickle.load(f)
             if made_in == run_id:
                 return b
-        b = build(work / "build", port=_base_port())
+        b = build(work / "build", events=events, port=_base_port())
         with stamp.open("wb") as f:
             pickle.dump((run_id, b), f)
         return b

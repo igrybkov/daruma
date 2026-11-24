@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, call
 
+import harness
 import persona_path
 import pytest
 import scenario as scenarios
@@ -125,6 +127,8 @@ STEP_CALLS = [
         {"expect": {"entity": {"name": "Phase", "value": "focus"}}},
         [call.expect(ANY), call.expect().to_have_entity("Phase", "focus", timeout=5)],
     ),
+    ({"random_event": "lick_paw"}, [call.random_event("lick_paw")]),
+    ({"random_event": None}, [call.random_event("")]),  # Rolls the pool.
 ]
 
 
@@ -208,6 +212,122 @@ def test_load_finds_a_folder_scenario_by_name(tmp_path: Path, monkeypatch):
     assert (sc.name, sc.personas) == ("desk", ["Mine"])
     assert [s.name for s in scenarios.every_scenario()][-1] == "desk"
     assert "desk" not in [s.name for s in scenarios.all_scenarios()]
+
+
+@pytest.fixture
+def scenario_dir(tmp_path: Path, monkeypatch) -> Path:
+    """A scenario folder with one scenario at the top and two in a subfolder."""
+    root = tmp_path / "scenarios"
+    (root / "random_events").mkdir(parents=True)
+    (root / "tour.yaml").write_text("name: tour\nsteps:\n  - wait: 1\n")
+    (root / "random_events" / "spell.yaml").write_text("name: spell\nbuild: events\nsteps:\n  - wait: 1\n")
+    (root / "random_events" / "sneeze.yaml").write_text("steps:\n  - wait: 1\n")
+    monkeypatch.setattr(scenarios, "SCENARIO_DIR", root)
+    return root
+
+
+def test_load_finds_a_subfolder_scenario_by_its_key(scenario_dir: Path):
+    sc = scenarios.load("random_events/spell")
+    assert (sc.name, sc.group, sc.key, sc.build) == ("spell", "random_events", "random_events/spell", "events")
+    # pytest loads it by its path: the same group.
+    assert scenarios.load(str(scenario_dir / "random_events" / "spell.yaml")).key == "random_events/spell"
+    top = scenarios.load("tour")
+    assert (top.group, top.key, top.build) == ("", "tour", "standard")
+
+
+def test_subfolder_scenarios_stay_out_of_the_gallery(scenario_dir: Path):
+    assert [sc.key for sc in scenarios.all_scenarios()] == ["tour"]
+    assert [sc.key for sc in scenarios.group_scenarios()] == ["random_events/sneeze", "random_events/spell"]
+
+
+def test_daruma_gallery_holds_no_subfolder_scenario():
+    assert all(sc.group == "" for sc in scenarios.all_scenarios())
+    assert all(sc.group for sc in scenarios.group_scenarios())
+
+
+def test_a_subfolder_scenario_keeps_its_goldens_in_the_same_subfolder(scenario_dir: Path):
+    root = Path("/golden")
+    assert scenarios.load("random_events/spell").golden(root, "Pixel corgi") == root / "pixel-corgi/random_events/spell"
+    assert scenarios.load("tour").golden(root, "Pixel corgi") == root / "pixel-corgi/tour"
+
+
+def test_an_unknown_build_fails_to_load(tmp_path: Path):
+    path = tmp_path / "x.yaml"
+    path.write_text("name: x\nbuild: fancy\nsteps:\n  - wait: 1\n")
+    with pytest.raises(DeviceError, match="no build 'fancy'"):
+        scenarios.load(str(path))
+
+
+@pytest.mark.parametrize(
+    ("variant", "events", "private", "name"),
+    [
+        ("standard", False, False, "daruma-desktop"),
+        ("standard", True, False, "daruma-desktop-events"),
+        ("standard", True, True, "daruma-desktop-events-private"),
+        ("wide", True, False, "daruma-desktop-wide-events"),
+    ],
+)
+def test_the_events_build_has_its_own_name(tmp_path: Path, monkeypatch, variant, events, private, name):
+    monkeypatch.setattr(harness, "COVERAGE", None)
+    extra = [_folder(tmp_path, {})] if private else []
+    assert harness._build_name(variant, extra, events) == name
+
+
+EVENTS_LINES = "daruma:\n  random_events:\n    enabled: false\n"
+
+
+@pytest.mark.parametrize("private", [False, True])
+def test_the_events_config_turns_the_engine_on_with_the_switch_off(tmp_path: Path, monkeypatch, private):
+    monkeypatch.setattr(harness, "COVERAGE", None)
+    extra = [_folder(tmp_path / "mine", {})] if private else []
+    name = harness._build_name("standard", extra, events=True)
+    yaml_name, found = harness._write_config(tmp_path, name, extra, events=True)
+    text = (tmp_path / yaml_name).read_text()
+    assert yaml_name == f"{name}.yaml"
+    assert text.startswith(f"packages:\n  base: !include {harness.DEVICE_YAML}\n")
+    assert text.endswith(EVENTS_LINES)
+    assert ("private_0: !include" in text) == private
+    assert list(found) == (["Mine"] if private else [])
+
+
+def test_the_other_configs_leave_the_engine_alone(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(harness, "COVERAGE", None)
+    extra = [_folder(tmp_path / "mine", {})]
+    yaml_name, _ = harness._write_config(tmp_path, harness._build_name("standard", extra), extra)
+    assert "random_events" not in (tmp_path / yaml_name).read_text()
+    assert harness._write_config(tmp_path, "daruma-desktop", [], events=False)[0] == harness.DEVICE_YAML
+
+
+def _demos_conftest():
+    """demos/conftest.py as a module of its own: tests/ has a conftest.py too."""
+    path = Path(__file__).parent / "conftest.py"
+    spec = importlib.util.spec_from_file_location("demos_conftest_under_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_each_kind_of_shared_build_has_its_own_stamp(tmp_path: Path, monkeypatch):
+    conftest = _demos_conftest()
+    made = []
+
+    def fake_build(out, *, events, port):
+        made.append(events)
+        return harness.Build(program=Path(f"program-{len(made)}"), clock_lib=Path("lib"), port=port)
+
+    monkeypatch.setattr(conftest, "build", fake_build)
+    standard = conftest._shared_build(tmp_path, "run-1", events=False)
+    events = conftest._shared_build(tmp_path, "run-1", events=True)
+    assert made == [False, True]
+    assert standard.program != events.program
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["build-events.pickle", "build.lock", "build.pickle"]
+    # Another worker of the same run takes each one from its stamp.
+    assert conftest._shared_build(tmp_path, "run-1", events=True).program == events.program
+    assert conftest._shared_build(tmp_path, "run-1", events=False).program == standard.program
+    assert made == [False, True]
+    # A new run builds again.
+    conftest._shared_build(tmp_path, "run-2", events=True)
+    assert made == [False, True, True]
 
 
 def _frames(tmp_path: Path, times: list[int]) -> list[tuple[Path, float]]:

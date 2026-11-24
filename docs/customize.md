@@ -721,12 +721,13 @@ bedside table. It adds these entities to Home Assistant:
 |---|---|
 | Do not disturb (switch) | Info prompts and messages from HA wait. Sounds goes off. A mark shows on the info line. |
 | Quiet start, Quiet end (times) | Quiet hours. Overnight is fine. The same time twice turns them off. |
-| Dim after (number, minutes) | The screen dims when nothing happened for that long. 0 never dims. |
+| Dim after (number, minutes) | The screen dims when nothing happened for that long: no input, prompt, message or voice. 0 never dims. |
 | Quiet (binary sensor) | On inside quiet hours, for automations. |
 
 In quiet hours, Do not disturb is on, the persona sleeps and the screen
 goes dark. A tap or a button wakes the screen for 30 s. That first input
-does nothing else. Quiet hours need the clock from Home Assistant.
+does nothing else. The wake word also wakes the screen, and it stays on
+until 30 s after the reply. Quiet hours need the clock from Home Assistant.
 
 Do not disturb is about cards. Urgent prompts still show, with their
 sound. When Do not disturb ends, Sounds comes back as it was, and the

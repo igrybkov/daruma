@@ -9,10 +9,10 @@
 # Quiet hours ("Quiet start" to "Quiet end", overnight is fine; the same
 # time twice turns them off): Do not disturb, the persona asleep, and the
 # screen at quiet_brightness. A tap or a button wakes the screen for
-# wake_for; that first input does nothing else. Needs the clock from HA.
+# wake_for; that first input does nothing else. The wake word wakes it too. Needs the clock from HA.
 #
 # "Dim after" (minutes, 0 = never): the screen dims to idle_brightness
-# when no input, prompt or message came for that long.
+# when no input, prompt, message or voice session came for that long.
 #
 # Options (daruma_quiet: in the device yaml): quiet_hours, quiet_brightness,
 # wake_for, idle_brightness, dnd_during, dnd_keep, dnd_release. See

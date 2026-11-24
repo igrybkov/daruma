@@ -1,0 +1,98 @@
+# Quiet hours, Do not disturb and the idle screen. Needs core.yaml; works
+# best with prompts.yaml. Usage: docs/customize.md#quiet-hours-and-do-not-disturb.
+#
+# Do not disturb (the switch, or quiet hours): info prompts and HA
+# messages wait, Sounds goes off, and a mark shows on the info line. Urgent
+# prompts still show, with their sound. When it ends, Sounds comes back as
+# it was, and the cards that waited show one by one, oldest first.
+#
+# Quiet hours ("Quiet start" to "Quiet end", overnight is fine; the same
+# time twice turns them off): Do not disturb, the persona asleep, and the
+# screen at quiet_brightness. A tap or a button wakes the screen for
+# wake_for; that first input does nothing else. Needs the clock from HA.
+#
+# "Dim after" (minutes, 0 = never): the screen dims to idle_brightness
+# when no input, prompt or message came for that long.
+#
+# Options (daruma_quiet: in the device yaml): quiet_hours, quiet_brightness,
+# wake_for, idle_brightness, dnd_during, dnd_keep, dnd_release. See
+# src/esphome/components/daruma_quiet/__init__.py.
+#
+# Action: quiet.dnd (toggles Do not disturb). Theme color: quiet.dnd.
+
+substitutions:
+  # The board's screen backlight.
+  quiet_screen_light: led
+  # The first value of "Dim after", in minutes. 0 never dims.
+  quiet_dim_after: "0"
+
+external_components:
+  - source:
+      type: local
+      path: ../src/esphome/components
+    components: [daruma_quiet]
+
+daruma_quiet:
+  id: quiet
+  screen: ${quiet_screen_light}
+  sounds: sounds_enabled
+  clock: daruma_time
+  dnd_switch: dnd_switch
+  start_time: quiet_start
+  end_time: quiet_end
+  dim_after_number: dim_after
+
+switch:
+  - platform: template
+    name: Do not disturb
+    id: dnd_switch
+    icon: "mdi:minus-circle"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# The first values come from daruma_quiet's quiet_hours. Optimistic
+# entities need no polling. A polling timer also draws a random start
+# offset, which would shift the demos' fixed random stream.
+datetime:
+  - platform: template
+    type: time
+    name: Quiet start
+    id: quiet_start
+    icon: "mdi:weather-night"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    update_interval: never
+  - platform: template
+    type: time
+    name: Quiet end
+    id: quiet_end
+    icon: "mdi:weather-sunny"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    update_interval: never
+
+number:
+  - platform: template
+    name: Dim after
+    id: dim_after
+    icon: "mdi:brightness-6"
+    entity_category: config
+    unit_of_measurement: min
+    mode: box
+    optimistic: true
+    restore_value: true
+    min_value: 0
+    max_value: 240
+    step: 1
+    initial_value: ${quiet_dim_after}
+    update_interval: never
+
+# For automations: on inside quiet hours.
+binary_sensor:
+  - platform: template
+    name: Quiet
+    id: quiet_hours_on
+    icon: "mdi:weather-night"
+    lambda: return id(quiet).quiet();

@@ -745,7 +745,15 @@ class Device:
 
     def entity_state(self, name: str) -> Any:
         s = self._states.get(name)
-        return getattr(s, "state", None) if s is not None else None
+        if s is None:
+            return None
+        # A light: its brightness, 0 when off.
+        if type(s).__name__ == "LightState":
+            return round(s.brightness, 2) if s.state else 0
+        # A time entity: "HH:MM".
+        if type(s).__name__ == "TimeState":
+            return f"{s.hour:02d}:{s.minute:02d}"
+        return getattr(s, "state", None)
 
     def get_by_text(self, text: str, exact: bool = True) -> Locator:
         if exact:
@@ -924,7 +932,7 @@ class Device:
         self.action("prompt_update", id=id, body=body, marks=marks or [], countdown=countdown)
 
     def set(self, entity: str, value: Any) -> None:
-        """Set a select, number, switch or text entity by its name, as HA would."""
+        """Set a select, number, switch, text or time ("HH:MM") entity by its name, as HA would."""
         info = self._entities.get(entity)
         if info is None:
             raise DeviceError(f"No entity {entity!r}")
@@ -940,6 +948,9 @@ class Device:
             c.text_command(info.key, str(value))
         elif kind == "ButtonInfo":
             c.button_command(info.key)
+        elif kind == "TimeInfo":
+            hour, minute = (int(p) for p in str(value).split(":"))
+            c.time_command(info.key, hour, minute, 0)
         else:
             raise DeviceError(f"Can't set {entity!r} ({kind})")
         self._settle()

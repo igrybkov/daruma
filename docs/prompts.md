@@ -135,6 +135,14 @@ Home Assistant actions".
   Among prompts of the same style, the newest is on top.
 - **Focus:** info prompts wait while a focus session runs. This is the
   `hold_back_during` option, `[focus]` by default.
+- **Do not disturb:** info prompts wait while it is on (see
+  [customize.md: Quiet hours](customize.md#quiet-hours-and-do-not-disturb)).
+  Urgent and game prompts still show.
+- **After a wait:** when focus or Do not disturb ends, the info prompts
+  that waited show one by one, oldest first. At most 5 stay, the newest;
+  the older ones end with reason `replaced`. One that waited over 12 hours
+  ends with reason `timeout`. The quiet module's `dnd_release` and
+  `dnd_keep` change these.
 - **Same id:** the new prompt replaces the old one. If the old one still
   waited for an answer, it ends with reason `replaced`.
 - **Timeout:** 60 s unless the call gives another, `-1` for none. It starts
@@ -163,7 +171,8 @@ Home Assistant actions".
   prompts, and `urgent`, a bright repeated pair, for urgent ones. An urgent
   prompt plays it again every 15 s while nobody answers, 3 times in all.
   `sound: none` is silent. The Sounds switch (and the call-mute automation
-  that turns it off) silences all of them. A persona can replace
+  that turns it off) silences all of them. When Do not disturb turned
+  Sounds off, urgent prompts still sound. A persona can replace
   `notify` and `urgent` through its `sounds:`.
 - **Voice:** prompts draw only while the device is idle. A voice reply, an
   announcement or a ringing timer covers them. The wake word does not

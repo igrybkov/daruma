@@ -37,6 +37,7 @@
 #   app_weather.yaml       Weather app: today's report from an HA weather
 #                          entity (a tap on the temperature badge opens it)
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
+#   quiet.yaml             quiet hours, Do not disturb, dimming when idle
 #
 # Inputs (board_box3.yaml): home (the red circle), top (the top-left
 # button), screen (touch). The bindings are below; with expose_bindings
@@ -120,6 +121,7 @@ packages:
         vars:
           entity: ${weather_entity}
       - packages/prompts.yaml
+      - packages/quiet.yaml
 
 wifi:
   ssid: !secret wifi_ssid

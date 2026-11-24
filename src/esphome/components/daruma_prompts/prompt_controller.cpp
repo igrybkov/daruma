@@ -62,6 +62,8 @@ void PromptController::dump_config() {
 }
 
 bool PromptController::holding_info_() const {
+  if (this->hub_->holds_cards())
+    return true;
   for (StateId s : this->hold_back_) {
     if (this->hub_->holds_activity(s))
       return true;
@@ -85,7 +87,7 @@ std::string PromptController::sound_for_(const Prompt &p) const {
 }
 
 void PromptController::play_(const Prompt &p) {
-  this->hub_->play_sound(this->sound_for_(p));
+  this->hub_->play_sound(this->sound_for_(p), p.style == PromptStyle::URGENT);
   this->replay_seq_ = p.style == PromptStyle::URGENT ? p.seq : 0;
   this->replay_at_ = esphome::millis() + URGENT_REPEAT_MS;
   this->played_ = 1;
@@ -101,7 +103,7 @@ void PromptController::replay_urgent_(const Prompt *p, uint32_t now) {
   }
   if ((int32_t) (now - this->replay_at_) < 0)
     return;
-  this->hub_->play_sound(this->sound_for_(*p));
+  this->hub_->play_sound(this->sound_for_(*p), true);
   this->played_++;
   this->replay_at_ = now + URGENT_REPEAT_MS;
 }
@@ -112,6 +114,13 @@ void PromptController::loop() {
   const uint32_t now = esphome::millis();
   if (this->stack_.tick(now))
     this->changed_();
+  // A hold ended: the info prompts that waited show oldest first.
+  const bool holding = this->holding_info_();
+  if (this->was_holding_ && !holding) {
+    this->stack_.release(now, this->hub_->card_limits());
+    this->changed_();
+  }
+  this->was_holding_ = holding;
   this->flush_();
 
   Prompt *p = this->current_();
@@ -131,6 +140,7 @@ void PromptController::loop() {
   if (p != nullptr && this->announce_seq_ == p->seq) {
     this->announce_seq_ = 0;
     this->play_(*p);
+    this->hub_->poke();
     this->shown_callback_.call(p->id, style_name(p->style), this->sound_for_(*p));
   } else {
     this->replay_urgent_(p, now);

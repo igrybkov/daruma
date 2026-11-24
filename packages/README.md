@@ -82,6 +82,7 @@ package too. The last column says which.
 | [menu.yaml](menu.yaml) | A menu that opens when you tap the screen. Without it, a tap pets the character. | |
 | [pomodoro.yaml](pomodoro.yaml) | A focus timer ([pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique)). You set a daily goal in sessions, and the screen shows a tomato for each one. | |
 | [prompts.yaml](prompts.yaml) | Cards: full-screen messages from Home Assistant, with buttons to answer. See [prompts.md](../docs/prompts.md). | |
+| [quiet.yaml](quiet.yaml) | Quiet hours, Do not disturb and dimming when idle. See [customize.md](../docs/customize.md#quiet-hours-and-do-not-disturb). | |
 | [app_tasks.yaml](app_tasks.yaml) | An app with today's tasks, from a Home Assistant to-do list. You can check tasks off. List it once for each to-do list. | menu |
 | [app_calendar.yaml](app_calendar.yaml) | An app with your coming calendar events. List it once for each group of calendars. | menu |
 | [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |

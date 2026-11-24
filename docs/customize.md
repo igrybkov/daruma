@@ -712,6 +712,40 @@ Home Assistant can put a card on the screen and get the answer back: a
 doorbell with Unlock and Talk, a quiz with a countdown, a yes/no question.
 See [prompts.md](prompts.md) and the [blueprints](../blueprints/).
 
+## Quiet hours and Do not disturb
+
+Include [quiet.yaml](../packages/quiet.yaml) and the device can stay on a
+bedside table. It adds these entities to Home Assistant:
+
+| Entity | What it does |
+|---|---|
+| Do not disturb (switch) | Info prompts and messages from HA wait. Sounds goes off. A mark shows on the info line. |
+| Quiet start, Quiet end (times) | Quiet hours. Overnight is fine. The same time twice turns them off. |
+| Dim after (number, minutes) | The screen dims when nothing happened for that long. 0 never dims. |
+| Quiet (binary sensor) | On inside quiet hours, for automations. |
+
+In quiet hours, Do not disturb is on, the persona sleeps and the screen
+goes dark. A tap or a button wakes the screen for 30 s. That first input
+does nothing else. Quiet hours need the clock from Home Assistant.
+
+Do not disturb is about cards. Urgent prompts still show, with their
+sound. When Do not disturb ends, Sounds comes back as it was, and the
+cards that waited show one by one, oldest first.
+
+```yaml
+daruma_quiet:
+  quiet_hours: { start: "22:00", end: "07:00" }  # first values; HA changes them
+  quiet_brightness: 0%     # the screen in quiet hours; 0% is off
+  wake_for: 30s
+  idle_brightness: 30%     # after "Dim after"
+  dnd_during: [focus]      # messages also wait during these activities
+  dnd_keep: 12h            # a card that waited longer drops
+  dnd_release: 5           # at most this many wait
+```
+
+The screen never goes brighter than the "Screen" light is set. Bind
+`quiet.dnd` to a gesture to toggle Do not disturb on the device.
+
 ## Other screens and boards
 
 The layout follows the display size. Build checks cover:

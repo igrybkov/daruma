@@ -25,6 +25,18 @@ static int failures = 0;
 
 static int at(int hour, int minute) { return Quiet::minute_of_day(hour, minute); }
 
+static void defaults() {
+  CHECK(Quiet::minute_of_day(7, 30) == 450);
+  CHECK(Quiet::minute_of_day(23, 59) == 1439);
+  const Quiet::ScreenNow n;
+  CHECK(!n.quiet && !n.card_open && n.idle_ms == 0 && n.wake_ms == 0 && n.dim_after_ms == 0);
+  const CardLimits limits;
+  CHECK(limits.cap == 5);
+  CHECK(limits.keep_ms == 12u * 3600000u);
+  const QueuedMessage m;
+  CHECK(m.text.empty() && m.seconds == 0 && m.arrived == 0);
+}
+
 static void ranges() {
   // Overnight: 22:00 to 07:00.
   const int start = at(22, 0), end = at(7, 0);
@@ -62,6 +74,9 @@ static void levels() {
   // Day, dims after 5 minutes.
   CHECK(Quiet::level(screen(false, 299999, 300000)) == Level::NORMAL);
   CHECK(Quiet::level(screen(false, 300000, 300000)) == Level::IDLE);
+  // The shortest dim time still dims.
+  CHECK(Quiet::level(screen(false, 1, 1)) == Level::IDLE);
+  CHECK(Quiet::level(screen(false, 0, 1)) == Level::NORMAL);
   // Night: quiet, except for 30 s after a tap.
   CHECK(Quiet::level(screen(true, 60000)) == Level::QUIET);
   CHECK(Quiet::level(screen(true, 0)) == Level::NORMAL);
@@ -121,6 +136,14 @@ static void queue() {
     QueuedMessage m;
     CHECK(q.pop(0xFFFFFF00u + 60000, limits, &m) && m.text == "edge");
   }
+  // A cap of 1 keeps the newest.
+  {
+    CardQueue q;
+    q.push("a", 5, 0, CardLimits{1, 60000});
+    q.push("b", 5, 0, CardLimits{1, 60000});
+    QueuedMessage m;
+    CHECK(q.size() == 1 && q.pop(0, limits, &m) && m.text == "b");
+  }
   // A cap of 0 keeps nothing.
   {
     CardQueue q;
@@ -141,6 +164,7 @@ static void sounds() {
 }
 
 int main() {
+  defaults();
   sounds();
   ranges();
   levels();

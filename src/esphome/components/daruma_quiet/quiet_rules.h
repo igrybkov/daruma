@@ -15,10 +15,8 @@ inline int minute_of_day(int hour, int minute) { return hour * 60 + minute; }
 // True when `now` lies in [start, end). The range may wrap past midnight
 // (22:00 to 07:00). start == end means no quiet hours.
 inline bool in_range(int now, int start, int end) {
-  if (start == end)
-    return false;
-  if (start < end)
-    return now >= start && now < end;
+  if (start <= end)
+    return now >= start && now < end;  // Empty when start == end.
   return now >= start || now < end;
 }
 

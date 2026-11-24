@@ -137,6 +137,28 @@ static void release_after_hold() {
     s.close("door");
     CHECK(top_id(s) == "a");
   }
+  // Exactly keep_ms is still in time.
+  {
+    PromptStack s;
+    s.show(make("edge", PromptStyle::INFO), 0);
+    s.release(60000, limits);
+    CHECK(top_id(s) == "edge");
+    CHECK(Prompt{}.arrived == 0);
+  }
+  // A prompt that already showed keeps its place behind the released ones.
+  {
+    PromptStack s;
+    s.show(make("a", PromptStyle::INFO), 0);
+    s.show(make("seen", PromptStyle::INFO), 10);
+    s.on_screen(s.find("seen"), 10);
+    s.show(make("c", PromptStyle::INFO), 20);
+    s.release(100, limits);
+    CHECK(top_id(s) == "a");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "c");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "seen");
+  }
   // A prompt already shown is not part of the release.
   {
     PromptStack s;

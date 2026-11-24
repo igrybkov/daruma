@@ -31,8 +31,6 @@ struct QueuedMessage {
 class CardQueue {
  public:
   void push(const std::string &text, int seconds, uint32_t now, const CardLimits &limits) {
-    if (limits.cap <= 0)
-      return;
     this->queue_.push_back(QueuedMessage{text, seconds, now});
     while ((int) this->queue_.size() > limits.cap)
       this->queue_.pop_front();

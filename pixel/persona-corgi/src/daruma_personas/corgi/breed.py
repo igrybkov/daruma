@@ -10,7 +10,7 @@ moods.py.
 
 from __future__ import annotations
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from daruma_pixel.pixelkit import Canvas, Ramp, ellipse, mask, poly
 from daruma_shapes.pets import dog
@@ -32,31 +32,34 @@ LIFTED = Ramp(base=WHITE.base, shadow=WHITE.shadow, light=WHITE.light, line=(164
 PAWS = {"lick": (3, -31), "scratch": (8, -37)}
 
 
-def _paw_up_legs(c: Canvas, r: Rig) -> None:
-    """The planted foreleg. The lifted one goes over the face (_lifted_leg)."""
-    white = r.breed.coat.white
-    cx, floor, top = r.cx, r.floor, r.chest_y + 1
-    planted, d = mask((W, H))
-    x0 = cx - r.breed.leg_dx
-    poly(d, [(x0 - 3, top), (x0 + 3, top), (x0 + 3, floor - 2), (x0 - 3, floor - 2)])
-    ellipse(d, x0, floor - 2, 4, 2.5)
-    c.paint(planted, white)
-    c.dot(x0 - 1, floor - 2, white.shadow)  # Toe lines.
-    c.dot(x0 + 1, floor - 2, white.shadow)
+def _planted_leg(d: ImageDraw.ImageDraw, r: Rig) -> None:
+    """The planted foreleg, part of the chest's shape so it has no seam."""
+    x0, top = r.cx - r.breed.leg_dx, r.chest_y + 1
+    poly(d, [(x0 - 3, top), (x0 + 3, top), (x0 + 3, r.floor - 2), (x0 - 3, r.floor - 2)])
+    ellipse(d, x0, r.floor - 2, 4, 2.5)
+
+
+def _toes(c: Canvas, r: Rig) -> None:
+    """Toe lines on the planted paw, and a soft shadow up its inner side so
+    it reads as a leg. The lifted leg goes over the face (_lifted_leg)."""
+    x0, shadow = r.cx - r.breed.leg_dx, r.breed.coat.white.shadow
+    c.dot(x0 - 1, r.floor - 2, shadow)
+    c.dot(x0 + 1, r.floor - 2, shadow)
+    for y in range(r.floor - 9, r.floor - 1):
+        c.dot(x0 + 4, y, shadow)
 
 
 def _lifted_leg(c: Canvas, r: Rig) -> None:
     """The lifted foreleg, drawn after the head so the paw stays joined to
-    it: the elbow sticks out to the side, the forearm folds up across the
-    chest, and the paw shows its pink pads. Nose and mouth draw on top."""
+    it: the elbow at the side of the chest, the forearm folded up to the
+    face, and the paw showing its pink pads. Nose and mouth draw on top."""
     if r.pose.stance not in PAWS:
         return
-    cx, top = r.cx, r.chest_y + 1
-    px, py = cx + PAWS[r.pose.stance][0], r.floor + PAWS[r.pose.stance][1]
+    ex, ey = r.cx + 11, r.chest_y - 5  # The elbow.
+    px, py = r.cx + PAWS[r.pose.stance][0], r.floor + PAWS[r.pose.stance][1]
     lifted, d = mask((W, H))
-    poly(d, [(cx + 8, top - 10), (cx + 14, top - 8), (cx + 18, top + 1), (cx + 13, top + 3)])
-    ellipse(d, cx + 15, top + 1, 3, 2.5)
-    poly(d, [(cx + 12, top + 2), (cx + 17, top - 1), (px + 3, py + 1), (px - 2, py)])
+    ellipse(d, ex, ey, 3, 3)
+    poly(d, [(ex - 3, ey), (ex + 2, ey + 2), (px + 3, py + 1), (px - 2, py)])
     ellipse(d, px, py, 4, 3.5)
     c.paint(lifted, LIFTED)
     pad = r.breed.coat.pink.base
@@ -64,7 +67,7 @@ def _lifted_leg(c: Canvas, r: Rig) -> None:
         c.dot(px + dx, py + dy, pad)
 
 
-PAW_UP = Stance(rise=0, front=_paw_up_legs)
+PAW_UP = Stance(rise=0, front=_toes, chest=_planted_leg)
 
 CORGI = dog.breed(
     coat=Coat(outline=OUTLINE, fur=FUR, body=FUR, deep=FUR_DEEP, white=WHITE, pink=PINK),

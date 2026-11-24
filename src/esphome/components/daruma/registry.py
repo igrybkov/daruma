@@ -58,6 +58,8 @@ class State:
     sound: str | None = None  # Default sound when the state starts.
     duration_ms: int = 0  # Reactions only: how long it shows. 0 = sound only.
     module: str = "core"
+    # Activities only: random events wait while it is on (pomodoro's focus).
+    quiet: bool = False
 
 
 # The core's states. Modules add their own (each with a fallback).
@@ -125,6 +127,23 @@ def check_name(name: str, what: str) -> str:
     return name
 
 
+def _check_module_state(module: ModuleSpec, state: State, seen: dict[str, State]) -> None:
+    check_name(state.name, "State")
+    if state.name in seen:
+        raise RegistryError(
+            f"Module '{module.name}' declares state '{state.name}', which {seen[state.name].module} already declares"
+        )
+    if state.kind not in KINDS:
+        raise RegistryError(f"State '{state.name}': kind must be one of {', '.join(KINDS)}")
+    if state.quiet and state.kind != ACTIVITY:
+        raise RegistryError(f"State '{state.name}': only an activity can be quiet, not a {state.kind}")
+    if state.fallback is None:
+        raise RegistryError(
+            f"Module '{module.name}': state '{state.name}' needs a fallback, so personas "
+            "that lack it still show something"
+        )
+
+
 def collect_states(modules: list[ModuleSpec]) -> list[State]:
     """Core states first, then each module's, in module order. Checks names,
     kinds and fallbacks."""
@@ -132,19 +151,7 @@ def collect_states(modules: list[ModuleSpec]) -> list[State]:
     seen = {s.name: s for s in states}
     for module in modules:
         for state in module.states:
-            check_name(state.name, "State")
-            if state.name in seen:
-                raise RegistryError(
-                    f"Module '{module.name}' declares state '{state.name}', which "
-                    f"{seen[state.name].module} already declares"
-                )
-            if state.kind not in KINDS:
-                raise RegistryError(f"State '{state.name}': kind must be one of {', '.join(KINDS)}")
-            if state.fallback is None:
-                raise RegistryError(
-                    f"Module '{module.name}': state '{state.name}' needs a fallback, so personas "
-                    "that lack it still show something"
-                )
+            _check_module_state(module, state, seen)
             seen[state.name] = state
             states.append(state)
     for state in states:
@@ -180,6 +187,10 @@ class Persona:
     # activity -> {animation -> animation}: while that activity is on, a
     # reaction that would play the first animation plays the second.
     during: dict[str, dict[str, str]] = field(default_factory=dict)
+    # name -> event, as random_events.py describes them.
+    random_events: dict[str, dict] = field(default_factory=dict)
+    # False for a persona that plays say-only events (images).
+    event_animations: bool = True
 
 
 @dataclass(frozen=True)
@@ -273,6 +284,66 @@ def resolve_persona(char: Persona, states: list[State]) -> tuple[list[Behavior],
             log.append(f"{char.id}: {state.name} -> {shown_as}")
         out.append(Behavior(anim, sound, behavior.get("say", ""), shown_as))
     return out, log
+
+
+# Random event keys that draw an animation (random_events.py).
+EVENT_ANIMATION_KEYS = ("animation", "enter", "exit", "for")
+
+
+def check_say_only(where: str, event: dict) -> None:
+    """A persona without event animations (images) only says and sounds."""
+    used = [key for key in EVENT_ANIMATION_KEYS if key in event]
+    if used:
+        raise RegistryError(f"{where}: the images persona plays say-only events; drop {', '.join(used)}")
+
+
+def _event_animation(char: Persona, where: str, anim: str) -> None:
+    if anim in char.animations:
+        return
+    close = [a for a in char.animations if a.lower() == anim.lower()]
+    hint = f"did you mean '{close[0]}'?" if close else f"it has: {', '.join(char.animations)}"
+    raise RegistryError(f"{where}: no animation '{anim}' ({hint})")
+
+
+def _state_look(char: Persona, states: list[State], anim: str) -> str | None:
+    """The state whose look `anim` also is: named like it, any case, with
+    no `behaviors:` entry pointing that state elsewhere."""
+    for state in states:
+        if state.name == anim.lower() and "animation" not in char.behaviors.get(state.name, {}):
+            return state.name
+    return None
+
+
+def _check_event_moods(where: str, event: dict, states: list[State]) -> None:
+    moods = [s.name for s in states if s.kind == MOOD]
+    for mood in event.get("when", {}).get("moods", []):
+        if mood not in moods:
+            raise RegistryError(f"{where}: moods: '{mood}' is no mood (moods: {', '.join(moods)})")
+
+
+def resolve_random_events(char: Persona, states: list[State]) -> list[str]:
+    """Checks the persona's events against its animations, the registry's
+    moods and its sounds. Returns build log lines for event animations
+    that are also a state's look, so a module that later adds a state
+    named like a quirk shows up in the log."""
+    sounds = set(BUILTIN_SOUNDS) | set(char.sounds)
+    log = []
+    for name, event in char.random_events.items():
+        where = f"{char.id}: random_events: {name}"
+        if not char.event_animations:
+            check_say_only(where, event)
+        for anim in (event[key] for key in ("enter", "animation", "exit") if key in event):
+            _event_animation(char, where, anim)
+            state = _state_look(char, states, anim)
+            if state is not None:
+                log.append(f"{char.id}: random event animation '{anim}' is also the look of state '{state}'")
+        _check_event_moods(where, event, states)
+        if "sound" in event and event["sound"] not in sounds:
+            raise RegistryError(
+                f"{where}: sound '{event['sound']}' is neither built in "
+                f"({', '.join(BUILTIN_SOUNDS)}) nor in its sounds:"
+            )
+    return log
 
 
 # --- Inputs ----------------------------------------------------------------------

@@ -69,7 +69,9 @@ from esphome.components.daruma.persona import (
     CONF_BEHAVIORS,
     CONF_DURING,
     CONF_PARAMS,
+    CONF_RANDOM_EVENTS,
     DURING_SCHEMA,
+    RANDOM_EVENTS_SCHEMA,
     Param,
     params_schema,
     persona,
@@ -284,6 +286,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
             cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
             cv.Optional(CONF_DURING, default={}): DURING_SCHEMA,
+            cv.Optional(CONF_RANDOM_EVENTS, default={}): RANDOM_EVENTS_SCHEMA,
             cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
             # The largest scale to draw at; without it, the largest that fits.
             cv.Optional(CONF_SCALE): cv.int_range(min=1, max=16),

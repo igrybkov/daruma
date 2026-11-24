@@ -123,7 +123,7 @@ daruma:
   modules:
     - name: pomodoro
       states:
-        focus: { kind: activity, fallback: neutral, sound: start }
+        focus: { kind: activity, fallback: neutral, sound: start, quiet: true }
         break: { kind: activity, fallback: neutral, sound: start }
         focus_done: { kind: reaction, fallback: happy, sound: focus_done, duration: 3s }
         goal: { kind: reaction, fallback: celebrate, sound: goal, duration: 3s }

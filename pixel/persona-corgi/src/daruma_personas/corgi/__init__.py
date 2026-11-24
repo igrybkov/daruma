@@ -2,23 +2,23 @@
 
 Warm plank walls, a window, a pothos (pothos.py) on the shelf, floor boards
 and a red rug that changes color by weekday; the corgi sits on the rug.
-The animations are in moods.py. This module is the persona's layers
+The animations are in moods.py, its quirks in quirks.py. This module is the persona's layers
 (see personas.Spec).
 """
 
 from __future__ import annotations
 
 from daruma_pixel.personas import Spec
-from daruma_shapes.pets.rig import Pet
 from daruma_shapes.plants.pothos import POTHOS
 from daruma_shapes.rooms.cozy_room import Room
 
 from . import moods
 from .breed import CORGI
+from .quirks import Walker
 
 # The room's warm browns and red rug are the corgi's.
 ROOM = Room()
-_pet = Pet(CORGI, ROOM, seat="floor", plant=POTHOS, plant_spot="shelf")
+_pet = Walker(CORGI, ROOM, seat="floor", plant=POTHOS, plant_spot="shelf")
 
 background, foreground, scene = _pet.background, _pet.foreground, _pet.scene
 WINDOW = ROOM.window

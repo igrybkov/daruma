@@ -250,8 +250,9 @@ class Engine {
     return hits.pick(rng);
   }
 
-  // play_random_event(""): one eligible event, weighted by 1 / mean. One
-  // below(), or none when nothing is eligible.
+  // play_random_event(""): one event, weighted by 1 / mean. It skips the
+  // gap and the no-repeat rule; every other rule holds. One below(), or
+  // none when nothing can play.
   int pick(const Context &ctx, Rng &rng) const {
     uint32_t total = 0;
     for (uint8_t i = 0; i < count_; i++)
@@ -313,12 +314,15 @@ class Engine {
     }
   };
 
-  // Every rule but the no-repeat one.
-  bool open_(uint8_t i, const Context &ctx) const {
+  // Every rule but the gap and the no-repeat one.
+  bool pickable_(uint8_t i, const Context &ctx) const {
     if (ctx.blocked || ctx.liveliness <= 0.0f || events_[i].at_count != 0)
       return false;
-    return since_play_ms_ >= ctx.min_gap_ms && playable_(i, ctx);
+    return playable_(i, ctx);
   }
+
+  // Every rule but the no-repeat one.
+  bool open_(uint8_t i, const Context &ctx) const { return since_play_ms_ >= ctx.min_gap_ms && pickable_(i, ctx); }
 
   // Its own conditions, its cooldown, and the screen can show it.
   bool playable_(uint8_t i, const Context &ctx) const {
@@ -340,7 +344,7 @@ class Engine {
   }
 
   uint32_t weight_(uint8_t i, const Context &ctx) const {
-    return eligible(i, ctx) ? MEAN_S[1] / MEAN_S[events_[i].frequency] : 0;
+    return pickable_(i, ctx) ? MEAN_S[1] / MEAN_S[events_[i].frequency] : 0;
   }
 
   const EventDef *events_{nullptr};

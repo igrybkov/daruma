@@ -639,12 +639,24 @@ static void test_pick() {
       seen[got]++;
   }
   CHECK(seen[0] > 150 && seen[1] > 150);
-  // Only eligible events, and one draw.
-  q.engine.played(0, c);
+  // Inside the gap, and right after the same event.
+  Pool one{event("x", 1)};
+  Context gap = c;
+  gap.min_gap_ms = 15 * MIN;
+  one.engine.played(0, gap);
   Rng before = r;
-  CHECK(q.engine.pick(c, r) == 1);
+  CHECK(one.engine.pick(gap, r) == 0);
   CHECK(draws(before, r) == 1);
-  // Nothing eligible: no draw.
+  // Other rules hold.
+  Context still = c;
+  still.animate = false;
+  q.events[1].animation = -1;
+  for (int i = 0; i < 20; i++)
+    CHECK(q.engine.pick(still, r) == 1);
+  Context blocked = c;
+  blocked.blocked = true;
+  CHECK(q.engine.pick(blocked, r) == -1);
+  // Nothing can play: no draw.
   Context dull = c;
   dull.liveliness = 0.0f;
   before = r;

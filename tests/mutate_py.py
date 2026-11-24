@@ -36,6 +36,7 @@ from pathlib import Path
 
 from changed_lines import ROOT, changed_lines
 from mutmut_run import STRAY_PREFIXES, module_name
+from mutmut_steps import PREFIX as STEP_PREFIX
 
 SHIM = Path(__file__).resolve().parent / "mutmut_run.py"
 
@@ -67,6 +68,8 @@ def mutmut(*args: str, check: bool = True, minutes: float | None = None) -> subp
             os.killpg(proc.pid, signal.SIGKILL)
             proc.communicate()
             raise OutOfTime from None
+    if args[:1] == ("run",):
+        print(*(line for line in err.splitlines() if line.startswith(STEP_PREFIX)), sep="\n", flush=True)
     if check and proc.returncode:
         raise subprocess.CalledProcessError(proc.returncode, command, out, err)
     return subprocess.CompletedProcess(command, proc.returncode, out, err)

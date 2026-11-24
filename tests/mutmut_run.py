@@ -128,8 +128,10 @@ class ClearCaches:
 
 def _patch() -> None:
     import mutmut_fast
+    import mutmut_steps
 
     mutmut_fast.install()
+    mutmut_steps.install()
 
     import mutmut.__main__ as main
     import mutmut.mutation.file_mutation as file_mutation

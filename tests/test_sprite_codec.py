@@ -192,9 +192,9 @@ def test_differing_lanes_counts_a_lane_with_any_one_bit(bit):
     # The lane sits between two empty ones, so a bit that spills over shows.
     value = (1 << bit) - (1 << 32 if bit == 31 else 0)  # As a signed 32-bit int.
     ones = codec._lanes([1, 1, 1])
-    assert codec._differing_lanes(codec._lanes([0, value, 0]), ones) == 1
-    assert codec._differing_lanes(codec._lanes([value, 0, -1]), ones) == 2
-    assert codec._differing_lanes(codec._lanes([0, 0, value]), ones) == 1
+    assert codec._differing_lanes(codec._lanes([0, value, 0]), ones, 32) == 1
+    assert codec._differing_lanes(codec._lanes([value, 0, -1]), ones, 32) == 2
+    assert codec._differing_lanes(codec._lanes([0, 0, value]), ones, 32) == 1
 
 
 @pytest.mark.parametrize("bit", range(8))
@@ -318,6 +318,15 @@ def test_a_frame_patches_the_closest_frame():
     far = [_dots(*range(10, 10 + k)) for k in (20, 22, 24, 26)]
     fs = codec.encode_set([_dots(1), *far, _dots(1, 2)])
     assert fs.frames[5].base == 0
+
+
+def test_the_closest_frame_wins_wherever_it_sits():
+    # The close frame comes after more far ones than CANDIDATES, so only
+    # the changed-pixel count, not the order, puts it among the bases tried.
+    far = [_dots(*range(10, 10 + k)) for k in (20, 22, 24, 26, 28)]
+    fs = codec.encode_set([*far, _dots(1), _dots(1, 2)])
+    assert len(far) > codec.CANDIDATES
+    assert fs.frames[6].base == 5
 
 
 def test_a_frame_may_patch_its_animations_first_frame():

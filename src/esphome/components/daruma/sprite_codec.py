@@ -232,10 +232,10 @@ def _set_lanes(pixels: list[list[int]]) -> tuple[list[int], int, int]:
     if len(colors) > 256:
         return [_lanes(px) for px in pixels], _lanes([1] * n), 32
     place = {c: i for i, c in enumerate(colors)}.__getitem__
-    return [int.from_bytes(bytes(map(place, px)), "little") for px in pixels], int.from_bytes(b"\x01" * n, "little"), 8
+    return [int.from_bytes(bytes(map(place, px)), "little") for px in pixels], int.from_bytes(b"\x01" * n), 8
 
 
-def _differing_lanes(x: int, ones: int, width: int = 32) -> int:
+def _differing_lanes(x: int, ones: int, width: int) -> int:
     """How many `width`-bit lanes of `x` are not zero. The shifts fold every
     bit of a lane into its lowest bit; `ones` has only those lowest bits set."""
     shift = width // 2

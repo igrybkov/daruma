@@ -7,6 +7,9 @@ a state at another picture (daruma/persona.py). Pictures are PNG names in the
 `art` folder (or paths, without one), stored compressed (daruma/sprite.py).
 Each picture is drawn 1:1, centered on the stage; a larger screen shows the
 picture's corner color around it (or `background`).
+
+Its `random_events:` only say and sound (daruma/persona.py): a picture per
+state has no animation for a quirk.
 """
 
 import esphome.codegen as cg
@@ -16,6 +19,8 @@ from esphome.components.daruma.persona import (
     BEHAVIORS_SCHEMA,
     CONF_BEHAVIORS,
     CONF_PARAMS,
+    CONF_RANDOM_EVENTS,
+    SAY_ONLY_EVENTS_SCHEMA,
     params_schema,
     persona,
     persona_to_code,
@@ -87,6 +92,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_THEME): THEME_SCHEMA,
             cv.Optional(CONF_SOUNDS): SOUNDS_SCHEMA,
             cv.Optional(CONF_BEHAVIORS, default={}): BEHAVIORS_SCHEMA,
+            cv.Optional(CONF_RANDOM_EVENTS, default={}): SAY_ONLY_EVENTS_SCHEMA,
             cv.Optional(CONF_PARAMS, default={}): params_schema(PARAMS),
             # Around the picture when the screen is larger. Default: the
             # picture's own top-left color.
@@ -102,7 +108,10 @@ CONFIG_SCHEMA = cv.All(
 
 def daruma_personas(confs):
     """For the hub's final validation: each persona's pictures, theme and params."""
-    return [(persona(c[CONF_ID].id, list(c[CONF_FRAMES]), c), c.get(CONF_THEME, {}), list(PARAMS)) for c in confs]
+    return [
+        (persona(c[CONF_ID].id, list(c[CONF_FRAMES]), c, event_animations=False), c.get(CONF_THEME, {}), list(PARAMS))
+        for c in confs
+    ]
 
 
 async def to_code(config):

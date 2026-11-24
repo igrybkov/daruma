@@ -14,10 +14,6 @@
     "file_name": "registry.py",
     "functions": [
       {
-        "name": "collect_states",
-        "complexity": 22
-      },
-      {
         "name": "resolve_menus",
         "complexity": 24
       },

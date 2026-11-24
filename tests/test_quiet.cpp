@@ -7,6 +7,7 @@
 #include <string>
 
 #include "card_queue.h"
+#include "sound_gate.h"
 #include "esphome/components/daruma_quiet/quiet_rules.h"
 
 using namespace Daruma;
@@ -128,7 +129,19 @@ static void queue() {
   }
 }
 
+static void sounds() {
+  // Sounds on: all play.
+  CHECK(sound_passes(true, false, false));
+  CHECK(sound_passes(true, true, false));
+  // Held by Do not disturb: only urgent ones.
+  CHECK(sound_passes(false, true, true));
+  CHECK(!sound_passes(false, true, false));
+  // Turned off by the person: urgent stays silent too.
+  CHECK(!sound_passes(false, false, true));
+}
+
 int main() {
+  sounds();
   ranges();
   levels();
   brightness();

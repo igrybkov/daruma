@@ -18,6 +18,7 @@
 #include "esphome/core/component.h"
 #include "persona.h"
 #include "card_queue.h"
+#include "sound_gate.h"
 #include "focus.h"
 #include "gesture.h"
 #include "ha_calls.h"
@@ -206,15 +207,15 @@ class Hub : public esphome::Component {
   void play_sound(const std::string &name, bool urgent = false) {
     if (name.empty() || !this->sound_player_)
       return;
-    this->urgent_sound_ = urgent && this->sounds_held_;
+    this->urgent_sound_ = urgent;
     this->sound_player_(name);
     this->urgent_sound_ = false;
   }
   // A module turned Sounds off for a while (Do not disturb), not the person.
   void set_sounds_held(bool held) { this->sounds_held_ = held; }
-  // True while the player runs for an urgent sound that may pass Sounds
-  // being off. The player's guard reads it next to the Sounds switch.
-  bool urgent_sound() const { return this->urgent_sound_; }
+  // The player's guard: may the sound it got now play, with the Sounds
+  // switch at `sounds_on`? Valid only during the player call.
+  bool sound_allowed(bool sounds_on) const { return sound_passes(sounds_on, this->sounds_held_, this->urgent_sound_); }
 
   // --- Mood ---------------------------------------------------------------
   bool sleepy{false};

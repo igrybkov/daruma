@@ -1,5 +1,5 @@
 # Quiet hours, Do not disturb and the idle screen. Needs core.yaml; works
-# best with prompts.yaml. Usage: docs/customize.md#quiet-hours.
+# best with prompts.yaml. Usage: docs/customize.md#quiet-hours-and-do-not-disturb.
 #
 # Do not disturb (the switch, or quiet hours): info prompts and HA
 # messages wait, Sounds goes off, and a mark shows on the info line. Urgent
@@ -50,7 +50,9 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
-# The first values come from daruma_quiet's quiet_hours.
+# The first values come from daruma_quiet's quiet_hours. Optimistic
+# entities need no polling. A polling timer also draws a random start
+# offset, which would shift the demos' fixed random stream.
 datetime:
   - platform: template
     type: time
@@ -60,6 +62,7 @@ datetime:
     entity_category: config
     optimistic: true
     restore_value: true
+    update_interval: never
   - platform: template
     type: time
     name: Quiet end
@@ -68,6 +71,7 @@ datetime:
     entity_category: config
     optimistic: true
     restore_value: true
+    update_interval: never
 
 number:
   - platform: template
@@ -83,6 +87,7 @@ number:
     max_value: 240
     step: 1
     initial_value: ${quiet_dim_after}
+    update_interval: never
 
 # For automations: on inside quiet hours.
 binary_sensor:

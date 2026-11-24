@@ -22,7 +22,8 @@
 #
 # Priority: urgent, then game, then the menu and apps, then info. A lower
 # prompt waits behind a higher one. Info prompts also wait while a focus
-# session runs (hold_back_during). Prompts draw only while the device is
+# session runs (hold_back_during) and during Do not disturb (quiet.yaml);
+# afterwards they show oldest first. Prompts draw only while the device is
 # idle: not during a voice reply, an announcement or a ringing timer.
 #
 # A prompt shows its state on the persona (default attention) and plays

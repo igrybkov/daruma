@@ -283,9 +283,7 @@ script:
       - if:
           condition:
             # Sounds on, or an urgent sound while Do not disturb holds Sounds off.
-            or:
-              - switch.is_on: sounds_enabled
-              - lambda: return id(daruma_hub).urgent_sound();
+            lambda: return id(daruma_hub).sound_allowed(id(sounds_enabled).state);
           then:
             - lambda: id(desktop).sound(id(daruma_hub), sound);
 

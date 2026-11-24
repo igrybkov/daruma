@@ -20,10 +20,10 @@ behavior picks the sound, and the built-in synth sounds are the defaults.
   and the shared I2S bus.
 - The timer chime is the persona's sound for `alarm` (default `timer`).
 - Urgent sounds pass a held Sounds switch. Do not disturb turns Sounds
-  off and calls `Hub::set_sounds_held()`. `play_sound(name, true)` then
-  sets `Hub::urgent_sound()` while the player runs. The `play_sound`
-  script plays when Sounds is on or that flag is set. Only urgent prompts
-  pass `true`.
+  off and calls `Hub::set_sounds_held()`. `play_sound(name, true)` marks
+  the sound urgent while the player runs. The `play_sound` script asks
+  `Hub::sound_allowed()` with the Sounds switch (rule: `sound_gate.h`).
+  Only urgent prompts pass `true`.
 
 Trap: the flag is true only during the call. A `play_sound` script that
 waits before its `if` reads it too late. Keep the check first.

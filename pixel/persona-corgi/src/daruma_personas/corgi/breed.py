@@ -55,7 +55,7 @@ def _lifted_leg(c: Canvas, r: Rig) -> None:
     face, and the paw showing its pink pads. Nose and mouth draw on top."""
     if r.pose.stance not in PAWS:
         return
-    ex, ey = r.cx + 11, r.chest_y - 5  # The elbow.
+    ex, ey = r.cx + 8, r.chest_y - 3  # The elbow, on the chest.
     px, py = r.cx + PAWS[r.pose.stance][0], r.floor + PAWS[r.pose.stance][1]
     lifted, d = mask((W, H))
     ellipse(d, ex, ey, 3, 3)

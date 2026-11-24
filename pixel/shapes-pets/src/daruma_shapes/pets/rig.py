@@ -91,7 +91,7 @@ BALL_SEAM = (250, 250, 236)
 
 @dataclass(frozen=True)
 class Pose:
-    eyes: str = "open"  # open, blink, happy, heart, half, small, up, sad, wink, down
+    eyes: str = "open"  # open, blink, happy, heart, half, small, up, up_left, sad, wink, down
     mouth: str = "smile"  # smile, open, frown, o, flat, talk; a species may add more (the dog: blep, grin)
     blush: bool = False
     ears: float = 0.0  # Degrees each ear tips outward. Negative perks up and in.
@@ -430,6 +430,10 @@ def _tail(c: Canvas, r: Rig) -> None:
         c.paint(m, ramp)
 
 
+# Eyes that look up, and the side the pupil leans to.
+LOOK_UP = {"up": 1, "up_left": -1}
+
+
 def _eye(c: Canvas, coat: Coat, kind: str, x: int, y: int, side: int) -> None:
     dark, line = coat.eye, coat.fur.line
     if kind == "open" or kind == "sad":
@@ -463,11 +467,11 @@ def _eye(c: Canvas, coat: Coat, kind: str, x: int, y: int, side: int) -> None:
             for dy in (-1, 0, 1):
                 c.dot(x + dx, y + dy, (255, 255, 255))
         c.dot(x, y, dark)
-    elif kind == "up":
+    elif kind in LOOK_UP:
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 c.dot(x + dx, y + dy, (255, 255, 255))
-        c.dot(x + 1, y - 1, dark)
+        c.dot(x + LOOK_UP[kind], y - 1, dark)
         c.dot(x, y - 1, dark)
     elif kind == "heart":
         shape = ["X.X", "XXX", ".X."]

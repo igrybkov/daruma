@@ -41,6 +41,7 @@ file to create.
 | Understand how a frame reaches the screen: deltas, patches, memory, flash size, speed | [Rendering](rendering.md) |
 | Make a look follow data: progress, weather, time of day, a goal | [Looks that follow the world](signals.md) |
 | Add a mood, an activity or a reaction, or change what wins on screen | [States and reactions](states.md) |
+| Give a persona quirks it plays now and then: a paw lick, a line in a bubble, a trip away | [Random events](random-events.md) |
 | Change colors, words or a look per persona, or translate the device | [Themes and words](themes.md) |
 | Show text in another language, a new font, long or wrapped text | Text and fonts: TBD (`text.md`) |
 

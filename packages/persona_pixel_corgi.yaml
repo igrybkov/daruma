@@ -1,7 +1,8 @@
 # Pixel-art corgi persona: front-facing Pembroke in a cozy room, animated per
 # mood (butt wag when happy), with a weather window (the sky signal), a
 # plant that grows with the progress signal, and a rug that changes color by
-# weekday. Reads a book while focusing. Adds 'Pixel corgi' to the Persona
+# weekday. Reads a book while focusing. Licks a paw, sneezes or looks out
+# the window now and then (random_events). Adds 'Pixel corgi' to the Persona
 # select, and "Pixel corgi rug" (weekday or plain) to the device settings.
 #
 # States find animations by name (focus -> Focus); the rest fall back, and
@@ -41,3 +42,31 @@ daruma_sprites:
       pet:
         - { note: C#3, to: F#3, seconds: 0.10, duty: 0.30, attack: 0.02, release: 0 }
         - { note: F#3, to: B2, seconds: 0.32, duty: 0.25, attack: 0, release: 0.08, vibrato: 26 }
+      # A little "ah... CHOO": a soft rise, then a sharp drop as the
+      # Sneeze animation sprays (750 ms in).
+      sneeze:
+        - { note: E4, to: A4, seconds: 0.30, duty: 0.20, attack: 0.10, release: 0.05 }
+        - { note: A4, to: C5, seconds: 0.35, duty: 0.20, attack: 0.05, release: 0.10 }
+        - { rest: 0.10 }
+        - { note: C6, to: E5, seconds: 0.14, duty: 0.45, attack: 0, release: 0.06 }
+    # Quirks now and then (quirks.py). Frequency 10 is about every 10 min of
+    # eligible time, 9 every 30 min, 8 every 2 h, 7 every 6 h.
+    random_events:
+      look_out_window: { animation: LookOutWindow, frequency: 10 }
+      lick_paw: { animation: LickPaw, frequency: 9 }
+      scratch_nose: { animation: ScratchNose, frequency: 9 }
+      sneeze: { animation: Sneeze, sound: sneeze, frequency: 8 }
+      snore: { say: ["Zzz", "zzz... squirrel..."], frequency: 9, when: { moods: [sleeping] } }
+      walk_q:
+        say: ["Walk time?", "Is it 5 yet?", "Leash? Leash!"]
+        frequency: 8
+        when: { between: "16:00-18:00", weekdays: [mon-fri] }
+      # The bathroom trip: up goes the sign, off it hops, and back in 3 min.
+      # A tap or a reaction brings it back at once. No `say:`: the sign says
+      # it, and a bubble would hide the hops.
+      bathroom:
+        enter: WalkOff
+        animation: Away
+        exit: WalkBack
+        for: 3min
+        frequency: 7

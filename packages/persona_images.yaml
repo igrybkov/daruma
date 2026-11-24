@@ -13,6 +13,12 @@
 # Var `sounds` (optional): the persona's own sound effects, as a persona's
 # `sounds:` block (src/esphome/components/daruma/sounds.py), for example its `pet`.
 #
+# Var `random_events` (optional): the persona's quirks now and then. Pictures
+# do not animate, so each event only says a line, plays a sound, or both:
+#   random_events:
+#     walk_q: { say: ["Walk?"], frequency: 8 }
+# See src/esphome/components/daruma/persona.py for the keys.
+#
 # Art goes in art/<art>/ of this repository as PNGs up to 320x240
 # (centered), named:
 #   moods:  neutral, happy, sad, loved, scared, sleepy, sleeping
@@ -30,12 +36,14 @@
 
 defaults:
   sounds: {}
+  random_events: {}
 
 daruma_images:
   - id: ${persona_id}
     name: ${persona_name}
     art: ../art/${art}
     sounds: ${sounds}
+    random_events: ${random_events}
     frames:
       Neutral: { image: "neutral", blink: "neutral_blink", wink: "neutral_wink" }
       Happy: { image: "happy", blink: "happy_blink", wink: "happy_wink" }

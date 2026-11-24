@@ -50,6 +50,17 @@ Steps:
     expect: {hidden: {role: dialog}}
     expect: {event: {type: esphome.daruma_prompt, choice: Unlock}}
     expect: {entity: {name: Pomodoro phase, value: focus}}
+    random_event: lick_paw          play a random event by name, as HA does;
+                                    random_event: "" rolls the pool
+
+A scenario picks its desktop build with `build:`. `standard` (the
+default) has no random events. `events` turns the engine on with its
+switch off, so only `random_event` steps play events.
+
+The scenarios of a subfolder, such as random_events/, are tests only.
+all_scenarios() leaves them out, so they make no gallery or README GIF.
+pytest collects them, and their golden pictures live in a matching
+subfolder. Name one by its key: `random_events/spell`.
 
 A scenario with `stills: true` records no GIF. record.py saves each of
 its snapshots as a PNG instead: docs/demos/screens/<persona>-<name>.png.
@@ -65,15 +76,17 @@ demos/test_daruma.py checks that the showcase scenarios cover the registry.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import persona_path
 import yaml
-from harness import Device, DeviceError, Locator, expect
+from harness import Device, DeviceError, Locator, expect, slug
 
 SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
+BUILDS = ("standard", "events")
 
 
 @dataclass
@@ -88,6 +101,17 @@ class Scenario:
     showcase: bool = False
     gif_scale: int = 2  # The GIF's size: 2 = twice the screen, 1 = as the screen.
     stills: bool = False  # Record each snapshot as a PNG, and no GIF.
+    group: str = ""  # The subfolder of SCENARIO_DIR it is in, or "".
+    build: str = "standard"  # The desktop build it runs on: one of BUILDS.
+
+    @property
+    def key(self) -> str:
+        """The name with its subfolder, as in `random_events/spell`."""
+        return f"{self.group}/{self.name}" if self.group else self.name
+
+    def golden(self, root: Path, persona: str) -> Path:
+        """The folder of this scenario's golden pictures for `persona`."""
+        return root / slug(persona) / self.key
 
     def runs_on(self, persona: str, test: bool) -> bool:
         wanted = self.test_personas if test else self.personas
@@ -125,6 +149,10 @@ def load(name_or_path: str) -> Scenario:
 
 def _read(path: Path) -> Scenario:
     raw = yaml.safe_load(path.read_text())
+    kind = raw.get("build", "standard")
+    if kind not in BUILDS:
+        raise DeviceError(f"{path}: no build {kind!r}; builds: {', '.join(BUILDS)}")
+    in_group = path.resolve().parent.parent == SCENARIO_DIR
     return Scenario(
         name=raw.get("name", path.stem),
         path=path,
@@ -136,12 +164,19 @@ def _read(path: Path) -> Scenario:
         showcase=bool(raw.get("showcase", False)),
         gif_scale=int(raw.get("gif_scale", 2)),
         stills=bool(raw.get("stills", False)),
+        group=path.parent.name if in_group else "",
+        build=kind,
     )
 
 
 def all_scenarios() -> list[Scenario]:
-    """Daruma's own scenarios."""
+    """Daruma's own scenarios, without those of subfolders."""
     return [_read(p) for p in sorted(SCENARIO_DIR.glob("*.yaml"))]
+
+
+def group_scenarios() -> list[Scenario]:
+    """The scenarios in the subfolders of SCENARIO_DIR: tests only."""
+    return [_read(p) for p in sorted(SCENARIO_DIR.glob("*/*.yaml"))]
 
 
 def folder_scenarios(found: list[persona_path.Folder] | None = None) -> list[Scenario]:
@@ -216,67 +251,81 @@ def _locator(device: Device, spec: dict[str, Any]) -> Locator:
     raise DeviceError(f"A part needs `text` or `role`: {spec}")
 
 
+def _tap(device: Device, arg: list[int] | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        _locator(device, arg).tap(timeout=arg.get("timeout", 5))
+    else:
+        device.tap(*arg)
+
+
+def _press(device: Device, arg: str | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        device.press(arg["input"], seconds=arg.get("seconds", 0.08))
+    else:
+        device.press(arg)
+
+
+def _set(device: Device, arg: dict[str, Any]) -> None:
+    for entity, value in arg.items():
+        device.set(entity, value)
+
+
+def _action(device: Device, arg: dict[str, Any]) -> None:
+    data = dict(arg)
+    device.action(data.pop("name"), **data)
+
+
+def _voice(device: Device, arg: str | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        device.voice(arg["phase"], arg.get("text", ""))
+    else:
+        device.voice(arg)
+
+
+def _snapshot(device: Device, arg: str | dict[str, Any]) -> None:
+    spec = {"name": arg} if isinstance(arg, str) else dict(arg)
+    expect(device).to_match_screenshot(
+        _snapshot_name(arg),
+        mask=[tuple(m) for m in spec.get("mask", [])],
+        tolerance=spec.get("tolerance", 0),
+        max_diff_pixels=spec.get("max_diff_pixels", 0),
+    )
+
+
+# Each step kind and what it does with the step's value.
+STEPS: dict[str, Callable[[Device, Any], None]] = {
+    "wait": lambda device, arg: device.advance(float(arg)),
+    "skip": lambda device, arg: device.skip(float(arg)),
+    "tap": _tap,
+    "hold": lambda device, arg: device.hold(*arg["at"], seconds=arg.get("seconds", 1.5)),
+    "swipe": lambda device, arg: device.swipe(*arg["from"], *arg["to"], seconds=arg.get("seconds", 0.25)),
+    "stroke": lambda device, arg: device.stroke(*arg),
+    "pet": lambda device, arg: device.pet(),
+    "press": _press,
+    "set": _set,
+    "action": _action,
+    "show": lambda device, arg: device.show(arg or ""),
+    "voice": _voice,
+    "caption": lambda device, arg: device.caption(str(arg)),
+    "message": lambda device, arg: device.show_message(arg["text"], arg.get("seconds", 5)),
+    "prompt": lambda device, arg: device.show_prompt(**arg),
+    "update_prompt": lambda device, arg: device.update_prompt(**arg),
+    "snapshot": _snapshot,
+    "expect": lambda device, arg: _expect(device, dict(arg)),
+    "random_event": lambda device, arg: device.random_event(str(arg or "")),
+}
+
+
 def run_step(device: Device, step: dict[str, Any], *, test: bool) -> None:
     """Run one step. Snapshots compare only in test mode."""
     if len(step) != 1:
         raise DeviceError(f"A step has one key: {step}")
     ((kind, arg),) = step.items()
-    if kind == "wait":
-        device.advance(float(arg))
-    elif kind == "skip":
-        device.skip(float(arg))
-    elif kind == "tap":
-        if isinstance(arg, dict):
-            _locator(device, arg).tap(timeout=arg.get("timeout", 5))
-        else:
-            device.tap(*arg)
-    elif kind == "hold":
-        device.hold(*arg["at"], seconds=arg.get("seconds", 1.5))
-    elif kind == "swipe":
-        device.swipe(*arg["from"], *arg["to"], seconds=arg.get("seconds", 0.25))
-    elif kind == "stroke":
-        device.stroke(*arg)
-    elif kind == "pet":
-        device.pet()
-    elif kind == "press":
-        if isinstance(arg, dict):
-            device.press(arg["input"], seconds=arg.get("seconds", 0.08))
-        else:
-            device.press(arg)
-    elif kind == "set":
-        for entity, value in arg.items():
-            device.set(entity, value)
-    elif kind == "action":
-        data = dict(arg)
-        device.action(data.pop("name"), **data)
-    elif kind == "show":
-        device.show(arg or "")
-    elif kind == "voice":
-        if isinstance(arg, dict):
-            device.voice(arg["phase"], arg.get("text", ""))
-        else:
-            device.voice(arg)
-    elif kind == "caption":
-        device.caption(str(arg))
-    elif kind == "message":
-        device.show_message(arg["text"], arg.get("seconds", 5))
-    elif kind == "prompt":
-        device.show_prompt(**arg)
-    elif kind == "update_prompt":
-        device.update_prompt(**arg)
-    elif kind == "snapshot":
-        if test:
-            spec = {"name": arg} if isinstance(arg, str) else dict(arg)
-            expect(device).to_match_screenshot(
-                _snapshot_name(arg),
-                mask=[tuple(m) for m in spec.get("mask", [])],
-                tolerance=spec.get("tolerance", 0),
-                max_diff_pixels=spec.get("max_diff_pixels", 0),
-            )
-    elif kind == "expect":
-        _expect(device, dict(arg))
-    else:
+    if kind not in STEPS:
         raise DeviceError(f"Unknown step {kind!r}")
+    if kind == "snapshot" and not test:
+        return
+    STEPS[kind](device, arg)
 
 
 def _expect(device: Device, spec: dict[str, Any]) -> None:

@@ -107,6 +107,17 @@ def _events_schema(say_only: bool):
     return validate
 
 
+# The device's change to one event (`daruma: random_events: personas:`):
+# only the keys it names, so no defaults; random_events.merge_pool fills
+# them in for a new event.
+_EVENT_OVERRIDE_SCHEMA = cv.Schema({cv.Optional(str(key)): value for key, value in EVENT_SCHEMA.schema.items()})
+
+
+def event_override(value):
+    """`false` drops the event; a map changes or adds one."""
+    return False if value is False else _EVENT_OVERRIDE_SCHEMA(value)
+
+
 RANDOM_EVENTS_SCHEMA = _events_schema(say_only=False)
 # The images persona has one picture per state, so its events only say and sound.
 SAY_ONLY_EVENTS_SCHEMA = _events_schema(say_only=True)

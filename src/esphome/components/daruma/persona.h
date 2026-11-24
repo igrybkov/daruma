@@ -97,6 +97,19 @@ class Persona {
   // What is on under a reaction, for animation_for(). Set by the hub.
   void set_machine(const StateMachine *machine) { this->machine_ = machine; }
 
+  // --- Interlude: an animation shown instead of the state's -----------------
+  // A random event plays one. A reaction still shows over it. -1 for none.
+  // `once` holds the last frame instead of looping. Each call starts the
+  // animation from the top, also when it is the same one again.
+  void set_interlude(int16_t animation, bool once) {
+    this->interlude_ = animation;
+    this->interlude_once_ = once;
+    this->interlude_serial_++;
+  }
+  void clear_interlude() { this->set_interlude(-1, false); }
+  // The length of one pass of an animation, in ms; 0 when unknown.
+  virtual uint32_t animation_ms(int animation) const { return 0; }
+
   // --- Params: things only this persona has (`pixel_corgi.rug`) -------------
   // Values are ints: a choice's index, or 0/1. The build declares each one.
   void add_param(const std::string &name, int value) { this->params_.emplace_back(name, value); }
@@ -144,6 +157,10 @@ class Persona {
     return Layout::compute(display.get_width(), display.get_height()).unit;
   }
   ColorMode color_mode_() const { return this->profile_ != nullptr ? this->profile_->colors : ColorMode::FULL; }
+  // The interlude replaces the animation of `state` now.
+  bool interluding_(StateId state) const {
+    return this->interlude_ >= 0 && state_info(state).kind != StateKind::REACTION;
+  }
 
   std::string name_;
   const Signals *signals_{nullptr};
@@ -158,6 +175,9 @@ class Persona {
   };
   std::vector<During> during_;
   const StateMachine *machine_{nullptr};
+  int16_t interlude_{-1};
+  bool interlude_once_{false};
+  uint16_t interlude_serial_{0};
   std::vector<std::pair<std::string, int>> params_;
   std::map<std::string, std::vector<Synth::Step>> sounds_;
 };

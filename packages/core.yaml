@@ -93,6 +93,8 @@ external_components:
     components: [daruma, daruma_eyes, daruma_images, daruma_sprites, daruma_menu, daruma_sounds]
 
 api:
+  # Lets C++ add an action: play_random_event, in a build with random events.
+  custom_services: true
   on_client_connected:
     - script.execute: draw_display
   on_client_disconnected:
@@ -485,7 +487,8 @@ event:
     id: daruma_event
     name: Event
     icon: mdi:paw
-    event_types: [petted, scared, timer_finished]
+    # random_event fires only in a build with random events.
+    event_types: [petted, scared, timer_finished, random_event]
 
 button:
   - platform: restart

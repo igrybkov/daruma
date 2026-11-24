@@ -23,9 +23,13 @@ void SpritePersona::add_frame(int index, int frame, uint32_t ms) {
   anim.total_ms += ms;
 }
 
-const SpritePersona::Animation &SpritePersona::animation_(StateId state) const {
+const SpritePersona::Animation &SpritePersona::animation_(StateId state, bool live) const {
+  return this->mapped_(live && this->interluding_(state) ? this->interlude_ : this->animation_for(state));
+}
+
+const SpritePersona::Animation &SpritePersona::mapped_(int animation) const {
   // The build checks every index; animation 0 is only a safety net.
-  size_t index = (size_t) this->animation_for(state);
+  size_t index = (size_t) animation;
   const size_t goal = (size_t) this->signals_ref_().goal;
   if (goal < this->goal_maps_.size() && index < this->goal_maps_[goal].size())
     index = (size_t) this->goal_maps_[goal][index];
@@ -33,10 +37,13 @@ const SpritePersona::Animation &SpritePersona::animation_(StateId state) const {
 }
 
 int SpritePersona::current_(StateId state) {
-  const Animation &anim = this->animation_(state);
+  const Animation &anim = this->animation_(state, true);
+  const bool interlude = this->interluding_(state);
   const uint32_t now = esphome::millis();
-  if (&anim != this->playing_) {  // New animation: start it from the top.
+  // A new animation, or the interlude set again: start it from the top.
+  if (&anim != this->playing_ || (interlude && this->played_serial_ != this->interlude_serial_)) {
     this->playing_ = &anim;
+    this->played_serial_ = this->interlude_serial_;
     this->epoch_ = now;
   }
   if (anim.wink >= 0 && (int32_t) (this->wink_until_ - now) > 0)
@@ -45,7 +52,7 @@ int SpritePersona::current_(StateId state) {
     return anim.blink;
 
   const uint32_t elapsed = now - this->epoch_;
-  if (anim.once && elapsed >= anim.total_ms)
+  if ((anim.once || (interlude && this->interlude_once_)) && elapsed >= anim.total_ms)
     return anim.frames.back().frame;
   uint32_t t = anim.total_ms > 0 ? elapsed % anim.total_ms : 0;
   for (const auto &frame : anim.frames) {
@@ -488,7 +495,7 @@ void SpritePersona::draw(esphome::display::Display &display, StateId state, floa
 }
 
 void SpritePersona::draw_still(esphome::display::Display &display, StateId state) {
-  const int frame = this->animation_(state).frames.front().frame;
+  const int frame = this->animation_(state, false).frames.front().frame;
   if (this->layered_()) {
     this->draw_layered_(display, frame, false);
   } else {

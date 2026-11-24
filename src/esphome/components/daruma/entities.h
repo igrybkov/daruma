@@ -15,6 +15,13 @@
 #include "esphome/components/touchscreen/touchscreen.h"
 #endif
 
+#ifdef USE_DARUMA_RANDOM_EVENTS
+#include <functional>
+
+#include "esphome/components/number/number.h"
+#include "random_events_component.h"
+#endif
+
 namespace Daruma {
 
 // "App: Calendar": off takes the app off the board and stops its fetching.
@@ -74,6 +81,35 @@ class ParamSwitch : public esphome::switch_::Switch, public esphome::Component {
   Persona *persona_;
   std::string param_;
 };
+
+#ifdef USE_DARUMA_RANDOM_EVENTS
+// "Random events": off stops the rolls. play_random_event still plays.
+class RandomEventsSwitch : public esphome::switch_::Switch, public esphome::Component {
+ public:
+  explicit RandomEventsSwitch(RandomEventsComponent *engine) : engine_(engine) {}
+  void setup() override;
+  float get_setup_priority() const override { return esphome::setup_priority::LATE; }
+
+ protected:
+  void write_state(bool state) override;
+  RandomEventsComponent *engine_;
+};
+
+// A number setting that keeps its value ("Liveliness", "Min gap"). `apply`
+// gets every value, the first one at setup.
+class TunableNumber : public esphome::number::Number, public esphome::Component {
+ public:
+  TunableNumber(float initial, std::function<void(float)> apply) : initial_(initial), apply_(std::move(apply)) {}
+  void setup() override;
+  float get_setup_priority() const override { return esphome::setup_priority::LATE; }
+
+ protected:
+  void control(float value) override;
+  float initial_;
+  std::function<void(float)> apply_;
+  esphome::ESPPreferenceObject pref_;
+};
+#endif
 
 #ifdef USE_TOUCHSCREEN
 // Feeds a touch screen into the hub's screen input.

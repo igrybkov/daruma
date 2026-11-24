@@ -34,6 +34,15 @@ packages:
         pet:
           - { note: C#3, to: F#3, seconds: 0.10, duty: 0.30, attack: 0.02, release: 0 }
           - { note: F#3, to: B2, seconds: 0.32, duty: 0.25, attack: 0, release: 0.08, vibrato: 26 }
+      # Say-only: a picture does not animate, so these are lines.
+      random_events:
+        walk_q:
+          say: ["Walk?", "Walkies?", "Is it walk time?"]
+          frequency: 8
+        snore:
+          say: ["Zzz...", "Zzzz... biscuit..."]
+          frequency: 9
+          when: { moods: [sleeping] }
   persona_jack_russell: !include ../packages/persona_jack_russell.yaml
   persona_tabby_cat: !include ../packages/persona_tabby_cat.yaml
 

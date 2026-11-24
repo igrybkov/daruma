@@ -1,0 +1,22 @@
+name: say
+description: >-
+  Say-only random events on the images persona: a line in a speech bubble
+  over the still picture, with no animation. One on the awake corgi, one
+  while it sleeps.
+personas: [Flat corgi]
+test_personas: [Flat corgi]
+build: events
+setup:
+  - wait: 1
+steps:
+  - show: neutral
+  - wait: 1
+  - random_event: walk_q
+  - wait: 1
+  - snapshot: walk_q
+  - wait: 6
+  - show: sleeping
+  - wait: 1
+  - random_event: snore
+  - wait: 1
+  - snapshot: snore

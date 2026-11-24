@@ -15,7 +15,7 @@ steps:
   - snapshot: look-out-window
   - wait: 3
   - random_event: lick_paw
-  - wait: 0.25
+  - wait: 0.55
   - snapshot: lick-paw
   - wait: 3
   - random_event: scratch_nose

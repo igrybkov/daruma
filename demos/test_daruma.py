@@ -397,6 +397,10 @@ def played(device) -> list:
 @pytest.mark.events
 @pytest.mark.persona("Pixel corgi")
 def test_play_random_event(device):
+    # The engine's settings, with the switch off as the events build starts it.
+    assert device.entity_state("Random events") is False
+    assert device.entity_state("Liveliness") == 100
+    assert device.entity_state("Min gap") == 15
     # A name the persona has no event for: a warning, and nothing plays.
     device.random_event("no_such_event")
     device.advance(1)

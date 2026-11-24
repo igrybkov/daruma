@@ -170,8 +170,9 @@ void RandomEventsComponent::start_(int index, bool manual, uint32_t now) {
   // Muted: the device is asleep and makes no sound.
   if (event.sound[0] != '\0' && !this->hub_->muted())
     this->hub_->play_sound(event.sound);
-  if (event.say_count > 0)
-    this->hub_->show_message(event.say[this->rng_.below(event.say_count)], SAY_SECONDS);
+  this->said_ = event.say_count > 0 ? event.say[this->rng_.below(event.say_count)] : nullptr;
+  if (this->said_ != nullptr)
+    this->hub_->show_message(this->said_, SAY_SECONDS);
   this->announce_(event, manual);
 }
 
@@ -198,6 +199,11 @@ void RandomEventsComponent::show_() {
 void RandomEventsComponent::stop_() {
   this->playback_.stop();
   this->persona_->clear_interlude();
+  // The event's words go with it, so the next tap reaches the persona. A
+  // bubble shown since then stays.
+  if (this->said_ != nullptr && this->hub_->message() == this->said_)
+    this->hub_->clear_message();
+  this->said_ = nullptr;
   this->hub_->request_redraw();
 }
 

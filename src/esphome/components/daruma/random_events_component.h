@@ -96,8 +96,9 @@ class RandomEventsComponent : public esphome::Component, public esphome::api::Cu
   uint32_t min_gap_ms_{15 * 60 * 1000};
   uint32_t tick_min_ms_{2 * 60 * 1000};
   uint32_t tick_max_ms_{20 * 60 * 1000};
-  uint32_t sampled_ms_{0};    // The last sample.
-  uint32_t next_roll_ms_{0};  // The next random roll.
+  uint32_t sampled_ms_{0};     // The last sample.
+  uint32_t next_roll_ms_{0};   // The next random roll.
+  const char *said_{nullptr};  // The line the playing event put in the bubble.
 };
 
 }  // namespace Daruma

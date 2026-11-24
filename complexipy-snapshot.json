@@ -310,16 +310,6 @@
     ]
   },
   {
-    "path": "demos/scenario.py",
-    "file_name": "scenario.py",
-    "functions": [
-      {
-        "name": "run_step",
-        "complexity": 37
-      }
-    ]
-  },
-  {
     "path": "tests/preview_agenda.py",
     "file_name": "preview_agenda.py",
     "functions": [

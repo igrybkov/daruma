@@ -6,6 +6,7 @@
 #include "esphome/components/daruma/draw.h"
 #include "esphome/components/daruma/text.h"
 #include "esphome/components/daruma/ui_tree.h"
+#include "esphome/core/alloc_helpers.h"
 #include "esphome/core/helpers.h"
 
 namespace Daruma {

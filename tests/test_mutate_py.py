@@ -21,6 +21,8 @@ import pytest
 needs_mutmut = pytest.mark.skipif(
     importlib.util.find_spec("mutmut") is None, reason="needs mutmut (the mutation group)"
 )
+# Under mutmut the tests run from its copy, whose sources hold the mutants.
+needs_sources = pytest.mark.skipif(mutate_py.ROOT.name == "mutants", reason="mutmut's copy of the sources is mutated")
 
 
 @pytest.mark.parametrize(
@@ -317,6 +319,7 @@ SMALL_FILES = [
 
 
 @needs_mutmut
+@needs_sources
 @pytest.mark.parametrize("path", SMALL_FILES)
 def test_mutant_keys_are_the_names_mutmut_makes(path: str) -> None:
     from mutmut.mutation.file_mutation import mutate_file_contents
@@ -326,6 +329,7 @@ def test_mutant_keys_are_the_names_mutmut_makes(path: str) -> None:
 
 
 @needs_mutmut
+@needs_sources
 def test_the_shards_hold_every_mutant_exactly_once() -> None:
     names = [f"{mutate_py.module_name(p)}.{key}" for p in mutate_py.source_files() for key in _mutant_keys(p)]
     assert len(names) > 1000

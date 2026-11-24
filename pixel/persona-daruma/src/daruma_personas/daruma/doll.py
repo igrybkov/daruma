@@ -35,6 +35,7 @@ the cushion changes color with the day). Animations are in moods.py.
 
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass, replace
 
@@ -268,6 +269,7 @@ class Frame:
 
     def __init__(self, tilt: float, dy: float = 0.0) -> None:
         self.tilt = tilt
+        self.dy = dy
         a = math.radians(tilt)
         self.c, self.s = math.cos(a), math.sin(a)
         self.pivot_local = (0.0, RY - ROLL_R)
@@ -351,61 +353,104 @@ STAMP_TURN = 14
 INK_COVER = 0.375  # Share of a pixel ink must cover to show when a stamp turns.
 
 
-def stamp(
-    c: Canvas, f: Frame, art: list[str], ax: float, ay: float, mirror: bool = False, colors: dict | None = None
-) -> None:
+def stamp(c: Canvas, f: Frame, art: list[str], ax: float, ay: float, mirror: bool = False) -> None:
     """Draw `art` with its centre at doll-local (ax, ay)."""
-    colors = colors or _COLORS
-    h, w = len(art), len(art[0])
-    ox, oy = (w - 1) / 2, (h - 1) / 2
+    for x, y, color in _stamp_dots(f.tilt, f.dy, tuple(art), ax, ay, mirror):
+        c.dot(x, y, color)
 
+
+@functools.cache
+def _stamp_dots(
+    tilt: float, dy: float, art: tuple[str, ...], ax: float, ay: float, mirror: bool
+) -> tuple[tuple[int, int, tuple[int, int, int]], ...]:
+    """The dots stamp() paints, in order. A stamp never reads the canvas,
+    so these arguments fix its dots: each stamp is worked out once and
+    replayed by every pose that has it."""
+    dots: list[tuple[int, int, tuple[int, int, int]]] = []
+    _draw_stamp(lambda x, y, color: dots.append((x, y, color)), Frame(tilt, dy), list(art), ax, ay, mirror)
+    return tuple(dots)
+
+
+def _draw_stamp(dot, f, art: list[str], ax: float, ay: float, mirror: bool) -> None:
+    """stamp() itself, with dot(x, y, color) for each pixel it paints."""
     turns = round(f.tilt / 90)
     if turns and abs(f.tilt - 90 * turns) < 1e-6:  # Quarter turns are exact: turn the art itself.
-        if mirror:
-            art, mirror = [row[::-1] for row in art], False
-        for _ in range(turns % 4):
-            art = ["".join(art[len(art) - 1 - r][col] for r in range(len(art))) for col in range(len(art[0]))]
-        stamp(c, Frame0(f), art, ax, ay, colors=colors)
+        _draw_stamp(dot, Frame0(f), _quarter_turned(art, mirror, turns), ax, ay, False)
         return
+    pick = _picker(art, mirror)
+    if abs(f.tilt) < STAMP_TURN:
+        _draw_moved(dot, f, art, pick, ax, ay)
+    else:
+        _draw_turned(dot, f, art, pick, ax, ay)
+
+
+def _quarter_turned(art: list[str], mirror: bool, turns: int) -> list[str]:
+    """The art mirrored, then turned a quarter clockwise `turns` times."""
+    if mirror:
+        art = [row[::-1] for row in art]
+    for _ in range(turns % 4):
+        art = ["".join(art[len(art) - 1 - r][col] for r in range(len(art))) for col in range(len(art[0]))]
+    return art
+
+
+def _picker(art: list[str], mirror: bool):
+    """pick(col, row): the color of the art there, or None off it or where it is see-through."""
+    h, w = len(art), len(art[0])
 
     def pick(col: int, row: int):
         if not (0 <= row < h and 0 <= col < w):
             return None
         ch = art[row][w - 1 - col if mirror else col]
-        return colors.get(ch) if ch != "." else None
+        return _COLORS.get(ch) if ch != "." else None
 
-    if abs(f.tilt) < STAMP_TURN:
-        X, Y = f.pt(ax, ay)
-        X0, Y0 = round(X - ox), round(Y - oy)
-        for row in range(h):
-            for col in range(w):
-                color = pick(col, row)
-                if color:
-                    c.dot(X0 + col, Y0 + row, color)
-        return
-    # Turned: look at 4x4 points inside each canvas pixel near the anchor.
-    # Ink wins from a quarter of the pixel, so thin strokes stay unbroken;
-    # other colors need most of it.
+    return pick
+
+
+def _draw_moved(dot, f, art: list[str], pick, ax: float, ay: float) -> None:
+    """Below STAMP_TURN the art only moves with its anchor."""
+    h, w = len(art), len(art[0])
+    X, Y = f.pt(ax, ay)
+    X0, Y0 = round(X - (w - 1) / 2), round(Y - (h - 1) / 2)
+    for row in range(h):
+        for col in range(w):
+            color = pick(col, row)
+            if color:
+                dot(X0 + col, Y0 + row, color)
+
+
+STAMP_SAMPLES = 4  # Points per side inside each canvas pixel, for a turned stamp.
+
+
+def _draw_turned(dot, f, art: list[str], pick, ax: float, ay: float) -> None:
+    """Turned: look at 4x4 points inside each canvas pixel near the anchor."""
+    h, w = len(art), len(art[0])
     X, Y = f.pt(ax, ay)
     r = int(max(w, h)) + 1
-    n = 4
     for Yp in range(round(Y) - r, round(Y) + r + 1):
         for Xp in range(round(X) - r, round(X) + r + 1):
-            counts: dict = {}
-            for sy in range(n):
-                for sx in range(n):
-                    lx, ly = f.inv(Xp - 0.5 + (sx + 0.5) / n, Yp - 0.5 + (sy + 0.5) / n)
-                    color = pick(round(lx - ax + ox), round(ly - ay + oy))
-                    if color:
-                        counts[color] = counts.get(color, 0) + 1
-            if not counts:
-                continue
-            if counts.get(INK, 0) >= INK_COVER * n * n:
-                c.dot(Xp, Yp, INK)
-                continue
-            color, k = max(counts.items(), key=lambda kv: kv[1])
-            if sum(counts.values()) >= n * n // 2:
-                c.dot(Xp, Yp, color)
+            color = _turned_pixel(f, pick, Xp, Yp, ax, ay, (w - 1) / 2, (h - 1) / 2)
+            if color:
+                dot(Xp, Yp, color)
+
+
+def _turned_pixel(f, pick, Xp: int, Yp: int, ax: float, ay: float, ox: float, oy: float):
+    """The color a turned stamp paints at canvas pixel (Xp, Yp), or None.
+    Ink wins from INK_COVER of the pixel, so thin strokes stay unbroken;
+    other colors need half of it."""
+    n = STAMP_SAMPLES
+    counts: dict = {}
+    for sy in range(n):
+        for sx in range(n):
+            lx, ly = f.inv(Xp - 0.5 + (sx + 0.5) / n, Yp - 0.5 + (sy + 0.5) / n)
+            color = pick(round(lx - ax + ox), round(ly - ay + oy))
+            if color:
+                counts[color] = counts.get(color, 0) + 1
+    if not counts:
+        return None
+    if counts.get(INK, 0) >= INK_COVER * n * n:
+        return INK
+    color, _ = max(counts.items(), key=lambda kv: kv[1])
+    return color if sum(counts.values()) >= n * n // 2 else None
 
 
 SUPER = 8  # Smooth shapes are drawn this much finer, then kept where they cover half a pixel.
@@ -497,7 +542,24 @@ BEARD_Y = 4
 @cached_picture
 def render(p: Pose) -> Image.Image:
     c = Canvas(W, H)
+    img, body = _body(p.tilt)
+    c.img, c.body = img.copy(), body.copy()
     f = Frame(p.tilt, _settle(p.tilt))
+    _features(c, f, p)
+    _props_under(c, p)
+    c.outline(OUTLINE)
+    _props_over(c, p)
+    _extras(c, f, p)
+    return c.img
+
+
+@functools.cache
+def _body(tilt: float) -> tuple[Image.Image, Image.Image]:
+    """The doll at this tilt before its face features and props: the
+    picture and its silhouette. The same for every pose with that tilt.
+    render() draws on copies."""
+    c = Canvas(W, H)
+    f = Frame(tilt, _settle(tilt))
 
     # Body, shaded with light from the top left. The shading is worked out
     # on the canvas, so it stays put while the doll turns.
@@ -522,13 +584,7 @@ def render(p: Pose) -> Image.Image:
     # Belly: 福 in gold, and gold cloud swirls on both lower sides.
     stamp(c, f, FUKU, 0, 14)
     _side_swirls(c, f)
-
-    _features(c, f, p)
-    _props_under(c, p)
-    c.outline(OUTLINE)
-    _props_over(c, p)
-    _extras(c, f, p)
-    return c.img
+    return c.img, c.body
 
 
 # A gold cloud swirl for the lower left of the belly; the right one is mirrored.

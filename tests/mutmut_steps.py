@@ -10,6 +10,8 @@ fail, then runs the mutants. install() wraps those steps:
   plan job then has the mutants and the stats that the parts reuse.
 - With DARUMA_MUTMUT_NO_STATS=1, a recorded run stops mutmut with an
   error. A part sets it: it must reuse the plan's stats, never redo them.
+  It also skips the clean tests: the plan's recorded run ran every test
+  and stops on a failing one, so a part has nothing to add.
 
 It relies on mutmut internals, a version uv.lock pins. STEPS names them,
 and tests/test_mutmut_steps.py fails when one moves.
@@ -85,6 +87,16 @@ def _no_stats_again(original):
     return run_stats_collection
 
 
+def _clean_in_the_plan(original):
+    @functools.wraps(original)
+    def run_clean_tests(self, *args, **kwargs):
+        if os.environ.get(NO_STATS):
+            return 0
+        return original(self, *args, **kwargs)
+
+    return run_clean_tests
+
+
 def _time_mutants(runner_class) -> None:
     """Times the mutant step: from the runner's startup to mutmut's exit."""
     startup = runner_class.startup
@@ -107,4 +119,5 @@ def install() -> None:
         setattr(owner, name, _timed(getattr(owner, name), step))
     main.collect_or_load_stats = _stats_then_stop(main.collect_or_load_stats)
     main.run_stats_collection = _no_stats_again(_timed(main.run_stats_collection, "recorded-run"))
+    ForkServerRunner.run_clean_tests = _clean_in_the_plan(ForkServerRunner.run_clean_tests)
     _time_mutants(ForkServerRunner)

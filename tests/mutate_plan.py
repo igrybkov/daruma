@@ -23,20 +23,21 @@ PLAN_FILE = Path("mutants") / "daruma-plan.json"
 # mutmut 3.8.1 keeps its recorded run here (mutmut.stats.load_stats).
 STATS_FILE = Path("mutants") / "mutmut-stats.json"
 MAX_PARTS = 3
-# What one more part costs before its first mutant, in seconds: runner
-# setup (about 12 s, the step times of a part), the download and unpack
-# of the plan's mutants, and mutmut's start in the part (generation
-# check, loading the stats, the clean tests and the forced fail). The
-# step times that mutmut_steps.py logs in CI on the 24-function probe
-# pull request gave about 60 s; this keeps a margin over that.
-PART_FIXED_SECONDS = 90
+# What one more part costs before its first mutant, in seconds. Measured
+# on the 24-function probe pull request, forced into three parts: about
+# 16 s of runner setup and download, 6 s to load the stats and list the
+# tests, and 8 s to report. Making the mutants again and the clean tests
+# cost 40 s more there; parts skip both now (mutmut_run.py keeps the
+# mutated copy, mutmut_steps.py leaves the clean tests to the plan). This
+# doubles the 30 s left, for the wait for a free runner.
+PART_FIXED_SECONDS = 60
 # Split only when each part's mutants take this many times the fixed cost.
 SPLIT_MARGIN = 2.0
-# Estimated seconds per mutant, as a share of its tests' recorded time.
-# Most mutants die on the first failing test, so they take less than the
-# whole time. Measured on the probe pull request: the parts' mutant step
-# against their estimates.
-KILL_SHARE = 0.5
+# A mutant's seconds on a worker, as a share of its tests' recorded time.
+# The recorded run times each test with mutmut's call tracking on, and
+# most mutants die on their first failing test. On the probe the parts'
+# mutant steps took 264 worker-seconds for 11,422 recorded seconds.
+KILL_SHARE = 0.07
 
 
 def mutant_function(name: str) -> str:

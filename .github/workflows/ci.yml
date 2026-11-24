@@ -132,7 +132,9 @@ jobs:
         uses: ./.github/actions/ccache-save
 
   mutation-part:
-    name: Mutation tests (part ${{ matrix.part }})
+    # No matrix value in the name: GitHub adds "(2)" to a part's name, and
+    # with one part the skipped job still reads well.
+    name: Mutation tests part
     needs: [mutation-plan]
     if: needs.mutation-plan.outputs.parts != '[]' && needs.mutation-plan.outputs.parts != ''
     runs-on: ubuntu-26.04

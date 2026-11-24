@@ -55,7 +55,7 @@ def test_large_work_gives_three_balanced_parts() -> None:
     rng = random.Random(7)
     names = _names(600, functions=40)
     # A few slow functions, as the doll's are, among many fast ones.
-    seconds = {f"pkg.mod.x_f{i}": (300.0 if i < 4 else 10.0) * rng.uniform(0.5, 1.5) for i in range(40)}
+    seconds = {f"pkg.mod.x_f{i}": (3000.0 if i < 4 else 100.0) * rng.uniform(0.5, 1.5) for i in range(40)}
     plan = mutate_plan.make(names, _stats(seconds), workers=4)
     assert len(plan["parts"]) == 3
     loads = plan["estimates"]

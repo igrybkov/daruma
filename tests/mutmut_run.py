@@ -126,6 +126,30 @@ class ClearCaches:
         clear_caches()
 
 
+def copy_also_but_sources(config) -> None:
+    """mutmut's copy_also_copy_files, less the files under source_paths.
+
+    also_copy takes whole folders (src, pixel, demos) that hold mutated
+    files too. Copied back with their old times, they look unmutated, and
+    mutmut makes their mutants again on every run. copy_src_dir copies the
+    source files once already.
+    """
+    import shutil
+
+    sources = [Path(p).resolve() for p in config.source_paths]
+
+    def copy(src: str, dst: str) -> None:
+        if not any(Path(src).resolve().is_relative_to(source) for source in sources):
+            shutil.copy2(src, dst)
+
+    for path in map(Path, config.also_copy):
+        target = Path("mutants") / path
+        if path.is_file():
+            copy(str(path), str(target))
+        elif path.is_dir():
+            shutil.copytree(path, target, dirs_exist_ok=True, copy_function=copy)
+
+
 def _patch() -> None:
     import mutmut_fast
     import mutmut_steps
@@ -183,6 +207,7 @@ def _patch() -> None:
         module.get_mutant_name = get_mutant_name
     for module in (file_utils, main):
         module.setup_source_paths = setup_source_paths
+        module.copy_also_copy_files = lambda: copy_also_but_sources(main.config())
 
 
 if __name__ == "__main__":

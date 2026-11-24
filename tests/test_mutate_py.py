@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import os
 import shutil
 import subprocess
@@ -18,9 +17,6 @@ import mutate_py
 import mutmut_run
 import pytest
 
-needs_mutmut = pytest.mark.skipif(
-    importlib.util.find_spec("mutmut") is None, reason="needs mutmut (the mutation group)"
-)
 # Under mutmut the tests run from its copy, whose sources hold the mutants.
 needs_sources = pytest.mark.skipif(mutate_py.ROOT.name == "mutants", reason="mutmut's copy of the sources is mutated")
 
@@ -182,7 +178,6 @@ def _git(repo: Path, *args: str) -> None:
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
-@needs_mutmut
 def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, capsys) -> None:
     (tmp_path / "src" / "pkg").mkdir(parents=True)
     (tmp_path / "src" / "pkg" / "__init__.py").write_text("")
@@ -318,7 +313,6 @@ SMALL_FILES = [
 ]
 
 
-@needs_mutmut
 @needs_sources
 @pytest.mark.parametrize("path", SMALL_FILES)
 def test_mutant_keys_are_the_names_mutmut_makes(path: str) -> None:
@@ -328,7 +322,6 @@ def test_mutant_keys_are_the_names_mutmut_makes(path: str) -> None:
     assert sorted(_mutant_keys(path)) == sorted(real)
 
 
-@needs_mutmut
 @needs_sources
 def test_the_shards_hold_every_mutant_exactly_once() -> None:
     names = [f"{mutate_py.module_name(p)}.{key}" for p in mutate_py.source_files() for key in _mutant_keys(p)]

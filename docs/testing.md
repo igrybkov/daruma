@@ -403,8 +403,9 @@ target out once for each mutant, then calls it straight. Classmethods,
 generators, async functions and the recorded run keep mutmut's own.
 `tests/mutmut_run.py` installs it before mutmut starts.
 
-These scripts change mutmut's internals, so `uv.lock` pins mutmut. An
-upgrade can still move what they rely on. Then a test fails and names
+These scripts change mutmut's internals, so `uv.lock` pins mutmut. It is
+in the `test` group, so every run of the tests has it and no guard
+skips. An upgrade can still move what they rely on. Then a test fails and names
 it: `tests/test_mutmut_fast.py` checks each internal the wrapper uses,
 and that it calls what mutmut's own would. A small real run in
 `tests/test_mutate_py.py` checks that each mutant runs under the cheap

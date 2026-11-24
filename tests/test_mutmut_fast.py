@@ -14,14 +14,11 @@ import importlib.util
 import inspect
 from pathlib import Path
 
+import mutmut
+import mutmut.mutation.trampoline as trampoline
+import mutmut_fast
 import pytest
-
-pytest.importorskip("mutmut", reason="needs mutmut (the mutation group)")
-
-import mutmut  # noqa: E402
-import mutmut.mutation.trampoline as trampoline  # noqa: E402
-import mutmut_fast  # noqa: E402
-from mutmut.mutation.file_mutation import mutate_file_contents  # noqa: E402
+from mutmut.mutation.file_mutation import mutate_file_contents
 
 MUTMUT = Path(mutmut.__file__).parent
 TRAMPOLINE = Path(trampoline.__file__)

@@ -910,9 +910,6 @@ lint = [
     { name = "gitlint-core" },
     { name = "pre-commit" },
 ]
-mutation = [
-    { name = "mutmut" },
-]
 pixel = [
     { name = "daruma-persona-corgi" },
     { name = "daruma-persona-daruma" },
@@ -939,6 +936,7 @@ test = [
     { name = "daruma-shapes-rooms" },
     { name = "esphome", marker = "python_full_version < '3.15'" },
     { name = "grimp" },
+    { name = "mutmut" },
     { name = "pillow" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -994,7 +992,6 @@ lint = [
     { name = "gitlint-core", specifier = "==0.19.1" },
     { name = "pre-commit", specifier = "==4.7.0" },
 ]
-mutation = [{ name = "mutmut", specifier = "==3.8.1" }]
 pixel = [
     { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
     { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
@@ -1021,6 +1018,7 @@ test = [
     { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
     { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.0" },
     { name = "grimp", specifier = ">=3.5" },
+    { name = "mutmut", specifier = "==3.8.1" },
     { name = "pillow", specifier = ">=10" },
     { name = "pytest", specifier = ">=9" },
     { name = "pytest-asyncio", specifier = ">=1.5" },

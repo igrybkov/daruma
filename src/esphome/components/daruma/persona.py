@@ -8,6 +8,8 @@
       rug: plain                  # or { value: plain, expose: true }
     during:                       # optional: reaction looks per activity
       focus: { Loved: LovedFocus }  # petted during focus keeps the incense
+    random_events:                # optional: quirks now and then (random_events.py)
+      lick_paw: { animation: LickPaw, frequency: 9 }
 
 A state left out uses the animation named like it (any case), else its
 fallback's (registry.py). `during:` swaps the animation a reaction plays
@@ -23,7 +25,7 @@ import esphome.config_validation as cv
 from esphome.components import select, switch
 from esphome.const import CONF_NAME
 
-from . import registry, states_for_build
+from . import random_events, registry, states_for_build
 from .registry import RegistryError
 
 CONF_BEHAVIORS = "behaviors"
@@ -49,6 +51,65 @@ BEHAVIOR_SCHEMA = cv.Schema(
 BEHAVIORS_SCHEMA = cv.Schema({cv.string_strict: BEHAVIOR_SCHEMA})
 # activity state -> {animation a reaction would play: the one to play instead}
 DURING_SCHEMA = cv.Schema({cv.string_strict: cv.Schema({cv.string_strict: cv.string_strict})})
+
+CONF_RANDOM_EVENTS = "random_events"
+
+
+def _when(value):
+    """Checks the conditions and keeps them as written; codegen parses them again."""
+    try:
+        random_events.parse_when(value)
+    except RegistryError as err:
+        raise cv.Invalid(str(err)) from err
+    return value
+
+
+EVENT_SCHEMA = cv.Schema(
+    {
+        cv.Optional(random_events.CONF_ANIMATION): cv.string_strict,
+        cv.Optional(random_events.CONF_ENTER): cv.string_strict,
+        cv.Optional(random_events.CONF_EXIT): cv.string_strict,
+        cv.Optional(random_events.CONF_FOR): cv.All(
+            cv.positive_time_period_milliseconds,
+            cv.Range(min=cv.TimePeriod(seconds=5), max=cv.TimePeriod(hours=2)),
+        ),
+        cv.Optional(random_events.CONF_SAY): cv.All(cv.ensure_list(cv.string), cv.Length(min=1, max=8)),
+        cv.Optional(random_events.CONF_SOUND): cv.string_strict,
+        cv.Optional(random_events.CONF_FREQUENCY, default=random_events.DEFAULT_FREQUENCY): cv.int_range(min=1, max=10),
+        cv.Optional(random_events.CONF_COOLDOWN): cv.All(
+            cv.positive_time_period_seconds,
+            cv.Range(min=cv.TimePeriod(minutes=1), max=cv.TimePeriod(days=366)),
+        ),
+        cv.Optional(random_events.CONF_WHEN, default={}): _when,
+    }
+)
+
+
+def _events_schema(say_only: bool):
+    """name -> event, each with its shape checked."""
+
+    def validate(value):
+        if not isinstance(value, dict):
+            raise cv.Invalid("random_events: a map of event name to event")
+        out = {}
+        for name, conf in value.items():
+            with cv.prepend_path(name):
+                event = EVENT_SCHEMA(conf)
+                try:
+                    if say_only:
+                        registry.check_say_only(f"random_events: {name}", event)
+                    random_events.check_shape(name, event)
+                except RegistryError as err:
+                    raise cv.Invalid(str(err)) from err
+                out[name] = event
+        return out
+
+    return validate
+
+
+RANDOM_EVENTS_SCHEMA = _events_schema(say_only=False)
+# The images persona has one picture per state, so its events only say and sound.
+SAY_ONLY_EVENTS_SCHEMA = _events_schema(say_only=True)
 
 
 class Param:
@@ -125,13 +186,15 @@ def with_param_entities(declared: dict[str, Param]):
     return validate
 
 
-def persona(persona_id: str, animations: list[str], config) -> registry.Persona:
+def persona(persona_id: str, animations: list[str], config, event_animations: bool = True) -> registry.Persona:
     return registry.Persona(
         id=persona_id,
         animations=list(animations),
         behaviors={k: dict(v) for k, v in config.get(CONF_BEHAVIORS, {}).items()},
         sounds=list(config.get("sounds", {})),
         during={k: dict(v) for k, v in config.get(CONF_DURING, {}).items()},
+        random_events={k: dict(v) for k, v in config.get(CONF_RANDOM_EVENTS, {}).items()},
+        event_animations=event_animations,
     )
 
 

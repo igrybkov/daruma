@@ -7,7 +7,7 @@
       modules:
         - name: pomodoro
           states:                  # each with a fallback (registry.py)
-            focus: { kind: activity, fallback: neutral, sound: start }
+            focus: { kind: activity, fallback: neutral, sound: start, quiet: true }  # quiet: no random events
           actions:                 # named actions that bindings run
             pomodoro.toggle:
               - script.execute: pomodoro_toggle
@@ -126,6 +126,7 @@ CONF_KIND = "kind"
 CONF_FALLBACK = "fallback"
 CONF_SOUND = "sound"
 CONF_DURATION = "duration"
+CONF_QUIET = "quiet"
 CONF_DISPLAY = "display"
 CONF_DISPLAY_PROFILE = "display_profile"
 CONF_COLORS_MODE = "colors"
@@ -188,6 +189,8 @@ STATE_SCHEMA = cv.Schema(
         cv.Required(CONF_FALLBACK): _name,
         cv.Optional(CONF_SOUND): _name,
         cv.Optional(CONF_DURATION, default="0s"): cv.positive_time_period_milliseconds,
+        # Activities only: random events wait while it is on.
+        cv.Optional(CONF_QUIET, default=False): cv.boolean,
     }
 )
 
@@ -459,7 +462,13 @@ def _module_from_yaml(conf) -> registry.ModuleSpec:
     name = conf[CONF_NAME]
     states = [
         registry.State(
-            state, s[CONF_KIND], s[CONF_FALLBACK], s.get(CONF_SOUND), s[CONF_DURATION].total_milliseconds, name
+            state,
+            s[CONF_KIND],
+            s[CONF_FALLBACK],
+            s.get(CONF_SOUND),
+            s[CONF_DURATION].total_milliseconds,
+            name,
+            s[CONF_QUIET],
         )
         for state, s in conf[CONF_STATES].items()
     ]
@@ -528,6 +537,17 @@ def _inputs(config) -> dict[str, registry.Input]:
     return inputs
 
 
+def _check_persona(char, theme, states, modules) -> None:
+    """One persona's looks, `during:`, random events and theme keys. The
+    random event checks run also with the engine off, so a typo always fails."""
+    _, log = registry.resolve_persona(char, states)
+    registry.resolve_during(char, states)
+    log += registry.resolve_random_events(char, states)
+    for line in log:
+        _LOGGER.info(line)
+    registry.check_theme_keys(char.id, theme.get(CONF_COLORS, {}), theme.get(CONF_WORDS, {}), modules, CORE_WORDS)
+
+
 def _final_validate(config):
     full = fv.full_config.get()
     try:
@@ -538,13 +558,7 @@ def _final_validate(config):
         persona_ids = []
         for char, theme, declared in collect_personas(full):
             persona_ids.append(char.id)
-            _, log = registry.resolve_persona(char, states)
-            registry.resolve_during(char, states)
-            for line in log:
-                _LOGGER.info(line)
-            registry.check_theme_keys(
-                char.id, theme.get(CONF_COLORS, {}), theme.get(CONF_WORDS, {}), modules, CORE_WORDS
-            )
+            _check_persona(char, theme, states, modules)
             params += [(char.id, p) for p in declared]
         registry.check_params(params)
         registry.check_device_themes(config[CONF_THEME], config[CONF_THEMES], persona_ids, modules, CORE_WORDS)

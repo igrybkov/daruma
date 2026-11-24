@@ -251,7 +251,7 @@ def _write_config(
         lines += ["daruma:", "  random_events:", "    enabled: false"]
     if COVERAGE:
         # Lists merge by joining, so this adds to the board's build flags.
-        lines += ["esphome:", "  platformio_options:", "    build_flags:", "      - --coverage"]
+        lines += ["esphome:", "  build_flags:", "    - --coverage"]
     yaml_name = f"{name}.yaml"
     (config_dir / yaml_name).write_text("\n".join(lines) + "\n")
     return yaml_name, private

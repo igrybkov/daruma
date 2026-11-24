@@ -211,6 +211,108 @@ class During(unittest.TestCase):
             registry.resolve_during(char, self.states)
 
 
+class RandomEvents(unittest.TestCase):
+    """A persona's `random_events:` against its animations, moods and sounds."""
+
+    def setUp(self):
+        self.states = registry.collect_states(MODULES)
+        self.anims = CORGI_ANIMS + ["LickPaw", "WalkOff", "Away", "WalkBack"]
+
+    def check(self, events, **kwargs):
+        return registry.resolve_random_events(
+            Persona("pixel_corgi", self.anims, random_events=events, **kwargs), self.states
+        )
+
+    def test_good_events_log_nothing(self):
+        events = {
+            "lick_paw": {"animation": "LickPaw", "sound": "pet", "when": {"moods": ["happy", "sleeping"]}},
+            "bathroom": {"enter": "WalkOff", "animation": "Away", "exit": "WalkBack", "for": 180000},
+            "snore": {"say": ["Zzz"]},
+        }
+        self.assertEqual(self.check(events), [])
+        self.assertEqual(self.check({}), [])
+
+    def test_unknown_animation_in_each_key(self):
+        for key in ("enter", "animation", "exit"):
+            event = {"enter": "WalkOff", "animation": "Away", "exit": "WalkBack", key: "Missing"}
+            with self.subTest(key), self.assertRaises(RegistryError) as caught:
+                self.check({"bathroom": event})
+            self.assertEqual(
+                str(caught.exception),
+                f"pixel_corgi: random_events: bathroom: no animation 'Missing' (it has: {', '.join(self.anims)})",
+            )
+
+    def test_case_mismatch_suggests_the_name(self):
+        with self.assertRaises(RegistryError) as caught:
+            self.check({"lick_paw": {"animation": "lickpaw"}})
+        self.assertEqual(
+            str(caught.exception),
+            "pixel_corgi: random_events: lick_paw: no animation 'lickpaw' (did you mean 'LickPaw'?)",
+        )
+
+    def test_moods_must_be_moods(self):
+        moods = "neutral, happy, sad, loved, scared, sleepy, sleeping"
+        for bad in ("focus", "petted", "sleepng"):
+            with self.subTest(bad), self.assertRaises(RegistryError) as caught:
+                self.check({"snore": {"say": ["Zzz"], "when": {"moods": ["sleeping", bad]}}})
+            self.assertEqual(
+                str(caught.exception), f"pixel_corgi: random_events: snore: moods: '{bad}' is no mood (moods: {moods})"
+            )
+
+    def test_sound_built_in_or_the_personas(self):
+        with self.assertRaisesRegex(RegistryError, r"^pixel_corgi: random_events: sneeze: sound 'achoo' is neither"):
+            self.check({"sneeze": {"sound": "achoo"}})
+        self.check({"sneeze": {"sound": "achoo"}}, sounds=["achoo"])
+        self.check({"sneeze": {"sound": "urgent"}})
+
+    def test_say_only_persona(self):
+        say_only = {"event_animations": False}
+        self.check({"snore": {"say": ["Zzz"], "sound": "pet"}}, **say_only)
+        with self.assertRaises(RegistryError) as caught:
+            self.check({"bathroom": {"enter": "WalkOff", "animation": "Away", "for": 180000}}, **say_only)
+        self.assertEqual(
+            str(caught.exception),
+            "pixel_corgi: random_events: bathroom: the images persona plays say-only events; "
+            "drop animation, enter, for",
+        )
+        for key in ("animation", "enter", "exit", "for"):
+            with self.subTest(key), self.assertRaisesRegex(RegistryError, f"drop {key}$"):
+                registry.check_say_only("x", {key: 1, "say": ["Hi"]})
+
+    def test_trap_line_for_a_states_look(self):
+        # `Sleepy` is the look of the state `sleepy` (any case), so the event shows the state's look.
+        log = self.check({"yawn": {"animation": "Sleepy"}, "bathroom": {"animation": "Focus", "for": 60000}})
+        self.assertEqual(
+            log,
+            [
+                "pixel_corgi: random event animation 'Sleepy' is also the look of state 'sleepy'",
+                "pixel_corgi: random event animation 'Focus' is also the look of state 'focus'",
+            ],
+        )
+
+    def test_no_trap_line_when_behaviors_point_the_state_elsewhere(self):
+        behaviors = {"sleepy": {"animation": "Sleeping"}}
+        self.assertEqual(self.check({"yawn": {"animation": "Sleepy"}}, behaviors=behaviors), [])
+        # A behavior with only a sound still shows the look named like the state.
+        log = self.check({"yawn": {"animation": "Sleepy"}}, behaviors={"sleepy": {"sound": "pet"}})
+        self.assertEqual(len(log), 1)
+
+
+class Quiet(unittest.TestCase):
+    def test_an_activity_can_be_quiet(self):
+        module = ModuleSpec("pomodoro", states=[State("focus", registry.ACTIVITY, "neutral", quiet=True)])
+        (focus,) = [s for s in registry.collect_states([module]) if s.name == "focus"]
+        self.assertTrue(focus.quiet)
+        self.assertFalse(any(s.quiet for s in registry.CORE_STATES))
+
+    def test_only_an_activity(self):
+        for kind in (registry.MOOD, registry.REACTION):
+            module = ModuleSpec("x", states=[State("hush", kind, "neutral", quiet=True)])
+            with self.subTest(kind), self.assertRaises(RegistryError) as caught:
+                registry.collect_states([module])
+            self.assertEqual(str(caught.exception), f"State 'hush': only an activity can be quiet, not a {kind}")
+
+
 class Inputs(unittest.TestCase):
     def test_swipe_stands_for_four_directions(self):
         gestures = registry.expand_gestures(registry.TOUCH, ["swipe", "tap", "swipe_left"])

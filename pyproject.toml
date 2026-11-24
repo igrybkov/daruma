@@ -149,6 +149,7 @@ pixel = ["pixel/", "*/src/pixel/"]
 # The other component files import ESPHome, so no host test reaches them.
 [tool.mutmut]
 source_paths = [
+    "src/esphome/components/daruma/random_events.py",
     "src/esphome/components/daruma/registry.py",
     "src/esphome/components/daruma/sprite_codec.py",
     "src/esphome/components/daruma_sprites/extend.py",

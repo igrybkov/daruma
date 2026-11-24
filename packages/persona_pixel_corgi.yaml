@@ -62,11 +62,11 @@ daruma_sprites:
         frequency: 8
         when: { between: "16:00-18:00", weekdays: [mon-fri] }
       # The bathroom trip: up goes the sign, off it hops, and back in 3 min.
-      # A tap or a reaction brings it back at once.
+      # A tap or a reaction brings it back at once. No `say:`: the sign says
+      # it, and a bubble would hide the hops.
       bathroom:
         enter: WalkOff
         animation: Away
         exit: WalkBack
         for: 3min
-        say: ["brb", "Back in a sec!"]
         frequency: 7

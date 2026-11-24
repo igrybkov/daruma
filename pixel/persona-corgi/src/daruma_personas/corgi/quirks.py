@@ -138,7 +138,7 @@ HOP = Pose(eyes="open", mouth="open", head_dx=2, tilt=4)
 AWAY = Trip(sign=True)
 BACK = Pose(eyes="happy", mouth="open", head_dx=-2, tilt=-4)
 # Out the window, at the top left: head turned that way, ears up.
-GAZE = Pose(eyes="up_left", mouth="flat", ears=-10, head_dx=-2, head_dy=-1, tilt=-6)
+GAZE = Pose(eyes="up_left", mouth="flat", ears=-10, head_dx=-1, head_dy=-1, tilt=-3)
 
 
 def _hops(pet: Pose, steps: tuple[int, ...], ms: int = 130) -> list:
@@ -174,11 +174,11 @@ ANIMATIONS: dict[str, list[tuple[Pose | Trip, int]]] = {
     ],
     # Look out the window: turn to it, gaze a while, blink, turn back.
     "LookOutWindow": [
-        (with_(GAZE, eyes="open", ears=-4, head_dx=-1, tilt=-3), 250),
+        (with_(GAZE, eyes="open", ears=-4, head_dx=0, head_dy=0, tilt=-1), 250),
         (GAZE, 1400),
         (with_(GAZE, eyes="blink"), 150),
         (GAZE, 1200),
-        (with_(GAZE, eyes="open", ears=-4, head_dx=-1, tilt=-3), 250),
+        (with_(GAZE, eyes="open", ears=-4, head_dx=0, head_dy=0, tilt=-1), 250),
         (NEUTRAL, 300),
     ],
     # Off to the bathroom: it looks to the door, puts its sign up beside

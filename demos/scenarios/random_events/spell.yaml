@@ -20,7 +20,7 @@ steps:
   - snapshot: hop-off
   - wait: 0.43
   - snapshot: puff
-  # Away: only the sign, once the words are gone.
+  # Away: only the sign.
   - wait: 2
   - snapshot: away
   # The 3 minutes end 182.9 s in; WalkBack plays.

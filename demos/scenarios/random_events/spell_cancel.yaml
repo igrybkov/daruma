@@ -10,8 +10,7 @@ setup:
   - set: {Outside temperature: 64}
   - wait: 1
 steps:
-  # A tap while away, with its "brb" still up: the trip and its words end,
-  # and the tap reaches the menu.
+  # A tap while away: the trip ends, and the tap reaches the menu.
   - random_event: bathroom
   - wait: 3.5
   - snapshot: away

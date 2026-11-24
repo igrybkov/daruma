@@ -301,8 +301,7 @@ is a gap in the tests.
 make mutate                    # every mutant: a report
 make mutate-diff               # only the lines changed since origin/main
 make mutate-diff BASE=main     # or since another branch
-make mutate-diff PARTS=3       # plan up to three parts, as CI does
-make mutate-part PART=2        # then run part 2 of that plan
+make mutate-diff PART=2/3      # part 2 of 3 of it, as a CI runner does
 ```
 
 `make mutate` mutates all the Python. It takes about 45 minutes on an
@@ -311,30 +310,20 @@ mutates only the functions a branch changed. It takes from seconds to
 a few minutes. It fails when a mutant on a changed line survives, or
 when no test reaches it. The changes count from the merge base, so
 commits that land on main later are not yours. CI runs
-`make mutate-diff PARTS=3 MINUTES=8` on every pull request. That check
-is not required. `MINUTES` stops a part's Python run in time: it then
-lists what it found and fails.
+`make mutate-diff MINUTES=12` on every pull request. That check is not
+required. `MINUTES` stops the Python run in time: it then lists what it
+found and fails.
 
-CI splits a big run across runners. A plan job makes the mutants and
-runs mutmut's recorded run once. The recorded run gives each test's
-time. A mutant's cost is the time of the tests that reach it. The plan
-puts the costliest mutant first, each into the part with the least cost
-so far. It saves the parts in `mutants/daruma-plan.json`. Each part job
-unpacks the plan's `mutants/` and runs only its own mutants. It reports
-and fails on its own survivors. One check fails when the plan or any
-part does.
-
-A part costs time before its first mutant: a runner, the download, and
-mutmut's start. So the plan splits only when each part's mutants take
-well over that. `PART_FIXED_SECONDS` in `tests/mutate_plan.py` holds
-that cost, and says how it was measured. A small change runs in the
-plan job, as one part. The C++ mutants run in the plan job too.
-
-A part must reuse the plan's stats. If mutmut would run the recorded
-run again, the part stops with an error. A mutmut upgrade that keeps
-its stats elsewhere fails there, and in `tests/test_mutmut_steps.py`.
-The plan stops when a mutant is in no part or in two. Each run logs the
-time of each mutmut step (`daruma-step:` lines).
+A big change runs on three runners. `make mutate-parts` counts the
+changed functions. Past `PARTS_THRESHOLD` (20, in `tests/mutate_py.py`)
+CI runs three parts, else one. Each part runs the whole flow on its own
+runner. It makes the mutants, runs the recorded run and the clean
+tests, then runs only its own mutants: every third one, in sorted
+order. So the slow doll and shape functions spread across the parts.
+Each part reports and fails on its own survivors. One check fails when
+any part does. The C++ mutants run in part 1. A test checks that the
+parts hold every mutant exactly once. Each run logs the time of each
+mutmut step (`daruma-step:` lines).
 
 - **Python**: [mutmut](https://github.com/boxed/mutmut) mutates the
   folders and files in `[tool.mutmut]` in `pyproject.toml`: every

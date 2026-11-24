@@ -74,17 +74,51 @@ jobs:
   # Mutation tests of the lines a pull request changes (docs/testing.md).
   # It fails on a mutant no test catches, but it is not a required check:
   # a person decides whether to add a test or mark the line.
-  # The plan makes the mutants and runs mutmut's recorded run once. A
-  # small change runs here, as one part. A bigger one goes to up to three
-  # parts (tests/mutate_plan.py), which reuse the plan's mutants and stats.
-  mutation-plan:
-    name: Mutation tests (plan)
+  # How many runners the change needs: 3 past PARTS_THRESHOLD changed
+  # functions (tests/mutate_py.py), else 1.
+  mutation-parts:
+    name: Mutation tests (parts)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
-    # The recorded run, then one part's MINUTES when it runs here.
-    timeout-minutes: 14
+    timeout-minutes: 5
     outputs:
-      parts: ${{ steps.plan.outputs.parts }}
+      parts: ${{ steps.count.outputs.parts }}
+    steps:
+      # The whole history, for the merge base with the pull request's base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            .python-version
+      - name: Install the test tools
+        run: uv sync --locked --only-group test --no-install-project
+      - name: Count the parts
+        id: count
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: make mutate-parts BASE="$BASE" UV_RUN="uv run --no-sync"
+
+  # Each part runs the whole flow on its own runner: it makes the mutants,
+  # records which tests reach them, then runs every Nth mutant. It fails on
+  # its own survivors. The C++ mutants run in part 1.
+  mutation-part:
+    # No matrix value in the name: GitHub adds "(2)" to each part's name.
+    name: Mutation tests part
+    needs: [mutation-parts]
+    runs-on: ubuntu-26.04
+    # A change to drawing code runs the persona tests for each mutant.
+    # MINUTES stops the Python run first, so a big pull request reports
+    # what it found instead of timing out.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.mutation-parts.outputs.parts) }}
     # As in the host tests job, so its cache matches.
     env:
       CXX: ccache c++
@@ -110,92 +144,28 @@ jobs:
         uses: ./.github/actions/ccache
         with:
           kind: host
-      # MINUTES stops a part's Python run first, so a big pull request
-      # reports what it found instead of timing out.
-      - name: Plan and run the mutation tests
-        id: plan
+      - name: Run the mutation tests
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: make mutate-diff BASE="$BASE" PARTS=3 MINUTES=8 UV_RUN="uv run --no-sync"
-      # Also when the C++ mutants failed the step: the parts still run.
-      - name: Pack the plan for the parts
-        if: ${{ !cancelled() && steps.plan.outputs.parts != '[]' && steps.plan.outputs.parts != '' }}
-        run: tar -czf mutation-plan.tgz mutants
-      - if: ${{ !cancelled() && steps.plan.outputs.parts != '[]' && steps.plan.outputs.parts != '' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-plan
-          path: mutation-plan.tgz
-          retention-days: 1
+          PART: ${{ matrix.part }}/${{ strategy.job-total }}
+        run: make mutate-diff BASE="$BASE" PART="$PART" MINUTES=12 UV_RUN="uv run --no-sync"
       - name: Show the ccache counters
         if: ${{ !cancelled() }}
         uses: ./.github/actions/ccache-save
 
-  mutation-part:
-    # No matrix value in the name: GitHub adds "(2)" to a part's name, and
-    # with one part the skipped job still reads well.
-    name: Mutation tests part
-    needs: [mutation-plan]
-    if: needs.mutation-plan.outputs.parts != '[]' && needs.mutation-plan.outputs.parts != ''
-    runs-on: ubuntu-26.04
-    timeout-minutes: 11
-    strategy:
-      fail-fast: false
-      matrix:
-        part: ${{ fromJSON(needs.mutation-plan.outputs.parts) }}
-    env:
-      CXX: ccache c++
-      CCACHE_BASEDIR: ${{ github.workspace }}
-    steps:
-      # The whole history, for the merge base with the pull request's base.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            uv.lock
-            .python-version
-      - name: Install the test tools
-        run: uv sync --locked --only-group test --no-install-project
-      # The host tests' cache: mutmut runs the host tests, which compile the
-      # C++ as that job does. Each C++ mutant is a new source that no cache
-      # holds. This job doesn't save, so mutants never fill the cache.
-      - name: Set up ccache
-        uses: ./.github/actions/ccache
-        with:
-          kind: host
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: mutation-plan
-      - name: Unpack the plan
-        run: tar -xzf mutation-plan.tgz
-      - name: Run the part
-        env:
-          PART: ${{ matrix.part }}
-        run: make mutate-part PART="$PART" MINUTES=8 UV_RUN="uv run --no-sync"
-      - name: Show the ccache counters
-        if: ${{ !cancelled() }}
-        uses: ./.github/actions/ccache-save
-
-  # One check for the plan and its parts: it fails when any of them found a
-  # survivor. With one part there are no part jobs, and they count as skipped.
+  # One check for every part: it fails when any part found a survivor.
   mutation:
     name: Mutation tests (changed lines)
-    needs: [mutation-plan, mutation-part]
+    needs: [mutation-parts, mutation-part]
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
-      - name: The plan and every part passed
+      - name: Every part passed
         env:
-          PLAN: ${{ needs.mutation-plan.result }}
+          COUNT: ${{ needs.mutation-parts.result }}
           PARTS: ${{ needs.mutation-part.result }}
-        run: |
-          test "$PLAN" = success
-          test "$PARTS" = success || test "$PARTS" = skipped
+        run: test "$COUNT" = success && test "$PARTS" = success
 
   # Every check runs, even after one fails, so one run shows them all.
   lint:

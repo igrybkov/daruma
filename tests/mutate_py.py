@@ -2,8 +2,8 @@
 
     uv run python tests/mutate_py.py               every mutant: a report
     uv run python tests/mutate_py.py --diff BASE   the lines changed since BASE
-    ... --diff BASE --parts 3                      plan up to three parts for CI
-    uv run python tests/mutate_py.py --part 2      run part 2 of the saved plan
+    ... --diff BASE --part 2/3                     part 2 of 3 of that run
+    ... --diff BASE --count-parts                  how many parts CI runs
 
 mutmut changes the code one small step at a time (a `<` to a `<=`, a
 `True` to a `False`) and runs the tests that reach it. A change no test
@@ -16,11 +16,10 @@ what most of the drawing code is checked against.
 mutant on a changed line survives, or no test reaches it. Mark a line
 `# pragma: no mutate` when no test can tell the change apart.
 
---diff BASE --parts N plans the run for up to N CI runners (mutate_plan.py).
-It makes the mutants and runs mutmut's recorded run once. A small change
-runs at once, as one part. A bigger one is saved as N parts, and
---part K runs part K from the plan, with the plan's mutants and stats.
-Each part reports and fails on its own mutants.
+--diff BASE --part K/N runs part K of N of those mutants: every Nth in
+sorted order, so the slow functions spread across the parts. Each part
+runs the whole flow on its own runner and fails on its own survivors.
+--count-parts tells CI how many parts a change needs (PARTS_THRESHOLD).
 """
 
 from __future__ import annotations
@@ -36,16 +35,21 @@ import sys
 import tomllib
 from pathlib import Path
 
-import mutate_plan
 from changed_lines import ROOT, changed_lines
-from mutate_plan import Unsharded
 from mutmut_run import STRAY_PREFIXES, module_name
-from mutmut_steps import NO_STATS, PLAN, STATS_AGAIN
+from mutmut_steps import PART, PART_PREFIX, parse_part, part_of
 from mutmut_steps import PREFIX as STEP_PREFIX
 
 SHIM = Path(__file__).resolve().parent / "mutmut_run.py"
 
 BAD = ("survived", "no tests")
+# CI splits a change of more than this many functions into PARTS parts.
+# A pixel function's mutants take about 9 s of work, and a runner costs
+# about 2.5 minutes before its first mutant (both measured on a
+# 24-function pull request). One runner reaches the 12-minute budget at
+# about 60 functions. Past 20, three runners finish well inside it.
+PARTS_THRESHOLD = 20
+PARTS = 3
 _HUNK = re.compile(r"^@@ -(\d+)")
 _SPINNER = re.compile(r"[\u2800-\u28ff]")  # The Braille dots of mutmut's progress spinner.
 
@@ -64,9 +68,9 @@ def mutmut(
 ) -> subprocess.CompletedProcess:
     """Runs mutmut through the shim. Past `minutes` it stops mutmut and
     every process it started, and raises OutOfTime."""
-    # A plan's or a part's switch is for this run only, never for a run a
-    # test starts inside it (the planted run in test_mutate_py.py).
-    dropped = {"DARUMA_SKIP_PERSONAS", PLAN, NO_STATS}
+    # A part's switch is for this run only, never for a run a test starts
+    # inside it (the planted run in test_mutate_py.py).
+    dropped = {"DARUMA_SKIP_PERSONAS", PART}
     env = {k: v for k, v in os.environ.items() if k not in dropped} | (env or {})
     command = [sys.executable, str(SHIM), *args]
     with subprocess.Popen(
@@ -79,7 +83,8 @@ def mutmut(
             proc.communicate()
             raise OutOfTime from None
     if args[:1] == ("run",):
-        print(*(line for line in err.splitlines() if line.startswith(STEP_PREFIX)), sep="\n", flush=True)
+        notes = (line for line in err.splitlines() if line.startswith((STEP_PREFIX, PART_PREFIX)))
+        print(*notes, sep="\n", flush=True)
     if check and proc.returncode:
         raise subprocess.CalledProcessError(proc.returncode, command, out, err)
     return subprocess.CompletedProcess(command, proc.returncode, out, err)
@@ -227,67 +232,54 @@ def _targets(changed: dict[str, set[int]]) -> dict[str, tuple[str, tuple[int, in
     return targets
 
 
-def run_diff(base: str, minutes: float | None = None, max_parts: int = 1) -> int:
-    """Plans the run of the changed functions. One part runs at once; more
-    are saved for --part, and their numbers go to the CI job's output."""
+def github_output(key: str, value: str) -> None:
+    if path := os.environ.get("GITHUB_OUTPUT"):
+        with open(path, "a") as out:
+            out.write(f"{key}={value}\n")
+
+
+def count_parts(base: str) -> int:
+    """How many parts CI runs the change in; also the job's `parts` output."""
+    functions = len(_targets(changed_lines(base, source_paths())))
+    count = PARTS if functions > PARTS_THRESHOLD else 1
+    print(f"{functions} changed functions: {count} part(s).")
+    github_output("parts", json.dumps(list(range(1, count + 1))))
+    return 0
+
+
+def run_diff(base: str, minutes: float | None = None, part: tuple[int, int] = (0, 1)) -> int:
     changed = changed_lines(base, source_paths())
     targets = _targets(changed)
     if not targets:
         print(f"No changed functions in {', '.join(source_paths())} since {base}: nothing to mutate.")
-        mutate_plan.github_output("parts", "[]")
         return 0
-    run = mutmut("run", *targets, check=False, env={PLAN: "1"})
-    if run.returncode:
-        # Most often a test fails in the recorded run: then nothing counts.
-        print(tail(run.stdout + run.stderr), "mutmut failed.", sep="\n")
-        return run.returncode
+    label = f"Part {part[0] + 1} of {part[1]}" if part[1] > 1 else "This run"
+    env = {PART: f"{part[0] + 1}/{part[1]}"} if part[1] > 1 else {}
+    try:
+        run = mutmut("run", *targets, check=False, minutes=minutes, env=env)
+    except OutOfTime:
+        run = None
     names = [n for n in results() if _glob(n) in targets]
     if missing := stray_names(names, sorted({module_name(path) for path, _ in targets.values()})):
         print(f"mutmut has no mutants under the module names {missing}: tests/mutate_py.py names them wrong.")
         return 1
-    if not names:
-        print("The changed functions have nothing to mutate.")
-        mutate_plan.github_output("parts", "[]")
-        return 0
-    stats = json.loads((ROOT / mutate_plan.STATS_FILE).read_text())
-    plan = mutate_plan.make(names, stats, os.cpu_count() or 1, max_parts)
-    plan |= {"targets": targets, "changed": {path: sorted(lines) for path, lines in changed.items()}}
-    mutate_plan.save(plan, ROOT)
-    count = len(plan["parts"])
-    print(f"{len(targets)} changed functions, {len(names)} mutants, {count} part(s), estimates {plan['estimates']} s.")
-    if count > 1:
-        mutate_plan.github_output("parts", json.dumps(list(range(1, count + 1))))
-        return 0
-    mutate_plan.github_output("parts", "[]")
-    return run_part(0, minutes)
-
-
-def run_part(index: int, minutes: float | None = None) -> int:
-    """Runs one part of the saved plan, with the plan's mutants and stats."""
-    plan = mutate_plan.load(ROOT)
-    mutate_plan.mark_mutants_newer(ROOT)
-    mine = set(plan["parts"][index])
-    label = f"Part {index + 1} of {len(plan['parts'])}"
-    try:
-        args = mutate_plan.mutmut_args(sorted(mine), plan["names"])
-        run = mutmut("run", *args, check=False, minutes=minutes, env={NO_STATS: "1"})
-    except OutOfTime:
-        run = None
-    if run is not None and run.returncode == STATS_AGAIN:
-        print(f"{label} would redo the recorded run: mutmut no longer finds the plan's stats.")
-        return 1
-    status = {n: s for n, s in results().items() if n in mine}
+    status = {n: s for n, s in results().items() if n in set(part_of(names, *part))}
     if run is None:
         return out_of_time(status, minutes)
+    if "nothing matches" in run.stdout + run.stderr:
+        print("The changed functions have nothing to mutate.")
+        return 0
     if run.returncode:
+        # Most often a test fails before any mutation: then no result counts.
         print(tail(run.stdout + run.stderr), "mutmut failed.", sep="\n")
         return run.returncode
-    return report_diff(label, status, plan)
+    if part[1] > 1 and f"{PART_PREFIX} {part[0] + 1}/{part[1]} " not in run.stderr:
+        print(f"{label}: mutmut ran every mutant, not its part. tests/mutmut_steps.py no longer splits them.")
+        return 1
+    return report_diff(label, status, targets, changed)
 
 
-def report_diff(label: str, status: dict[str, str], plan: dict) -> int:
-    targets = {glob: (path, tuple(span)) for glob, (path, span) in plan["targets"].items()}
-    changed = {path: set(lines) for path, lines in plan["changed"].items()}
+def report_diff(label: str, status: dict[str, str], targets: dict, changed: dict) -> int:
     bad = caught_none(status, targets, changed)
     for state, why in (
         ("survived", "a test runs the line but misses the change"),
@@ -329,22 +321,26 @@ def _glob(name: str) -> str:
     return f"{name.rpartition('__mutmut_')[0]}__mutmut_*"
 
 
+def _part(text: str) -> tuple[int, int]:
+    try:
+        return parse_part(text)
+    except ValueError as err:
+        raise argparse.ArgumentTypeError(str(err)) from None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--diff", metavar="BASE", help="only the lines changed since the merge base with BASE")
-    parser.add_argument("--parts", type=int, default=1, help="--diff: plan up to this many parts (default 1)")
-    parser.add_argument("--part", type=int, metavar="K", help="run part K of the saved plan")
-    parser.add_argument("--minutes", type=float, help="stop mutmut after this long, and fail")
+    parser.add_argument("--part", type=_part, default=(0, 1), metavar="K/N", help="--diff: run part K of N")
+    parser.add_argument("--count-parts", action="store_true", help="--diff: how many parts CI runs the change in")
+    parser.add_argument("--minutes", type=float, help="--diff: stop mutmut after this long, and fail")
     args = parser.parse_args()
     try:
-        if args.part:
-            return run_part(args.part - 1, args.minutes)
-        return run_diff(args.diff, args.minutes, args.parts) if args.diff else run_all()
+        if args.diff and args.count_parts:
+            return count_parts(args.diff)
+        return run_diff(args.diff, args.minutes, args.part) if args.diff else run_all()
     except StrayNames as err:
         print(f"{err}: tests/mutmut_run.py maps the layouts to import names.")
-        return 1
-    except Unsharded as err:
-        print(f"{err}: tests/mutate_plan.py splits the mutants.")
         return 1
 
 

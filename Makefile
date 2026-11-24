@@ -26,8 +26,7 @@ GROUP ?= ## One dependency group for setup: test, lint, tidy, dev or esphome
 CONFIRM ?= ## Set to 1 to let update-golden write golden pictures
 BUILD_REF ?= ci-head## The scratch branch that config and compile point at HEAD (default: ci-head)
 BASE ?= origin/main## What mutate-diff compares with, from the merge base (default: origin/main)
-PARTS ?= 1## Most parts mutate-diff plans for CI runners; one part runs at once (default: 1)
-PART ?= ## The part of the saved plan that mutate-part runs, such as 2
+PART ?= ## Part K of N of mutate-diff, such as 2/3; C++ runs in part 1 (default: the whole run)
 
 # DARUMA_WORK is the scratch folder of record.py (--out) and pytest. Empty
 # means each uses its default temp folder.
@@ -76,7 +75,7 @@ define run_hooks
 endef
 
 .PHONY: help setup esphome-env esphome-version secrets config compile desktop \
-	test test-py test-cpp mutate mutate-diff mutate-part screens golden test-screens update-golden update-frames gifs \
+	test test-py test-cpp mutate mutate-diff mutate-parts screens golden test-screens update-golden update-frames gifs \
 	lint format complexity tidy docker-test check clean
 
 # --- Help ----------------------------------------------------------------
@@ -167,15 +166,15 @@ mutate: ## Mutation tests of all the code the host tests reach: a report, never 
 
 # A fresh mutants/ each time, as in CI: mutmut keeps old mutants when only
 # a comment changed, so it would miss a new pragma.
-mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant (MINUTES= caps the Python run, PARTS=)
+mutate-diff: ## Mutation tests of the lines changed since BASE; fails on a surviving mutant (MINUTES= caps the Python run, PART=K/N)
 	rm -rf mutants
 	@status=0; \
-	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' --parts $(PARTS) $(if $(MINUTES),--minutes $(MINUTES)) || status=1; \
-	$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)' || status=1; \
+	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' $(if $(PART),--part $(PART)) $(if $(MINUTES),--minutes $(MINUTES)) || status=1; \
+	$(if $(filter-out 1/%,$(PART)),true,$(UV_RUN) python tests/mutate_cpp.py --diff '$(BASE)') || status=1; \
 	exit $$status
 
-mutate-part: ## Part PART of the plan mutate-diff saved in mutants/ (MINUTES= caps it)
-	$(UV_RUN) python tests/mutate_py.py --part $(PART) $(if $(MINUTES),--minutes $(MINUTES))
+mutate-parts: ## How many parts CI runs mutate-diff in for the change since BASE
+	$(UV_RUN) python tests/mutate_py.py --diff '$(BASE)' --count-parts
 
 screens: secrets ## The golden check and the screen tests, in one pytest run (PERSONA=, SCENARIO=, PYTEST_ARGS=)
 	$(SCREENS) $(PYTEST_ARGS)

@@ -1,4 +1,4 @@
-"""Times mutmut's steps, and stops or guards them for a planned run.
+"""Times mutmut's steps, and keeps one part's mutants for a split run.
 
 mutmut run makes the mutants, records which tests reach which function
 (the recorded run, or stats run), runs the clean tests and the forced
@@ -6,12 +6,10 @@ fail, then runs the mutants. install() wraps those steps:
 
 - Each step writes `daruma-step: <name> <seconds>` to stderr (fd 2, past
   mutmut's output capture). mutate_py.py prints those lines.
-- With DARUMA_MUTMUT_PLAN=1, mutmut stops after the recorded run. The
-  plan job then has the mutants and the stats that the parts reuse.
-- With DARUMA_MUTMUT_NO_STATS=1, a recorded run stops mutmut with an
-  error. A part sets it: it must reuse the plan's stats, never redo them.
-  It also skips the clean tests: the plan's recorded run ran every test
-  and stops on a failing one, so a part has nothing to add.
+- With DARUMA_MUTMUT_PART=K/N, mutmut runs only part K of N of the
+  mutants it picked: every Nth in sorted order (part_of). Each part runs
+  the whole flow on its own runner. It writes `daruma-part: K/N <kept>
+  of <all>`, so mutate_py.py can tell the split took place.
 
 It relies on mutmut internals, a version uv.lock pins. STEPS names them,
 and tests/test_mutmut_steps.py fails when one moves.
@@ -24,18 +22,31 @@ import functools
 import os
 import time
 
-PLAN = "DARUMA_MUTMUT_PLAN"
-NO_STATS = "DARUMA_MUTMUT_NO_STATS"
+PART = "DARUMA_MUTMUT_PART"
 PREFIX = "daruma-step:"
-# The exit code of a part that would redo the recorded run.
-STATS_AGAIN = 3
+PART_PREFIX = "daruma-part:"
 # (module, attribute, step name): what install() wraps.
 STEPS = (
     ("mutmut.__main__", "create_mutants", "generate"),
     ("mutmut.__main__", "collect_or_load_stats", "stats"),
+    ("mutmut.__main__", "run_stats_collection", "recorded-run"),
     ("mutmut.workers.isolation", "ForkServerRunner.run_clean_tests", "clean"),
     ("mutmut.workers.isolation", "ForkServerRunner.run_forced_fail", "forced-fail"),
 )
+
+
+def part_of(names, part: int, parts: int) -> list[str]:
+    """Part `part` (from 0) of `parts`: every parts-th name in sorted order,
+    so a slow function's mutants spread across the parts."""
+    return sorted(names)[part::parts]
+
+
+def parse_part(text: str) -> tuple[int, int]:
+    """'2/3' -> (1, 3): the part's index from 0, and the number of parts."""
+    k, _, n = text.partition("/")
+    if not (k.isdigit() and n.isdigit() and 1 <= int(k) <= int(n)):
+        raise ValueError(f"a part is K/N with 1 <= K <= N, not {text!r}")
+    return int(k) - 1, int(n)
 
 
 def note(step: str, seconds: float) -> None:
@@ -64,37 +75,21 @@ def _owner(module_name: str, path: str):
     return owner, name
 
 
-def _stats_then_stop(original):
+def _only_my_part(original):
+    """collect_source_file_mutation_data, less the mutants of other parts."""
+
     @functools.wraps(original)
-    def stats(*args, **kwargs):
-        result = original(*args, **kwargs)
-        if os.environ.get(PLAN):
-            note("planned", 0)
-            raise SystemExit(0)
-        return result
+    def collect(*args, **kwargs):
+        mutants, data = original(*args, **kwargs)
+        if not os.environ.get(PART):
+            return mutants, data
+        part, parts = parse_part(os.environ[PART])
+        mine = set(part_of((name for _, name, _ in mutants), part, parts))
+        kept = [m for m in mutants if m[1] in mine]
+        os.write(2, f"{PART_PREFIX} {part + 1}/{parts} {len(kept)} of {len(mutants)}\n".encode())
+        return kept, data
 
-    return stats
-
-
-def _no_stats_again(original):
-    @functools.wraps(original)
-    def run_stats_collection(*args, **kwargs):
-        if os.environ.get(NO_STATS):
-            os.write(2, b"daruma: this part would redo the recorded run; it must reuse the plan's stats\n")
-            os._exit(STATS_AGAIN)
-        return original(*args, **kwargs)
-
-    return run_stats_collection
-
-
-def _clean_in_the_plan(original):
-    @functools.wraps(original)
-    def run_clean_tests(self, *args, **kwargs):
-        if os.environ.get(NO_STATS):
-            return 0
-        return original(self, *args, **kwargs)
-
-    return run_clean_tests
+    return collect
 
 
 def _time_mutants(runner_class) -> None:
@@ -117,7 +112,5 @@ def install() -> None:
     for module_name, path, step in STEPS:
         owner, name = _owner(module_name, path)
         setattr(owner, name, _timed(getattr(owner, name), step))
-    main.collect_or_load_stats = _stats_then_stop(main.collect_or_load_stats)
-    main.run_stats_collection = _no_stats_again(_timed(main.run_stats_collection, "recorded-run"))
-    ForkServerRunner.run_clean_tests = _clean_in_the_plan(ForkServerRunner.run_clean_tests)
+    main.collect_source_file_mutation_data = _only_my_part(main.collect_source_file_mutation_data)
     _time_mutants(ForkServerRunner)

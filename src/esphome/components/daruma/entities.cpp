@@ -77,4 +77,31 @@ void ParamSwitch::write_state(bool state) {
   this->hub_->request_redraw();
 }
 
+#ifdef USE_DARUMA_RANDOM_EVENTS
+// --- Random events --------------------------------------------------------------
+
+void RandomEventsSwitch::setup() { this->write_state(this->get_initial_state_with_restore_mode().value_or(true)); }
+
+void RandomEventsSwitch::write_state(bool state) {
+  this->engine_->set_enabled(state);
+  this->publish_state(state);
+}
+
+void TunableNumber::setup() {
+  this->pref_ = this->make_entity_preference<float>();
+  float value = this->initial_;
+  float stored;
+  if (this->pref_.load(&stored) && stored >= this->traits.get_min_value() && stored <= this->traits.get_max_value())
+    value = stored;
+  this->apply_(value);
+  this->publish_state(value);
+}
+
+void TunableNumber::control(float value) {
+  this->apply_(value);
+  this->pref_.save(&value);
+  this->publish_state(value);
+}
+#endif
+
 }  // namespace Daruma

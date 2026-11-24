@@ -211,3 +211,91 @@ def merge_pool(persona_events: dict[str, dict], overrides: dict[str, dict | bool
         pool[name] = {**base, **override}
         check_shape(name, pool[name])
     return pool
+
+
+# --- The device's pools and the build ---------------------------------------------
+
+# Per persona. The engine counts them in a uint8_t.
+MAX_EVENTS = 32
+
+
+def device_pools(personas: list[tuple[str, dict, bool]], overrides: dict[str, dict]) -> dict[str, dict]:
+    """persona id -> its events with the device's overrides (merge_pool), for
+    every persona that takes events. `personas` holds (id, events, takes
+    events); `overrides` is `daruma: random_events: personas:`."""
+    takes = {pid: ok for pid, _, ok in personas}
+    for pid in overrides:
+        if pid not in takes:
+            raise RegistryError(f"random_events: personas: no persona '{pid}' (personas: {', '.join(takes)})")
+        if not takes[pid]:
+            raise RegistryError(f"random_events: personas: {pid} has no random events")
+    pools = {}
+    for pid, events, ok in personas:
+        if not ok:
+            continue
+        try:
+            pool = merge_pool(events, overrides.get(pid, {}))
+        except RegistryError as err:
+            raise RegistryError(f"random_events: personas: {pid}: {err}") from err
+        if len(pool) > MAX_EVENTS:
+            raise RegistryError(f"{pid}: {len(pool)} random events; a persona has at most {MAX_EVENTS}")
+        pools[pid] = pool
+    return pools
+
+
+def active(persona_events: list[dict], overrides: dict) -> bool:
+    """The build makes the engine when a persona declares events or the
+    device has overrides. Tunables alone don't turn it on."""
+    return bool(overrides) or any(persona_events)
+
+
+def fnv1a(text: str) -> int:
+    """32-bit FNV-1a: an event's preference key."""
+    value = 0x811C9DC5
+    for byte in text.encode():
+        value = ((value ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return value
+
+
+@dataclass(frozen=True)
+class Encoded:
+    """One event as the engine's EventDef holds it (random_events.h)."""
+
+    key: int
+    spell: bool
+    enter: int
+    animation: int
+    exit: int
+    hold_ms: int
+    frequency: int
+    cooldown_s: int
+    sound: str
+    say: tuple[str, ...]
+    when: When
+
+
+def _amount(value, unit: str) -> int:
+    """A time from the schema (a TimePeriod) in `unit`; 0 when unset."""
+    return 0 if value is None else int(getattr(value, unit))
+
+
+def encode_event(persona_id: str, name: str, event: dict, animations: list[str]) -> Encoded:
+    """An event, checked by the schema and the registry, for the engine.
+    Animations become indices into the persona's list; -1 for none."""
+
+    def index(key: str) -> int:
+        return animations.index(event[key]) if key in event else -1
+
+    return Encoded(
+        key=fnv1a(f"random_events/{persona_id}/{name}"),
+        spell=CONF_FOR in event,
+        enter=index(CONF_ENTER),
+        animation=index(CONF_ANIMATION),
+        exit=index(CONF_EXIT),
+        hold_ms=_amount(event.get(CONF_FOR), "total_milliseconds"),
+        frequency=event[CONF_FREQUENCY],
+        cooldown_s=_amount(event.get(CONF_COOLDOWN), "total_seconds"),
+        sound=event.get(CONF_SOUND, ""),
+        say=tuple(event.get(CONF_SAY, ())),
+        when=parse_when(event.get(CONF_WHEN, {})),
+    )

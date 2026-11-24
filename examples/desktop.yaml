@@ -68,3 +68,6 @@ daruma:
     top.press: daruma.next_persona
     screen.tap: menu.open
     screen.stroke: daruma.pet
+  # No random events: a quirk at a random moment would move the screen
+  # tests' pictures. Their own scenarios use the `events` build.
+  random_events: false

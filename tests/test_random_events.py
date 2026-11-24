@@ -4,6 +4,7 @@ python3 -m unittest tests.test_random_events
 """
 
 import unittest
+from types import SimpleNamespace
 
 import esphome_components  # noqa: F401
 from esphome.components.daruma import random_events
@@ -248,6 +249,105 @@ class Merge(unittest.TestCase):
         merge_pool(self.POOL, {"lick_paw": {"frequency": 6}, "sneeze": False})
         self.assertEqual(self.POOL["lick_paw"]["frequency"], 9)
         self.assertIn("sneeze", self.POOL)
+
+
+class DevicePools(unittest.TestCase):
+    CORGI = {"lick_paw": {"animation": "LickPaw", "frequency": 9, "when": {}}}
+    PERSONAS = [("pixel_corgi", CORGI, True), ("eyes", {}, False), ("flat_corgi", {}, True)]
+
+    def test_merged_per_persona_that_takes_events(self):
+        overrides = {"flat_corgi": {"hi": {"say": ["Hi"]}}}
+        pools = random_events.device_pools(self.PERSONAS, overrides)
+        self.assertEqual(
+            pools,
+            {
+                "pixel_corgi": self.CORGI,
+                "flat_corgi": {"hi": {"say": ["Hi"], "frequency": 8, "when": {}}},
+            },
+        )
+
+    def test_unknown_persona(self):
+        msg = r"^random_events: personas: no persona 'pixel_corgy' \(personas: pixel_corgi, eyes, flat_corgi\)$"
+        with self.assertRaisesRegex(RegistryError, msg):
+            random_events.device_pools(self.PERSONAS, {"pixel_corgy": {}})
+
+    def test_persona_without_events(self):
+        with self.assertRaisesRegex(RegistryError, r"^random_events: personas: eyes has no random events$"):
+            random_events.device_pools(self.PERSONAS, {"eyes": {}})
+
+    def test_merge_errors_name_the_persona(self):
+        msg = r"^random_events: personas: pixel_corgi: random event 'sneeze': false removes"
+        with self.assertRaisesRegex(RegistryError, msg):
+            random_events.device_pools(self.PERSONAS, {"pixel_corgi": {"sneeze": False}})
+
+    def test_at_most_32_events(self):
+        events = {f"e{i}": {"say": ["x"]} for i in range(32)}
+        self.assertEqual(len(random_events.device_pools([("p", events, True)], {})["p"]), 32)
+        with self.assertRaisesRegex(RegistryError, r"^p: 33 random events; a persona has at most 32$"):
+            random_events.device_pools([("p", events, True)], {"p": {"e32": {"say": ["x"]}}})
+
+
+class Active(unittest.TestCase):
+    def test_off_without_events_or_overrides(self):
+        self.assertFalse(random_events.active([{}, {}], {}))
+        self.assertFalse(random_events.active([], {}))
+
+    def test_on_with_a_persona_pool(self):
+        self.assertTrue(random_events.active([{}, {"a": {}}], {}))
+
+    def test_on_with_overrides_only(self):
+        self.assertTrue(random_events.active([{}], {"pixel_corgi": {}}))
+
+
+class Encode(unittest.TestCase):
+    ANIMATIONS = ["Neutral", "WalkOff", "Away", "WalkBack", "LickPaw"]
+
+    def test_fnv1a(self):
+        self.assertEqual(random_events.fnv1a(""), 0x811C9DC5)
+        self.assertEqual(random_events.fnv1a("a"), 0xE40C292C)
+        self.assertEqual(random_events.fnv1a("foobar"), 0xBF9CF968)
+
+    def test_one_shot(self):
+        event = {"animation": "LickPaw", "frequency": 9, "when": {}}
+        e = random_events.encode_event("pixel_corgi", "lick_paw", event, self.ANIMATIONS)
+        expected = random_events.Encoded(
+            key=random_events.fnv1a("random_events/pixel_corgi/lick_paw"),
+            spell=False,
+            enter=-1,
+            animation=4,
+            exit=-1,
+            hold_ms=0,
+            frequency=9,
+            cooldown_s=0,
+            sound="",
+            say=(),
+            when=When(),
+        )
+        self.assertEqual(e, expected)
+
+    def test_spell(self):
+        event = {
+            "enter": "WalkOff",
+            "animation": "Away",
+            "exit": "WalkBack",
+            "for": SimpleNamespace(total_milliseconds=180000),
+            "cooldown": SimpleNamespace(total_seconds=3600),
+            "sound": "chirp",
+            "say": ["brb", "back soon"],
+            "frequency": 3,
+            "when": {"moods": ["sleeping"], "at": "09:30"},
+        }
+        e = random_events.encode_event("p", "bathroom", event, self.ANIMATIONS)
+        self.assertEqual(e.key, random_events.fnv1a("random_events/p/bathroom"))
+        self.assertTrue(e.spell)
+        self.assertEqual((e.enter, e.animation, e.exit), (1, 2, 3))
+        self.assertEqual((e.hold_ms, e.cooldown_s, e.frequency), (180000, 3600, 3))
+        self.assertEqual((e.sound, e.say), ("chirp", ("brb", "back soon")))
+        self.assertEqual(e.when, When(at=(570,), moods=("sleeping",)))
+
+    def test_say_only_without_when(self):
+        e = random_events.encode_event("p", "hi", {"say": ["Hi"], "frequency": 8}, [])
+        self.assertEqual((e.animation, e.say, e.when), (-1, ("Hi",), When()))
 
 
 if __name__ == "__main__":

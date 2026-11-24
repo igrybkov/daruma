@@ -279,6 +279,8 @@ class Hub : public esphome::Component {
   void request_frame() { this->scheduler_.invalidate(); }
   // Core's rule for when the idle screen may move (no voice phase up).
   void set_frame_gate(std::function<bool()> gate) { this->frame_gate_ = std::move(gate); }
+  // The idle screen may move now: the frame gate holds no motion back.
+  bool motion_open() const { return !this->frame_gate_ || this->frame_gate_(); }
   // The frame being drawn repaints everything (no partial refresh now).
   bool full_frame() const { return this->full_frame_; }
   // The whole screen: core sets how (voice phases, idle). The board's
@@ -331,6 +333,7 @@ class Hub : public esphome::Component {
   HaCalls &ha_calls() { return this->ha_calls_; }
   // True while HA is connected and subscribed (core sets it).
   void set_ha_link(std::function<bool()> link) { this->ha_link_ = std::move(link); }
+  bool ha_linked() const { return this->ha_link_ && this->ha_link_(); }
 
   // What is due at `now`: a frame to draw, an HA call to send or an answer
   // to wait for. Empty when nothing is. A test runner waits for that before

@@ -68,6 +68,21 @@
       themes:                      # and for one persona, by its id; wins over theme:
         eyes:
           colors: { pomodoro.plaque: "000000" }
+      # Random events: quirks the personas declare (daruma/persona.py). The
+      # engine is built only when a persona has events or `personas:` has
+      # some; `random_events: false` leaves it out. Every key is optional.
+      random_events:
+        enabled: true              # first value of the "Random events" switch
+        tick: { min: 2min, max: 20min }   # the wait between random rolls
+        min_gap: 15min             # first value of "Min gap"
+        liveliness: 100            # first value of "Liveliness", in %
+        time_id: daruma_time       # for dates, times, `at:` and cooldowns
+        event_id: daruma_event     # fires "random_event"
+        personas:                  # the device's changes, by persona id
+          pixel_corgi:
+            sneeze: false          # drop an event
+            lick_paw: { frequency: 6 }   # change one
+            snack_q: { say: ["Snack?"] } # add one
 
 Theme precedence for a module key, lowest first: the module's default, the
 persona's own `theme:`, the device's `theme:`, the device's `themes: <persona id>`.
@@ -77,6 +92,7 @@ states and behaviors of every persona, theme keys, params, bindings,
 navigation, apps and progress sources. See registry.py for the rules.
 """
 
+import dataclasses
 import logging
 
 import esphome.automation as automation
@@ -85,13 +101,17 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome.components import binary_sensor, touchscreen
 from esphome.components import display as ha_display
+from esphome.components import event as ha_event
+from esphome.components import number as ha_number
 from esphome.components import select as ha_select
 from esphome.components import switch as ha_switch
+from esphome.components import time as ha_time
 from esphome.const import CONF_ID, CONF_NAME, CONF_TRIGGER_ID
 from esphome.core import CORE
+from esphome.helpers import cpp_string_escape
 from esphome.loader import get_component
 
-from . import registry
+from . import random_events, registry
 from .registry import RegistryError
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,6 +166,19 @@ CONF_TARGETS = "targets"
 CONF_ALIASES = "aliases"
 CONF_THEMES = "themes"
 CONF_APP = "app"
+CONF_RANDOM_EVENTS = "random_events"
+CONF_ENABLED = "enabled"
+CONF_TICK = "tick"
+CONF_MIN = "min"
+CONF_MAX = "max"
+CONF_MIN_GAP = "min_gap"
+CONF_LIVELINESS = "liveliness"
+CONF_TIME_ID = "time_id"
+CONF_EVENT_ID = "event_id"
+CONF_PERSONAS = "personas"
+CONF_SWITCH = "switch"
+CONF_LIVELINESS_NUMBER = "liveliness_number"
+CONF_MIN_GAP_NUMBER = "min_gap_number"
 
 # C++ classes live in the global Daruma namespace.
 daruma_ns = cg.esphome_ns.namespace("Daruma")
@@ -155,6 +188,9 @@ LambdaModule = daruma_ns.class_("LambdaModule")
 AppSwitch = daruma_ns.class_("AppSwitch", ha_switch.Switch, cg.Component)
 BindingSelect = daruma_ns.class_("BindingSelect", ha_select.Select, cg.Component)
 TouchInput = daruma_ns.class_("TouchInput")
+RandomEventsComponent = daruma_ns.class_("RandomEventsComponent", cg.Component)
+RandomEventsSwitch = daruma_ns.class_("RandomEventsSwitch", ha_switch.Switch, cg.Component)
+TunableNumber = daruma_ns.class_("TunableNumber", ha_number.Number, cg.Component)
 StateId = daruma_ns.enum("StateId", is_class=True)
 Gesture = daruma_ns.enum("Gesture", is_class=True)
 InputEnum = daruma_ns.enum("Input", is_class=True)
@@ -400,6 +436,54 @@ def _check_profile(config):
     return config
 
 
+def _tick_order(value):
+    if value[CONF_MIN] > value[CONF_MAX]:
+        raise cv.Invalid("random_events: tick: min is longer than max")
+    return value
+
+
+def _event_overrides(value):
+    from .persona import event_override  # persona.py imports this module.
+
+    return cv.Schema({cv.string_strict: event_override})(value)
+
+
+RANDOM_EVENTS_HUB_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(RandomEventsComponent),
+        cv.Optional(CONF_ENABLED, default=True): cv.boolean,
+        cv.Optional(CONF_TICK, default={}): cv.All(
+            cv.Schema(
+                {
+                    cv.Optional(CONF_MIN, default="2min"): cv.All(
+                        cv.positive_time_period_milliseconds, cv.Range(min=cv.TimePeriod(seconds=30))
+                    ),
+                    cv.Optional(CONF_MAX, default="20min"): cv.All(
+                        cv.positive_time_period_milliseconds, cv.Range(max=cv.TimePeriod(hours=24))
+                    ),
+                }
+            ),
+            _tick_order,
+        ),
+        cv.Optional(CONF_MIN_GAP, default="15min"): cv.All(
+            cv.positive_time_period_minutes, cv.Range(max=cv.TimePeriod(minutes=240))
+        ),
+        cv.Optional(CONF_LIVELINESS, default=100): cv.int_range(min=0, max=200),
+        cv.Optional(CONF_TIME_ID, default="daruma_time"): cv.use_id(ha_time.RealTimeClock),
+        cv.Optional(CONF_EVENT_ID, default="daruma_event"): cv.use_id(ha_event.Event),
+        # Overrides by persona id, checked like themes: at final validation.
+        cv.Optional(CONF_PERSONAS, default={}): cv.Schema({_name: _event_overrides}),
+    }
+)
+
+
+def _random_events_conf(value):
+    """`false` leaves the engine out; `true` is the same as `{}`."""
+    if value is False:
+        return False
+    return RANDOM_EVENTS_HUB_SCHEMA({} if value is True else value)
+
+
 CONF_APP_SWITCHES = "app_switches"
 CONF_BINDING_SELECTS = "binding_selects"
 
@@ -425,7 +509,25 @@ def _entities(config):
             config[CONF_BINDING_SELECTS][trigger] = ha_select.select_schema(
                 BindingSelect, entity_category="config", icon="mdi:gesture-tap-button"
             )({CONF_NAME: f"{name.capitalize()} {gesture.replace('_', ' ')}"})
+    _random_events_entities(config[CONF_RANDOM_EVENTS])
     return config
+
+
+def _random_events_entities(rc):
+    """The engine's settings. Declared unless `random_events: false`; the
+    personas are unknown here, so to_code makes them only with the engine."""
+    if rc is False:
+        return
+    restore = "RESTORE_DEFAULT_ON" if rc[CONF_ENABLED] else "RESTORE_DEFAULT_OFF"
+    rc[CONF_SWITCH] = ha_switch.switch_schema(
+        RandomEventsSwitch, entity_category="config", icon="mdi:dice-multiple-outline", default_restore_mode=restore
+    )({CONF_NAME: "Random events"})
+    rc[CONF_LIVELINESS_NUMBER] = ha_number.number_schema(
+        TunableNumber, entity_category="config", icon="mdi:run-fast", unit_of_measurement="%"
+    )({CONF_NAME: "Liveliness"})
+    rc[CONF_MIN_GAP_NUMBER] = ha_number.number_schema(
+        TunableNumber, entity_category="config", icon="mdi:timer-sand", unit_of_measurement="min"
+    )({CONF_NAME: "Min gap"})
 
 
 CONFIG_SCHEMA = cv.All(
@@ -448,6 +550,7 @@ CONFIG_SCHEMA = cv.All(
             # Module colors and words for every persona, and per persona by id (theme.py applies them).
             cv.Optional(CONF_THEME, default={}): DEVICE_THEME_SCHEMA,
             cv.Optional(CONF_THEMES, default={}): cv.Schema({_name: DEVICE_THEME_SCHEMA}),
+            cv.Optional(CONF_RANDOM_EVENTS, default={}): _random_events_conf,
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _check_profile,
@@ -520,6 +623,29 @@ def collect_personas(full) -> list[tuple[registry.Persona, dict, list]]:
     return out
 
 
+def event_personas(full) -> list[tuple[registry.Persona, dict, bool]]:
+    """(persona, its config, takes random events) for every persona."""
+    out = []
+    for key in PERSONA_COMPONENTS:
+        confs = full.get(key) or []
+        if confs:
+            chars = get_component(key).module.daruma_personas(confs)
+            out += [(char, conf, CONF_RANDOM_EVENTS in conf) for conf, (char, _, _) in zip(confs, chars, strict=True)]
+    return out
+
+
+def _random_event_pools(rc, full):
+    """(personas, persona id -> pool with the device's overrides), or None
+    when the engine is off."""
+    if rc is False:
+        return None
+    personas = event_personas(full)
+    if not random_events.active([char.random_events for char, _, _ in personas], rc[CONF_PERSONAS]):
+        return None
+    pools = random_events.device_pools([(c.id, c.random_events, ok) for c, _, ok in personas], rc[CONF_PERSONAS])
+    return personas, pools
+
+
 def states_for_build() -> list[registry.State]:
     """The registry's states, in StateId order, for the persona components' to_code."""
     return registry.collect_states(collect_modules(CORE.config))
@@ -585,8 +711,27 @@ def _final_validate(config):
         for line in log:
             _LOGGER.info(line)
         registry.check_progress(config[CONF_PROGRESS], modules)
+        _random_events_final(config, full, states)
     except RegistryError as err:
         raise cv.Invalid(str(err)) from err
+
+
+def _random_events_final(config, full, states) -> None:
+    """The engine's checks: the overrides, the merged pools, and what the
+    engine needs from the build. The personas' own events are checked in
+    _check_persona, also with the engine off."""
+    rc = config[CONF_RANDOM_EVENTS]
+    found = _random_event_pools(rc, full)
+    if found is None:
+        _LOGGER.info("random events: off (%s)", "random_events: false" if rc is False else "no persona declares any")
+        return
+    personas, pools = found
+    for char, _, _ in personas:
+        if pools.get(char.id):
+            registry.resolve_random_events(dataclasses.replace(char, random_events=pools[char.id]), states)
+            _LOGGER.info("random events: %s: %d (%s)", char.id, len(pools[char.id]), ", ".join(pools[char.id]))
+    if "api" not in full:
+        raise RegistryError("random_events: the engine needs `api:`, for its action and events")
 
 
 FINAL_VALIDATE_SCHEMA = _final_validate
@@ -697,6 +842,7 @@ async def to_code(config):
         await cg.register_component(sw, conf)
 
     await _inputs_to_code(var, config, modules, menus)
+    await _random_events_to_code(var, config, states)
 
 
 async def _inputs_to_code(var, config, modules, menus):
@@ -745,3 +891,90 @@ async def _inputs_to_code(var, config, modules, menus):
             await cg.register_component(sel, conf)
         else:
             cg.add(slot)
+
+
+# --- Random events ------------------------------------------------------------------
+
+
+def _cpp_array(name: str, ctype: str, items: list[str]) -> str:
+    """A constant table for the engine; "nullptr" when empty."""
+    if not items:
+        return "nullptr"
+    cg.add_global(cg.RawStatement(f"static const {ctype} {name}[] = {{{', '.join(items)}}};"))
+    return name
+
+
+def _event_def(pid: str, index: int, name: str, event: dict, animations: list[str]) -> str:
+    """One EventDef initializer, in random_events.h's field order."""
+    e = random_events.encode_event(pid, name, event, animations)
+    w = e.when
+    at = f"{pid}_random_event_{index}"
+    say = _cpp_array(f"{at}_say", "char *const", [cpp_string_escape(line) for line in e.say])
+    dates = _cpp_array(f"{at}_dates", "Daruma::RandomEvents::DateRange", [f"{{{a}, {b}}}" for a, b in w.dates])
+    times = _cpp_array(f"{at}_times", "Daruma::RandomEvents::TimeRange", [f"{{{a}, {b}}}" for a, b in w.between])
+    minutes = _cpp_array(f"{at}_at", "uint16_t", [str(m) for m in w.at])
+    moods = _cpp_array(f"{at}_moods", "Daruma::StateId", [f"Daruma::StateId::{m.upper()}" for m in w.moods])
+    kind = "SPELL" if e.spell else "ONE_SHOT"
+    fields = [
+        cpp_string_escape(name),
+        f"{e.key}u",
+        f"Daruma::RandomEvents::Kind::{kind}",
+        str(e.enter),
+        str(e.animation),
+        str(e.exit),
+        f"{e.hold_ms}u",
+        str(e.frequency),
+        f"{e.cooldown_s}u",
+        cpp_string_escape(e.sound),
+        say,
+        str(len(e.say)),
+        dates,
+        str(len(w.dates)),
+        str(w.weekdays),
+        times,
+        str(len(w.between)),
+        minutes,
+        str(len(w.at)),
+        moods,
+        str(len(w.moods)),
+        "true" if "sleeping" in w.moods else "false",
+    ]
+    return "{" + ", ".join(fields) + "}"
+
+
+async def _random_events_to_code(hub, config, states) -> None:
+    """The engine, its pools, its entities and its action; nothing when it is off."""
+    rc = config[CONF_RANDOM_EVENTS]
+    found = _random_event_pools(rc, CORE.config)
+    if found is None:
+        return
+    personas, pools = found
+    cg.add_define("USE_DARUMA_RANDOM_EVENTS")
+    # For the bus event esphome.daruma_random_event.
+    cg.add_define("USE_API_HOMEASSISTANT_SERVICES")
+    engine = cg.new_Pvariable(rc[CONF_ID], hub)
+    await cg.register_component(engine, rc)
+    cg.add(engine.set_tick(rc[CONF_TICK][CONF_MIN].total_milliseconds, rc[CONF_TICK][CONF_MAX].total_milliseconds))
+    cg.add(engine.set_clock(await cg.get_variable(rc[CONF_TIME_ID])))
+    cg.add(engine.set_event(await cg.get_variable(rc[CONF_EVENT_ID])))
+    for state in states:
+        if state.quiet:
+            cg.add(engine.add_quiet(state_id(state.name)))
+    for char, conf, _ in personas:
+        pool = pools.get(char.id)
+        if not pool:
+            continue
+        rows = [_event_def(char.id, i, name, event, char.animations) for i, (name, event) in enumerate(pool.items())]
+        table = _cpp_array(f"{char.id}_random_events", "Daruma::RandomEvents::EventDef", rows)
+        persona = await cg.get_variable(conf[CONF_ID])
+        cg.add(engine.add_pool(persona, char.id, cg.RawExpression(table), len(rows)))
+    switch = await ha_switch.new_switch(rc[CONF_SWITCH], engine)
+    await cg.register_component(switch, rc[CONF_SWITCH])
+    numbers = (
+        (CONF_LIVELINESS_NUMBER, float(rc[CONF_LIVELINESS]), "set_liveliness", 200, 10),
+        (CONF_MIN_GAP_NUMBER, float(rc[CONF_MIN_GAP].total_minutes), "set_min_gap", 240, 5),
+    )
+    for key, initial, setter, top, step in numbers:
+        apply = cg.RawExpression(f"[](float value) {{ {engine}->{setter}(value); }}")
+        number = await ha_number.new_number(rc[key], initial, apply, min_value=0, max_value=top, step=step)
+        await cg.register_component(number, rc[key])

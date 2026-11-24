@@ -100,7 +100,7 @@ void Hub::loop() {
   }
 
   // Home Assistant calls that wait for a reply: one at a time, once HA listens.
-  const std::string *sent = this->ha_calls_.tick(now, this->ha_link_ && this->ha_link_());
+  const std::string *sent = this->ha_calls_.tick(now, this->ha_linked());
   if (sent != nullptr) {
     ESP_LOGV(TAG, "HA call: %s (%u waiting)", sent->c_str(), (unsigned) this->ha_calls_.queued());
   }
@@ -129,7 +129,7 @@ std::string Hub::busy(uint32_t now) {
 bool Hub::frame_due_(uint32_t now) {
   if (this->display_ == nullptr || !this->display_->is_ready() || !this->scheduler_.ready(now))
     return false;
-  const bool motion = (!this->frame_gate_ || this->frame_gate_()) && this->needs_redraw();
+  const bool motion = this->motion_open() && this->needs_redraw();
   return this->scheduler_.pending() || motion;
 }
 

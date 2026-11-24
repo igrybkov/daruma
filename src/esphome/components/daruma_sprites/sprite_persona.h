@@ -106,6 +106,7 @@ class SpritePersona : public esphome::Component, public Persona {
   bool draw_delta(esphome::display::Display &display, StateId state) override;
 
   Rect delta_area() const override { return this->delta_area_; }
+  uint32_t animation_ms(int animation) const override { return animation >= 0 ? this->mapped_(animation).total_ms : 0; }
 
   void blink() override;
   void wink() override;
@@ -146,7 +147,10 @@ class SpritePersona : public esphome::Component, public Persona {
   void decode_strips_();
   bool has_strips_() const { return this->strips_[0].valid() || this->strips_[2].valid(); }
 
-  const Animation &animation_(StateId state) const;
+  // The animation for `state`. Live: the interlude's, when one is on.
+  const Animation &animation_(StateId state, bool live) const;
+  // An animation by index, through the goal map of today's stage.
+  const Animation &mapped_(int index) const;
   // The frame to show now (an index into frames_).
   int current_(StateId state);
   // Flat drawing: frames are whole pictures there.
@@ -196,6 +200,7 @@ class SpritePersona : public esphome::Component, public Persona {
   esphome::Color background_{0, 0, 0};
   const Animation *playing_{nullptr};
   uint32_t epoch_{0};
+  uint16_t played_serial_{0};  // The interlude serial when playing_ started.
   uint32_t blink_until_{0};
   uint32_t wink_until_{0};
   int drawn_{-1};

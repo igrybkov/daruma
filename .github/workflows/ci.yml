@@ -49,8 +49,10 @@ jobs:
           PYTHON: ${{ matrix.python }}
         run: |
           if [ "$PYTHON" != pinned ]; then echo "UV_PYTHON=$PYTHON" >> "$GITHUB_ENV"; fi
-      - name: Install the test tools
-        run: uv sync --locked --only-group test --no-install-project
+      # mutmut too: without it the checks of the mutation scripts skip,
+      # and a mutmut upgrade that breaks them would pass this job.
+      - name: Install the test tools and mutmut
+        run: uv sync --locked --only-group test --only-group mutation --no-install-project
       # Both Python versions compile the same C++ with the same flags, so
       # they share one cache. The pinned job saves it.
       - name: Set up ccache

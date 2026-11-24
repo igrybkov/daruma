@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from PIL import Image, ImageDraw
 
-from daruma_pixel.pixelkit import Canvas, Ramp, ellipse, mask, poly
+from daruma_pixel.pixelkit import Canvas, Ramp, ellipse, intersect, mask, poly
 from daruma_shapes.pets import dog
 from daruma_shapes.pets.rig import Coat, H, Pose, Rig, Stance, W, with_  # noqa: F401  (W, H, Pose, with_: the corgi's API)
 from daruma_shapes.pets.rig import render as _render
@@ -51,17 +51,21 @@ def _toes(c: Canvas, r: Rig) -> None:
 
 def _lifted_leg(c: Canvas, r: Rig) -> None:
     """The lifted foreleg, drawn after the head so the paw stays joined to
-    it: the elbow at the side of the chest, the forearm folded up to the
-    face, and the paw showing its pink pads. Nose and mouth draw on top."""
+    it. It rises from the chest across from the planted leg, as thick as
+    it, and its root fades into the chest: no edge where it starts. The paw
+    shows its pink pads; nose and mouth draw on top."""
     if r.pose.stance not in PAWS:
         return
-    ex, ey = r.cx + 8, r.chest_y - 3  # The elbow, on the chest.
+    rx, ry = r.cx + r.breed.leg_dx, r.chest_y - 3  # The root, a little above the planted leg's top.
     px, py = r.cx + PAWS[r.pose.stance][0], r.floor + PAWS[r.pose.stance][1]
     lifted, d = mask((W, H))
-    ellipse(d, ex, ey, 3, 3)
-    poly(d, [(ex - 3, ey), (ex + 2, ey + 2), (px + 3, py + 1), (px - 2, py)])
+    poly(d, [(rx - 3.5, ry + 3), (rx + 3.5, ry + 3), (px + 3.5, py), (px - 3.5, py)])
     ellipse(d, px, py, 4, 3.5)
+    chest = c.img.copy()
     c.paint(lifted, LIFTED)
+    root, d = mask((W, H))
+    d.rectangle((0, ry, W, H), fill=1)
+    c.img.paste(chest, mask=intersect(root, lifted))
     pad = r.breed.coat.pink.base
     for dx, dy in ((-1, 1), (0, 1), (1, 1), (-1, 2), (0, 2), (1, 2), (-2, -1), (0, -2), (2, -1)):
         c.dot(px + dx, py + dy, pad)

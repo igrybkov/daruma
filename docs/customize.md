@@ -11,6 +11,7 @@ see [architecture/](architecture/README.md).
 - [Pixel art: pets, rooms and props](#pixel-art-pets-rooms-and-props)
 - [Reactions during an activity: `during:`](#reactions-during-an-activity-during)
 - [Sounds](#sounds)
+- [Random events: quirks now and then](#random-events-quirks-now-and-then)
 - [Themes and words](#themes-and-words)
 - [Apps](#apps)
 - [Menus](#menus)
@@ -265,6 +266,239 @@ options are documented in
 [src/esphome/components/daruma/sounds.py](../src/esphome/components/daruma/sounds.py). A
 behavior can also pick any sound by name for any state.
 
+## Random events: quirks now and then
+
+A persona can play quirks on its own, now and then: a paw lick, a
+sneeze, a line in a bubble, a trip away from the desk. Sprite and
+images personas take `random_events:`. The eyes take none.
+
+```yaml
+daruma_sprites:
+  - id: pixel_corgi
+    random_events:
+      lick_paw: { animation: LickPaw, frequency: 9 }
+      sneeze: { animation: Sneeze, sound: sneeze, frequency: 8 }
+      snore: { say: ["Zzz", "zzz... squirrel..."], frequency: 9, when: { moods: [sleeping] } }
+      walk_q:
+        say: ["Walk time?", "Is it 5 yet?", "Leash? Leash!"]
+        frequency: 8
+        when: { between: "16:00-18:00", weekdays: [mon-fri] }
+      bathroom: { enter: WalkOff, animation: Away, exit: WalkBack, for: 3min, frequency: 7 }
+```
+
+Event names use lowercase letters, digits and `_`. A persona has 32
+events at most. The animations are the persona's own; they need no
+state. The pixel corgi's are in
+[quirks.py](../pixel/persona-corgi/src/daruma_personas/corgi/quirks.py).
+
+| Key | What |
+|---|---|
+| `animation` | a one-shot plays it once; a spell loops it |
+| `enter`, `exit` | a spell only: plays once before and after the loop |
+| `for` | makes the event a spell, and sets how long it loops: 5 s to 2 h |
+| `say` | 1 to 8 lines; one, picked at random, shows in a bubble for 4 s |
+| `sound` | a built-in sound or one of the persona's `sounds:`; skipped while muted |
+| `frequency` | 1 to 10, default 8 (see the table below) |
+| `cooldown` | the shortest time between two plays: 1 min to 366 days; kept across a reboot |
+| `when` | conditions (see below) |
+
+A **one-shot** has an `animation`, a `say`, a `sound`, or any of them. A
+**spell** has `for:` and an `animation`; `enter` and `exit` are
+optional. Any gesture ends an event at once, and the gesture goes on as
+usual. A tap during the corgi's trip brings it back with no walk back,
+and opens the menu. A reaction, a menu, a prompt or a quiet activity
+ends it too. `exit:` plays only when the spell runs its full time.
+
+### How often
+
+At random waits of 2 to 20 minutes, the device rolls. Each event that
+could play rolls on its own. Its chance grows with the time it could
+have played since it last rolled. Over time, it plays about once per
+mean interval:
+
+| Frequency | Mean interval |
+|---|---|
+| 10 | 10 min |
+| 9 | 30 min |
+| 8 | 2 h |
+| 7 | 6 h |
+| 6 | 1 day |
+| 5 | 3 days |
+| 4 | 7 days |
+| 3 | 14 days |
+| 2 | 30 days |
+| 1 | 90 days |
+
+The real rates fall below the table:
+
+- One roll plays at most one event. With the 2 to 20 minute waits, a
+  frequency 9 event reaches about 0.83 of its table rate, and frequency
+  10 less.
+- After each event, the device waits the min gap (15 min by default).
+  Time counts only after the gap. So frequency 10 can't beat the gap.
+- Time counts only while the event could play: its `when:` holds, the
+  screen is free and its cooldown is over.
+
+These always hold:
+
+- No event plays while a menu, an app, a prompt, a voice phase or a
+  reaction is up, or while HA is gone. A quiet activity, such as focus,
+  blocks them too.
+- While asleep, only events that list `sleeping` in `moods:` play.
+- The same event never plays twice in a row. The one exception: it is
+  the only event that could play, and twice its mean interval has
+  passed.
+- A screen that doesn't animate (`animate: false`) plays only events
+  with no animation.
+
+### Conditions: `when:`
+
+The keys combine with AND. A list inside a key combines with OR.
+
+| Key | Takes | Example |
+|---|---|---|
+| `dates` | `MM-DD` or `MM-DD..MM-DD`; a range may wrap the year | `dates: ["12-24..12-26", "04-01"]` |
+| `weekdays` | `sun` to `sat`, or a range | `weekdays: [mon-fri]` |
+| `between` | `HH:MM-HH:MM`, end not included; may wrap midnight; the end may be `24:00` | `between: "16:00-18:00"` |
+| `at` | one `HH:MM` or a list (see below) | `at: ["09:00", "15:14"]` |
+| `moods` | a list of moods | `moods: [sleeping]` |
+
+Quote every time: YAML reads an unquoted `16:00` as a number, and the
+build says so. Dates, weekdays, times, `at:` and cooldowns need the time
+from HA. Until it comes, those events wait.
+
+A short `between:` window rarely fires. A roll must land inside it, and
+a one minute window gets a roll about one day in eleven. For "at this
+time", use `at:`.
+
+### At a set time: `at:`
+
+An event with `at:` never joins the random rolls. In each minute it
+names, the device rolls once for it, with this chance:
+
+| Frequency | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Chance | 100% | 95% | 85% | 70% | 55% | 40% | 25% | 15% | 5% | 1% |
+
+```yaml
+      pi_time:
+        say: ["3.14159..."]
+        frequency: 10
+        when: { at: "15:14", dates: "03-14" }
+```
+
+`at:` combines with `dates`, `weekdays` and `moods`. With `between:` it
+fails the build. A scheduled roll skips the min gap and the no-repeat
+rule. If the screen is busy for the whole minute, the event waits for
+its next minute.
+
+### Pictures: say-only events
+
+The images persona draws no animation, so its events only say, sound,
+or both. `animation`, `enter`, `exit` and `for` fail the build there.
+Pass them as the `random_events` var of
+[persona_images.yaml](../packages/persona_images.yaml), as
+[box3.yaml](../examples/box3.yaml) does for the Flat corgi:
+
+```yaml
+      - path: packages/persona_images.yaml
+        vars:
+          persona_id: flat_corgi
+          persona_name: "Flat corgi"
+          art: flat_corgi
+          random_events:
+            walk_q:
+              say: ["Walk?", "Walkies?", "Is it walk time?"]
+              frequency: 8
+            snore:
+              say: ["Zzz...", "Zzzz... biscuit..."]
+              frequency: 9
+              when: { moods: [sleeping] }
+```
+
+### On the device
+
+The device file tunes the engine under `daruma: random_events:`. Every
+key is optional:
+
+```yaml
+daruma:
+  random_events:
+    enabled: true                    # first value of the "Random events" switch
+    tick: { min: 2min, max: 20min }  # the wait between random rolls: 30 s to 24 h
+    min_gap: 15min                   # first value of "Min gap": up to 240 min
+    liveliness: 100                  # first value of "Liveliness": 0 to 200 %
+    time_id: daruma_time             # the clock
+    event_id: daruma_event           # the event entity that fires random_event
+    personas:                        # changes per persona, by its id
+      pixel_corgi:
+        sneeze: false                # drop an event
+        lick_paw: { frequency: 6 }   # change one
+        snack_q: { say: ["Snack?"] } # add one
+```
+
+- `false` drops an event. Naming one the persona lacks fails the build.
+- A map changes only the keys it names. A new `when:` replaces the old
+  one as a whole.
+- A new name adds an event, with frequency 8. It needs an animation, a
+  `say` or a `sound`.
+- Any sprite or images persona can take new events this way, also one
+  that declares none.
+
+The build makes the engine only when a persona has events or
+`personas:` has some. Else the device has no engine and no entities. To
+leave it out on purpose:
+
+```yaml
+daruma:
+  random_events: false
+```
+
+The engine needs `api:`. The persona's own events are still checked with
+the engine off, so a typo always fails the build.
+
+### In Home Assistant
+
+Three settings, under the device's "Configuration". Each keeps its value
+across a reboot. The device file sets the first value.
+
+| Entity | What |
+|---|---|
+| Random events (switch) | off: no roll plays an event |
+| Liveliness (number, 0 to 200 %) | scales every chance; 200 % plays about twice as often, 0 % never |
+| Min gap (number, 0 to 240 min) | the shortest time between two events |
+
+Each play fires `daruma_event` with type `random_event`, and the HA
+event `esphome.daruma_random_event`:
+
+```yaml
+event_type: esphome.daruma_random_event
+data:
+  name: bathroom
+  persona: pixel_corgi
+  manual: "false"      # "true" when an action played it
+```
+
+The action `esphome.<node>_play_random_event` plays one now. `<node>` is
+the ESPHome node name with `-` changed to `_`:
+
+```yaml
+- action: esphome.daruma_play_random_event
+  data:
+    name: sneeze       # "" picks one
+```
+
+Both kinds ignore the switch and Liveliness:
+
+| | `name: sneeze` | `name: ""` |
+|---|---|---|
+| Picks | that event of the active persona | one event, weighted by frequency; never an `at:` event |
+| Odds, `when:`, cooldown | skipped | hold |
+| Min gap, no repeat | skipped | skipped |
+| A busy screen, or an event playing | refused, with a warning in the log | refused, with a warning in the log |
+
+A name the active persona lacks logs a warning too.
+
 ## Themes and words
 
 Every persona sets how the menu and apps look while it shows:
@@ -454,6 +688,18 @@ api:
 Every persona now has a `watered` state. Those without a `Watered`
 animation show `loved`. Add `plants.watered` to a menu, or bind it.
 
+An activity that wants no quirks on screen sets `quiet: true`. While
+the module holds it, no random event plays, and one that plays ends.
+Pomodoro's focus does this:
+
+```yaml
+      states:
+        focus: { kind: activity, fallback: neutral, sound: start, quiet: true }
+```
+
+Only an activity can be quiet. A break is not quiet, so quirks may play
+during one.
+
 A module in C++ adds screens, layers and apps. The model to follow is
 the pomodoro ([pomodoro.yaml](../packages/pomodoro.yaml)): its states,
 actions, buttons, menus, tap areas and theme keys are all in its
@@ -465,6 +711,41 @@ lists everything a module may contribute.
 Home Assistant can put a card on the screen and get the answer back: a
 doorbell with Unlock and Talk, a quiz with a countdown, a yes/no question.
 See [prompts.md](prompts.md) and the [blueprints](../blueprints/).
+
+## Quiet hours and Do not disturb
+
+Include [quiet.yaml](../packages/quiet.yaml) and the device can stay on a
+bedside table. It adds these entities to Home Assistant:
+
+| Entity | What it does |
+|---|---|
+| Do not disturb (switch) | Info prompts and messages from HA wait. Sounds goes off. A mark shows on the info line. |
+| Quiet start, Quiet end (times) | Quiet hours. Overnight is fine. The same time twice turns them off. |
+| Dim after (number, minutes) | The screen dims when nothing happened for that long: no input, prompt, message or voice. 0 never dims. |
+| Quiet (binary sensor) | On inside quiet hours, for automations. |
+
+In quiet hours, Do not disturb is on, the persona sleeps and the screen
+goes dark. A tap or a button wakes the screen for 30 s. That first input
+does nothing else. The wake word also wakes the screen, and it stays on
+until 30 s after the reply. Quiet hours need the clock from Home Assistant.
+
+Do not disturb is about cards. Urgent prompts still show, with their
+sound. When Do not disturb ends, Sounds comes back as it was, and the
+cards that waited show one by one, oldest first.
+
+```yaml
+daruma_quiet:
+  quiet_hours: { start: "22:00", end: "07:00" }  # first values; HA changes them
+  quiet_brightness: 0%     # the screen in quiet hours; 0% is off
+  wake_for: 30s
+  idle_brightness: 30%     # after "Dim after"
+  dnd_during: [focus]      # messages also wait during these activities
+  dnd_keep: 12h            # a card that waited longer drops
+  dnd_release: 5           # at most this many wait
+```
+
+The screen never goes brighter than the "Screen" light is set. Bind
+`quiet.dnd` to a gesture to toggle Do not disturb on the device.
 
 ## Other screens and boards
 

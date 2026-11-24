@@ -108,7 +108,13 @@ Component `daruma_prompts`, package `prompts.yaml`. Usage and HA examples:
 - **Core hooks:** `Device::set_prompt_open()`, so the menu closing under a
   prompt does not clear its input routing (`ui_open()` covers both), and
   `Device::holds_activity()` for the focus check (focus held anywhere in the
-  stack, since the prompt's own activity goes on top).
+  stack, since the prompt's own activity goes on top). `Hub::holds_cards()`
+  holds info prompts too (Do not disturb, from `quiet.yaml`).
+- **Release after a hold.** When a hold ends, `PromptStack::release()`
+  renumbers the info prompts that never showed, so the oldest is on top.
+  It keeps the newest `CardLimits::cap` and ends older ones as `replaced`,
+  and ends ones that waited past `keep_ms` as `timeout`. HA messages wait
+  in the hub's `CardQueue` under the same limits.
 - **Geometry** lives in `prompt_layout.h`, plain C++ on the hub's Layout.
   The card is `layout.content.inset(px(8))`. When its text and buttons need
   more height, it grows evenly, at most to `px(6)` from the screen's top

@@ -1,5 +1,5 @@
 """The corgi's quirks: short surprises (a paw lick, a nose scratch, a
-sneeze) and the "brb" trip (it puts up a sign, hops off and comes back).
+sneeze, a look out the window) and the "brb" trip (it puts up a sign, hops off and comes back).
 
 Each animation is a list of (pose, milliseconds) frames, as in moods.py.
 Nothing on the device plays them by itself: a persona picks them by name.
@@ -137,6 +137,8 @@ GOTTA_GO = Pose(eyes="up", mouth="flat", ears=-8, head_dx=1, tilt=6)
 HOP = Pose(eyes="open", mouth="open", head_dx=2, tilt=4)
 AWAY = Trip(sign=True)
 BACK = Pose(eyes="happy", mouth="open", head_dx=-2, tilt=-4)
+# Out the window, at the top left: head turned that way, ears up.
+GAZE = Pose(eyes="up_left", mouth="flat", ears=-10, head_dx=-1, head_dy=-1, tilt=-3)
 
 
 def _hops(pet: Pose, steps: tuple[int, ...], ms: int = 130) -> list:
@@ -168,6 +170,15 @@ ANIMATIONS: dict[str, list[tuple[Pose | Trip, int]]] = {
         (with_(SHAKE, head_dx=1, tilt=6), 110),
         (with_(SHAKE, head_dx=-1, tilt=-4), 110),
         (Pose(eyes="happy", mouth="blep"), 650),
+        (NEUTRAL, 300),
+    ],
+    # Look out the window: turn to it, gaze a while, blink, turn back.
+    "LookOutWindow": [
+        (with_(GAZE, eyes="open", ears=-4, head_dx=0, head_dy=0, tilt=-1), 250),
+        (GAZE, 1400),
+        (with_(GAZE, eyes="blink"), 150),
+        (GAZE, 1200),
+        (with_(GAZE, eyes="open", ears=-4, head_dx=0, head_dy=0, tilt=-1), 250),
         (NEUTRAL, 300),
     ],
     # Off to the bathroom: it looks to the door, puts its sign up beside

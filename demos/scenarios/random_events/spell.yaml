@@ -1,0 +1,33 @@
+name: spell
+description: >-
+  The pixel corgi's bathroom trip, start to end: it puts up its "brb" sign,
+  hops off, stays away for three minutes, then hops back and wags.
+build: events
+personas: []
+test_personas: [Pixel corgi]
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - random_event: bathroom
+  - expect: {event: {type: esphome.daruma_random_event, name: bathroom}}
+  # WalkOff: it looks off to the side, the sign goes up, it hops away.
+  - wait: 0.3
+  - snapshot: gotta-go
+  - wait: 0.9
+  - snapshot: sign-up
+  - wait: 0.62
+  - snapshot: hop-off
+  - wait: 0.43
+  - snapshot: puff
+  # Away: only the sign.
+  - wait: 2
+  - snapshot: away
+  # The 3 minutes end 182.9 s in; WalkBack plays.
+  - skip: 178
+  - wait: 1.28
+  - snapshot: hop-back
+  - wait: 0.6
+  - snapshot: home
+  - wait: 2.5
+  - snapshot: back

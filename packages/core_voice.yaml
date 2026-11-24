@@ -141,10 +141,13 @@ voice_assistant:
   noise_suppression_level: 2
   auto_gain: 31dBFS
   volume_multiplier: 2.0
+  # A voice session counts as activity: it wakes a dim or quiet screen,
+  # and the dim timer starts again when it ends.
   on_listening:
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
         id(daruma_hub).dispatch(Daruma::Input::DISMISS);
+        id(daruma_hub).poke();
     - text_sensor.template.publish:
         id: text_request
         state: ""
@@ -164,7 +167,9 @@ voice_assistant:
     - text_sensor.template.publish:
         id: text_response
         state: !lambda return x;
-    - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+        id(daruma_hub).poke();
     - script.execute: draw_display
   on_end:
     # Wait a short amount of time to see if an announcement starts
@@ -181,7 +186,9 @@ voice_assistant:
                 speaker.is_playing:
     - lambda: id(va).set_use_wake_word(false);
     - micro_wake_word.start:
-    - lambda: id(sound_meter)->enable_loop();
+    - lambda: |-
+        id(sound_meter)->enable_loop();
+        id(daruma_hub).poke();
     - script.execute: set_idle_or_mute_phase
     - script.execute: draw_display
     - text_sensor.template.publish:
@@ -391,7 +398,8 @@ script:
       - if:
           condition:
             and:
-              - switch.is_on: sounds_enabled
+              # Sounds on, or an urgent sound while Do not disturb holds Sounds off.
+              - lambda: return id(daruma_hub).sound_allowed(id(sounds_enabled).state);
               - switch.is_off: timer_ringing
               - not:
                   voice_assistant.is_running:

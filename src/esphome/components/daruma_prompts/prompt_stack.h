@@ -10,7 +10,10 @@
 //   back when it closes.
 // - Timeouts: 0 means the default of 60 s, -1 means none
 //   (timeout_ms()). An `ask` always ends within 25 s.
-// - While `hold_info` is true (a focus session), info prompts wait.
+// - While `hold_info` is true (focus, Do not disturb), info prompts wait.
+//   When the hold ends, release() lets the waiting ones through oldest
+//   first, at most CardLimits::cap of them, and drops the ones that waited
+//   past CardLimits::keep_ms.
 // - A new prompt with the id of an existing one replaces it. The old one
 //   ends with reason REPLACED, unless it was already answered.
 // - A timeout starts when the prompt first comes on screen. An `ask` also
@@ -27,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "esphome/components/daruma/card_queue.h"
 #include "esphome/components/daruma/states.h"
 
 namespace Daruma {
@@ -105,6 +109,7 @@ struct Prompt {
 
   // Run time.
   uint32_t seq{0};      // Arrival order; newer is higher.
+  uint32_t arrived{0};  // When it came, in millis().
   bool shown{false};    // Has been on screen (its sound played).
   bool timing{false};   // The timeout runs.
   uint32_t ends_at{0};  // When the timeout runs out.
@@ -152,6 +157,7 @@ class PromptStack {
   void show(Prompt prompt, uint32_t now) {
     this->remove_(prompt.id, Reason::REPLACED);
     prompt.seq = ++this->seq_;
+    prompt.arrived = now;
     prompt.shown = false;
     prompt.timing = false;
     prompt.answered = false;
@@ -217,6 +223,33 @@ class PromptStack {
         best = &p;
     }
     return best;
+  }
+
+  // A hold on info prompts ended. The info prompts that never showed go
+  // through oldest first: the newest `cap` of them stay, older ones end as
+  // REPLACED, and the ones that waited past keep_ms as TIMEOUT.
+  void release(uint32_t now, const CardLimits &limits) {
+    // prompts_ is in arrival order; walk it newest first.
+    std::vector<std::pair<std::string, Reason>> gone;
+    int kept = 0;
+    for (auto it = this->prompts_.rbegin(); it != this->prompts_.rend(); ++it) {
+      if (it->style != PromptStyle::INFO || it->shown)
+        continue;
+      if (now - it->arrived > limits.keep_ms) {
+        gone.emplace_back(it->id, Reason::TIMEOUT);
+      } else if (kept >= limits.cap) {
+        gone.emplace_back(it->id, Reason::REPLACED);
+      } else {
+        kept++;
+      }
+    }
+    for (const auto &g : gone)
+      this->remove_(g.first, g.second);
+    // New seqs, newest first: the oldest ends up highest and shows first.
+    for (auto it = this->prompts_.rbegin(); it != this->prompts_.rend(); ++it) {
+      if (it->style == PromptStyle::INFO && !it->shown)
+        it->seq = ++this->seq_;
+    }
   }
 
   // The prompt came on screen: its timeout starts the first time. Returns

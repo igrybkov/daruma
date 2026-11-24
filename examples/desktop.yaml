@@ -59,6 +59,7 @@ packages:
     file: ../packages/app_weather.yaml
     vars: { entity: weather.demo }
   prompts: !include ../packages/prompts.yaml
+  quiet: !include ../packages/quiet.yaml
 
 daruma:
   apps: [tasks, calendar, weather, stats]

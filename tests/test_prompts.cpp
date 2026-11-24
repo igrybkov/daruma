@@ -82,6 +82,95 @@ static void focus_holds_back_info_only() {
   CHECK(s.find("news") != nullptr);
 }
 
+// When a hold ends, the info prompts that waited show oldest first, at
+// most `cap` of them (the newest), and none that waited past keep_ms.
+static void release_after_hold() {
+  const CardLimits limits{3, 60000};
+  // Oldest first, then the next oldest once it goes.
+  {
+    PromptStack s;
+    s.show(make("a", PromptStyle::INFO), 0);
+    s.show(make("b", PromptStyle::INFO), 10);
+    s.show(make("c", PromptStyle::INFO), 20);
+    s.release(100, limits);
+    CHECK(top_id(s) == "a");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "b");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "c");
+  }
+  // Over the cap: the oldest end as replaced; the rest keep their order.
+  {
+    PromptStack s;
+    for (const char *id : {"a", "b", "c", "d", "e"})
+      s.show(make(id, PromptStyle::INFO), 0);
+    s.take_answers();
+    s.release(0, limits);
+    CHECK(s.size() == 3);
+    CHECK(top_id(s) == "c");
+    auto answers = s.take_answers();
+    CHECK(answers.size() == 2);
+    CHECK(answers[0].reason == Reason::REPLACED);
+  }
+  // One that waited too long ends as a timeout.
+  {
+    PromptStack s;
+    s.show(make("old", PromptStyle::INFO), 0);
+    s.show(make("new", PromptStyle::INFO), 50000);
+    s.take_answers();
+    s.release(60001, limits);
+    CHECK(s.find("old") == nullptr);
+    CHECK(top_id(s) == "new");
+    auto answers = s.take_answers();
+    CHECK(answers.size() == 1 && answers[0].id == "old" && answers[0].reason == Reason::TIMEOUT);
+  }
+  // An urgent prompt still comes first; a held one released twice keeps
+  // its order.
+  {
+    PromptStack s;
+    s.show(make("a", PromptStyle::INFO), 0);
+    s.show(make("b", PromptStyle::INFO), 10);
+    s.show(make("door", PromptStyle::URGENT), 20);
+    s.release(100, limits);
+    s.release(200, limits);
+    CHECK(top_id(s) == "door");
+    s.close("door");
+    CHECK(top_id(s) == "a");
+  }
+  // Exactly keep_ms is still in time.
+  {
+    PromptStack s;
+    s.show(make("edge", PromptStyle::INFO), 0);
+    s.release(60000, limits);
+    CHECK(top_id(s) == "edge");
+    CHECK(Prompt{}.arrived == 0);
+  }
+  // A prompt that already showed keeps its place behind the released ones.
+  {
+    PromptStack s;
+    s.show(make("a", PromptStyle::INFO), 0);
+    s.show(make("seen", PromptStyle::INFO), 10);
+    s.on_screen(s.find("seen"), 10);
+    s.show(make("c", PromptStyle::INFO), 20);
+    s.release(100, limits);
+    CHECK(top_id(s) == "a");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "c");
+    CHECK(s.dismiss(s.top(false)));
+    CHECK(top_id(s) == "seen");
+  }
+  // A prompt already shown is not part of the release.
+  {
+    PromptStack s;
+    s.show(make("seen", PromptStyle::INFO), 0);
+    s.on_screen(s.top(false), 0);
+    s.show(make("held", PromptStyle::INFO), 10);
+    s.release(100, CardLimits{0, 60000});
+    CHECK(s.find("seen") != nullptr);
+    CHECK(s.find("held") == nullptr);
+  }
+}
+
 static void same_id_replaces() {
   PromptStack s;
   s.show(make("door", PromptStyle::URGENT), 0);
@@ -419,6 +508,7 @@ static void short_lists_and_cards_tap_as_before() {
 int main() {
   higher_style_wins_and_lower_comes_back();
   focus_holds_back_info_only();
+  release_after_hold();
   same_id_replaces();
   timeout_starts_on_screen();
   countdown_update();

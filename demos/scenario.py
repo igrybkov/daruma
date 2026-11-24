@@ -65,6 +65,7 @@ demos/test_daruma.py checks that the showcase scenarios cover the registry.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -216,67 +217,80 @@ def _locator(device: Device, spec: dict[str, Any]) -> Locator:
     raise DeviceError(f"A part needs `text` or `role`: {spec}")
 
 
+def _tap(device: Device, arg: list[int] | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        _locator(device, arg).tap(timeout=arg.get("timeout", 5))
+    else:
+        device.tap(*arg)
+
+
+def _press(device: Device, arg: str | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        device.press(arg["input"], seconds=arg.get("seconds", 0.08))
+    else:
+        device.press(arg)
+
+
+def _set(device: Device, arg: dict[str, Any]) -> None:
+    for entity, value in arg.items():
+        device.set(entity, value)
+
+
+def _action(device: Device, arg: dict[str, Any]) -> None:
+    data = dict(arg)
+    device.action(data.pop("name"), **data)
+
+
+def _voice(device: Device, arg: str | dict[str, Any]) -> None:
+    if isinstance(arg, dict):
+        device.voice(arg["phase"], arg.get("text", ""))
+    else:
+        device.voice(arg)
+
+
+def _snapshot(device: Device, arg: str | dict[str, Any]) -> None:
+    spec = {"name": arg} if isinstance(arg, str) else dict(arg)
+    expect(device).to_match_screenshot(
+        _snapshot_name(arg),
+        mask=[tuple(m) for m in spec.get("mask", [])],
+        tolerance=spec.get("tolerance", 0),
+        max_diff_pixels=spec.get("max_diff_pixels", 0),
+    )
+
+
+# Each step kind and what it does with the step's value.
+STEPS: dict[str, Callable[[Device, Any], None]] = {
+    "wait": lambda device, arg: device.advance(float(arg)),
+    "skip": lambda device, arg: device.skip(float(arg)),
+    "tap": _tap,
+    "hold": lambda device, arg: device.hold(*arg["at"], seconds=arg.get("seconds", 1.5)),
+    "swipe": lambda device, arg: device.swipe(*arg["from"], *arg["to"], seconds=arg.get("seconds", 0.25)),
+    "stroke": lambda device, arg: device.stroke(*arg),
+    "pet": lambda device, arg: device.pet(),
+    "press": _press,
+    "set": _set,
+    "action": _action,
+    "show": lambda device, arg: device.show(arg or ""),
+    "voice": _voice,
+    "caption": lambda device, arg: device.caption(str(arg)),
+    "message": lambda device, arg: device.show_message(arg["text"], arg.get("seconds", 5)),
+    "prompt": lambda device, arg: device.show_prompt(**arg),
+    "update_prompt": lambda device, arg: device.update_prompt(**arg),
+    "snapshot": _snapshot,
+    "expect": lambda device, arg: _expect(device, dict(arg)),
+}
+
+
 def run_step(device: Device, step: dict[str, Any], *, test: bool) -> None:
     """Run one step. Snapshots compare only in test mode."""
     if len(step) != 1:
         raise DeviceError(f"A step has one key: {step}")
     ((kind, arg),) = step.items()
-    if kind == "wait":
-        device.advance(float(arg))
-    elif kind == "skip":
-        device.skip(float(arg))
-    elif kind == "tap":
-        if isinstance(arg, dict):
-            _locator(device, arg).tap(timeout=arg.get("timeout", 5))
-        else:
-            device.tap(*arg)
-    elif kind == "hold":
-        device.hold(*arg["at"], seconds=arg.get("seconds", 1.5))
-    elif kind == "swipe":
-        device.swipe(*arg["from"], *arg["to"], seconds=arg.get("seconds", 0.25))
-    elif kind == "stroke":
-        device.stroke(*arg)
-    elif kind == "pet":
-        device.pet()
-    elif kind == "press":
-        if isinstance(arg, dict):
-            device.press(arg["input"], seconds=arg.get("seconds", 0.08))
-        else:
-            device.press(arg)
-    elif kind == "set":
-        for entity, value in arg.items():
-            device.set(entity, value)
-    elif kind == "action":
-        data = dict(arg)
-        device.action(data.pop("name"), **data)
-    elif kind == "show":
-        device.show(arg or "")
-    elif kind == "voice":
-        if isinstance(arg, dict):
-            device.voice(arg["phase"], arg.get("text", ""))
-        else:
-            device.voice(arg)
-    elif kind == "caption":
-        device.caption(str(arg))
-    elif kind == "message":
-        device.show_message(arg["text"], arg.get("seconds", 5))
-    elif kind == "prompt":
-        device.show_prompt(**arg)
-    elif kind == "update_prompt":
-        device.update_prompt(**arg)
-    elif kind == "snapshot":
-        if test:
-            spec = {"name": arg} if isinstance(arg, str) else dict(arg)
-            expect(device).to_match_screenshot(
-                _snapshot_name(arg),
-                mask=[tuple(m) for m in spec.get("mask", [])],
-                tolerance=spec.get("tolerance", 0),
-                max_diff_pixels=spec.get("max_diff_pixels", 0),
-            )
-    elif kind == "expect":
-        _expect(device, dict(arg))
-    else:
+    if kind not in STEPS:
         raise DeviceError(f"Unknown step {kind!r}")
+    if kind == "snapshot" and not test:
+        return
+    STEPS[kind](device, arg)
 
 
 def _expect(device: Device, spec: dict[str, Any]) -> None:

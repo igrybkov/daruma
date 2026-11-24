@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
+from unittest.mock import ANY, MagicMock, call
 
 import persona_path
 import pytest
@@ -60,6 +62,106 @@ def test_load_reads_nested_captions(tmp_path: Path):
     assert sc.steps == [{"caption": "Pet it"}, {"pet": True}, {"caption": ""}, {"show": "sad"}]
     # covered_states() sees the steps inside a block.
     assert scenarios.covered_states(sc) == {"petted", "sad"}
+
+
+# Each step kind and the device calls it makes. `expect` is the harness's
+# assertion helper, recorded as `expect(<device or locator>)` calls.
+STEP_CALLS = [
+    ({"wait": 1.5}, [call.advance(1.5)]),
+    ({"skip": "300"}, [call.skip(300.0)]),
+    ({"tap": [10, 20]}, [call.tap(10, 20)]),
+    ({"tap": {"text": "Ok"}}, [call.get_by_text("Ok", exact=True), call.get_by_text().tap(timeout=5)]),
+    ({"tap": {"text": "ok", "exact": False}}, [call.get_by_text("ok", exact=False), call.get_by_text().tap(timeout=5)]),
+    (
+        {"tap": {"role": "button", "name": "Ok", "timeout": 2}},
+        [call.get_by_role("button", "Ok"), call.get_by_role().tap(timeout=2)],
+    ),
+    ({"hold": {"at": [1, 2]}}, [call.hold(1, 2, seconds=1.5)]),
+    ({"hold": {"at": [1, 2], "seconds": 3}}, [call.hold(1, 2, seconds=3)]),
+    ({"swipe": {"from": [1, 2], "to": [3, 4]}}, [call.swipe(1, 2, 3, 4, seconds=0.25)]),
+    ({"swipe": {"from": [1, 2], "to": [3, 4], "seconds": 1}}, [call.swipe(1, 2, 3, 4, seconds=1)]),
+    ({"stroke": [5, 6]}, [call.stroke(5, 6)]),
+    ({"pet": True}, [call.pet()]),
+    ({"press": "home"}, [call.press("home")]),
+    ({"press": {"input": "top"}}, [call.press("top", seconds=0.08)]),
+    ({"press": {"input": "top", "seconds": 2}}, [call.press("top", seconds=2)]),
+    ({"set": {"Window": "Rain", "Temp": 3}}, [call.set("Window", "Rain"), call.set("Temp", 3)]),
+    ({"action": {"name": "wink", "times": 2}}, [call.action("wink", times=2)]),
+    ({"show": "sad"}, [call.show("sad")]),
+    ({"show": None}, [call.show("")]),
+    ({"voice": "thinking"}, [call.voice("thinking")]),
+    ({"voice": {"phase": "listening"}}, [call.voice("listening", "")]),
+    ({"voice": {"phase": "replying", "text": "Hi"}}, [call.voice("replying", "Hi")]),
+    ({"caption": 7}, [call.caption("7")]),
+    ({"message": {"text": "Hi"}}, [call.show_message("Hi", 5)]),
+    ({"message": {"text": "Hi", "seconds": 9}}, [call.show_message("Hi", 9)]),
+    ({"prompt": {"id": "door", "title": "Door"}}, [call.show_prompt(id="door", title="Door")]),
+    ({"update_prompt": {"id": "quiz", "marks": ["a"]}}, [call.update_prompt(id="quiz", marks=["a"])]),
+    (
+        {"snapshot": "x"},
+        [call.expect(ANY), call.expect().to_match_screenshot("x", mask=[], tolerance=0, max_diff_pixels=0)],
+    ),
+    (
+        {"snapshot": {"name": "y", "mask": [[1, 2, 3, 4]], "tolerance": 8, "max_diff_pixels": 20}},
+        [
+            call.expect(ANY),
+            call.expect().to_match_screenshot("y", mask=[(1, 2, 3, 4)], tolerance=8, max_diff_pixels=20),
+        ],
+    ),
+    ({"expect": {"state": "focus"}}, [call.expect(ANY), call.expect().to_have_state("focus", timeout=5)]),
+    (
+        {"expect": {"visible": {"text": "Ok"}, "timeout": 1}},
+        [call.get_by_text("Ok", exact=True), call.expect(ANY), call.expect().to_be_visible(timeout=1)],
+    ),
+    (
+        {"expect": {"hidden": {"role": "dialog"}}},
+        [call.get_by_role("dialog", None), call.expect(ANY), call.expect().to_be_hidden(timeout=5)],
+    ),
+    (
+        {"expect": {"event": {"type": "esphome.x", "name": "a"}, "timeout": 2}},
+        [call.expect(ANY), call.expect().to_fire_event("esphome.x", timeout=2, name="a")],
+    ),
+    (
+        {"expect": {"entity": {"name": "Phase", "value": "focus"}}},
+        [call.expect(ANY), call.expect().to_have_entity("Phase", "focus", timeout=5)],
+    ),
+]
+
+
+@pytest.mark.parametrize(("step", "calls"), STEP_CALLS, ids=[str(s) for s, _ in STEP_CALLS])
+def test_each_step_makes_its_device_calls(step, calls, monkeypatch):
+    # One mock is the device and `expect`, so the calls of both keep their order.
+    device = MagicMock()
+    monkeypatch.setattr(scenarios, "expect", device.expect)
+    before = copy.deepcopy(step)
+    for _ in range(2):  # A scenario runs once per persona: a step must not change.
+        device.reset_mock()
+        scenarios.run_step(device, step, test=True)
+        assert device.mock_calls == calls
+    assert step == before
+
+
+def test_a_snapshot_compares_only_in_test_mode(monkeypatch):
+    device = MagicMock()
+    monkeypatch.setattr(scenarios, "expect", device.expect)
+    scenarios.run_step(device, {"snapshot": "x"}, test=False)
+    assert device.mock_calls == []
+
+
+@pytest.mark.parametrize(
+    ("step", "error"),
+    [
+        ({"dance": 1}, "Unknown step 'dance'"),
+        ({"wait": 1, "pet": True}, "A step has one key"),
+        ({}, "A step has one key"),
+        ({"expect": {"smell": "x"}}, "Unknown expectation 'smell'"),
+        ({"tap": {"x": 1}}, "A part needs `text` or `role`"),
+    ],
+)
+def test_a_bad_step_raises(step, error, monkeypatch):
+    monkeypatch.setattr(scenarios, "expect", MagicMock())
+    with pytest.raises(DeviceError, match=error):
+        scenarios.run_step(MagicMock(), step, test=True)
 
 
 def test_every_scenario_loads_with_one_key_steps():

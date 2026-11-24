@@ -138,22 +138,8 @@
     "file_name": "doll.py",
     "functions": [
       {
-        "name": "stamp",
-        "complexity": 49
-      },
-      {
         "name": "_extras",
         "complexity": 63
-      }
-    ]
-  },
-  {
-    "path": "pixel/persona-daruma/src/daruma_personas/daruma/__init__.py",
-    "file_name": "__init__.py",
-    "functions": [
-      {
-        "name": "diff_patch",
-        "complexity": 17
       }
     ]
   },
@@ -320,16 +306,6 @@
       {
         "name": "main",
         "complexity": 21
-      }
-    ]
-  },
-  {
-    "path": "demos/scenario.py",
-    "file_name": "scenario.py",
-    "functions": [
-      {
-        "name": "run_step",
-        "complexity": 37
       }
     ]
   },

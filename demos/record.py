@@ -13,7 +13,9 @@ with the sounds. A scenario with `stills: true` writes no GIF: each of its
 snapshots becomes docs/demos/screens/<persona>-<name>.png. A persona from
 DARUMA_PERSONA_PATH (persona_path.py) writes to its own folder's docs/demos
 instead, and only when named in --personas. Such a folder's own scenarios
-(its demos/scenarios/) run too, on its personas only. The same scenarios run as tests in pytest (conftest.py):
+(its demos/scenarios/) run too, on its personas only. A scenario with
+`build: events` runs on the build with random events, compiled only when
+a chosen scenario needs it. The same scenarios run as tests in pytest (conftest.py):
 their snapshot and expect steps check the screens there.
 
 Needs: uv, a C compiler, SDL2 and ffmpeg (docs/testing.md).
@@ -66,13 +68,14 @@ def main() -> int:
     args = ap.parse_args()
 
     work = args.out
-    print(f"Building in {work} ...", flush=True)
-    b = build(work / "build", variant=args.variant, port=args.port)
-
     chosen = scenarios.every_scenario()
     if args.scenario != "all":
         names = args.scenario.split(",")
         chosen = [scenarios.load(n) for n in names]
+
+    print(f"Building in {work} ...", flush=True)
+    builds = _builds(chosen, work / "build", args.variant, args.port)
+    b = next(iter(builds.values()))
 
     with _probe(b, work) as personas_all:
         pass
@@ -91,7 +94,7 @@ def main() -> int:
             if sc.runs_on(persona, test=False):
                 jobs.append(
                     Job(
-                        b,
+                        builds[sc.build],
                         sc,
                         persona,
                         args.variant,
@@ -115,6 +118,12 @@ def main() -> int:
     if failures:
         print(f"{failures} failed", file=sys.stderr)
     return 1 if failures else 0
+
+
+def _builds(chosen: list[scenarios.Scenario], out: Path, variant: str, port: int) -> dict[str, Build]:
+    """The builds the chosen scenarios run on, by kind (Scenario.build)."""
+    kinds = sorted({sc.build for sc in chosen}) or ["standard"]
+    return {kind: build(out, variant=variant, events=kind == "events", port=port) for kind in kinds}
 
 
 @dataclass

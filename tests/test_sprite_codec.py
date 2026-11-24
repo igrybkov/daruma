@@ -192,9 +192,38 @@ def test_differing_lanes_counts_a_lane_with_any_one_bit(bit):
     # The lane sits between two empty ones, so a bit that spills over shows.
     value = (1 << bit) - (1 << 32 if bit == 31 else 0)  # As a signed 32-bit int.
     ones = codec._lanes([1, 1, 1])
-    assert codec._differing_lanes(codec._lanes([0, value, 0]), ones) == 1
-    assert codec._differing_lanes(codec._lanes([value, 0, -1]), ones) == 2
-    assert codec._differing_lanes(codec._lanes([0, 0, value]), ones) == 1
+    assert codec._differing_lanes(codec._lanes([0, value, 0]), ones, 32) == 1
+    assert codec._differing_lanes(codec._lanes([value, 0, -1]), ones, 32) == 2
+    assert codec._differing_lanes(codec._lanes([0, 0, value]), ones, 32) == 1
+
+
+@pytest.mark.parametrize("bit", range(8))
+def test_differing_lanes_counts_a_byte_lane_with_any_one_bit(bit):
+    ones = int.from_bytes(b"\x01\x01\x01", "little")
+    lane = (1 << bit) << 8  # The middle of three byte lanes.
+    assert codec._differing_lanes(lane, ones, 8) == 1
+    assert codec._differing_lanes(lane | 0xFF << 16, ones, 8) == 2
+
+
+def test_set_lanes_give_a_small_set_a_byte_per_pixel_by_color_order():
+    lanes, ones, width = codec._set_lanes([[700, 5, codec.CLEAR], [5, 5, 700]])
+    # The colors in order: CLEAR (-1) is 0, 5 is 1, 700 is 2.
+    assert width == 8
+    assert lanes == [int.from_bytes(bytes([2, 1, 0]), "little"), int.from_bytes(bytes([1, 1, 2]), "little")]
+    assert ones == int.from_bytes(b"\x01\x01\x01", "little")
+
+
+def test_set_lanes_keep_32_bits_past_256_colors():
+    for colors, width in ((256, 8), (257, 32)):
+        a = list(range(colors))
+        b = a[1:] + a[:1]
+        lanes, ones, got = codec._set_lanes([a, b])
+        assert got == width
+        assert codec._differing_lanes(lanes[0] ^ lanes[1], ones, got) == colors
+        assert codec._differing_lanes(lanes[0] ^ lanes[0], ones, got) == 0
+    lanes, ones, _ = codec._set_lanes([list(range(257))])
+    assert lanes == [codec._lanes(list(range(257)))]
+    assert ones == codec._lanes([1] * 257)
 
 
 def test_encode_image_without_see_through_has_no_clear_index():
@@ -289,6 +318,15 @@ def test_a_frame_patches_the_closest_frame():
     far = [_dots(*range(10, 10 + k)) for k in (20, 22, 24, 26)]
     fs = codec.encode_set([_dots(1), *far, _dots(1, 2)])
     assert fs.frames[5].base == 0
+
+
+def test_the_closest_frame_wins_wherever_it_sits():
+    # The close frame comes after more far ones than CANDIDATES, so only
+    # the changed-pixel count, not the order, puts it among the bases tried.
+    far = [_dots(*range(10, 10 + k)) for k in (20, 22, 24, 26, 28)]
+    fs = codec.encode_set([*far, _dots(1), _dots(1, 2)])
+    assert len(far) > codec.CANDIDATES
+    assert fs.frames[6].base == 5
 
 
 def test_a_frame_may_patch_its_animations_first_frame():

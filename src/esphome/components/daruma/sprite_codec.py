@@ -222,14 +222,26 @@ def _lanes(pixels: list[int]) -> int:
     return int.from_bytes(array("i", pixels).tobytes(), "little")
 
 
-def _differing_lanes(x: int, ones: int) -> int:
-    """How many 32-bit lanes of `x` are not zero. The shifts fold every bit
-    of a lane into its lowest bit; `ones` has only those lowest bits set."""
-    x |= x >> 16
-    x |= x >> 8
-    x |= x >> 4
-    x |= x >> 2
-    x |= x >> 1
+def _set_lanes(pixels: list[list[int]]) -> tuple[list[int], int, int]:
+    """Each picture of a set as one int with a lane per pixel, the mask of
+    each lane's lowest bit, and the lane width. A set of at most 256 colors
+    gets a byte per pixel, the color's place in the set: a quarter of the
+    bits to fold. More colors keep 32-bit lanes of the pixel values."""
+    colors = sorted(set().union(*map(set, pixels)))
+    n = len(pixels[0])
+    if len(colors) > 256:
+        return [_lanes(px) for px in pixels], _lanes([1] * n), 32
+    place = {c: i for i, c in enumerate(colors)}.__getitem__
+    return [int.from_bytes(bytes(map(place, px)), "little") for px in pixels], int.from_bytes(b"\x01" * n), 8
+
+
+def _differing_lanes(x: int, ones: int, width: int) -> int:
+    """How many `width`-bit lanes of `x` are not zero. The shifts fold every
+    bit of a lane into its lowest bit; `ones` has only those lowest bits set."""
+    shift = width // 2
+    while shift:
+        x |= x >> shift
+        shift //= 2
     return (x & ones).bit_count()
 
 
@@ -300,14 +312,10 @@ def encode_set(images, sequences: list[list[int]] | None = None, mode: str = "fu
             depth + 1,
         )
 
-    lanes = [_lanes(px) for px in pixels]
-    # A mask of 2s would count a lane that differs only in bit 0 at the lane
-    # below it instead: the same totals, but for the very first pixel.
-    # pragma: no mutate block, see above
-    ones = _lanes([1] * (w * h))
+    lanes, ones, width = _set_lanes(pixels)
 
     def changed(u: int, v: int) -> int:
-        return _differing_lanes(lanes[u] ^ lanes[v], ones)
+        return _differing_lanes(lanes[u] ^ lanes[v], ones, width)
 
     frames: dict[int, SetFrame] = {}
 

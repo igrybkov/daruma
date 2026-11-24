@@ -162,6 +162,9 @@ class Stance:
 
     rise: int  # Pixels the chest and head rise.
     front: Hook  # Draws the front legs, after the chest.
+    # Adds shapes to the chest's mask before it is painted, so a leg grows
+    # out of the chest with no seam: d, r.
+    chest: Callable[[ImageDraw.ImageDraw, Rig], None] = lambda d, r: None
 
 
 def pointed_ears(c: Canvas, r: Rig) -> None:
@@ -296,6 +299,7 @@ def render(b: Breed, p: Pose, cx: int = W // 2, floor: int = H - 5) -> Image.Ima
     poly(d, zig)
     bib_ramp = coat.bib or coat.white
     if stance:
+        stance.chest(d, rig)
         c.paint(bib, bib_ramp)
         stance.front(c, rig)
     elif p.prop == "book":  # The legs hide behind the book; _book() draws the paws.

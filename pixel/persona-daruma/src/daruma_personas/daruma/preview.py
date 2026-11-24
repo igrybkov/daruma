@@ -9,8 +9,9 @@ Writes to OUT_DIR:
   daruma_hero.png               Neutral with one eye painted, 3x
   daruma_hero_1x.png            the same at 1x
 
-and prints the encoded size of the frames: all three eye states as whole
-faces, and the blank face plus eye overlays. Sizes come from the encoder
+and prints the encoded size of the frames: each eye state as whole
+pictures, and the one frame set the device stores for all three (keyframes
+and patches). Sizes come from the encoder
 the firmware build uses (src/esphome/components/daruma/sprite_codec.py).
 """
 
@@ -112,23 +113,29 @@ def report_size() -> None:
     backdrop = encoded_bytes(faces[0].backdrop, enc)
     plant = sum(encoded_bytes(i, enc) for i in faces[0].plant_stages + faces[0].plant_wilted)
     print(f"room {backdrop} B, plant {plant} B (once for all three)")
+    images, sequences = _pictures(faces.values())
+    fs = enc.encode_set(images, sequences, "full", "daruma")
+    patches = sum(1 for f in fs.frames if not f.key)
+    print(f"on the device, one frame set: {fs.size()} B ({len(fs.frames)} frames, {patches} of them patches)")
 
-    # Overlay option: blank face + eye patches + Paint stored whole.
-    base = {_key(i): i for i in frames_of(faces[0])}
-    patches = {}
-    for entry in persona.eye_overlays().values():
-        for row in entry.frames + [r for r in (entry.blink, entry.wink) if r]:
-            for patch in row:
-                if patch:
-                    patches[_key(patch.image)] = patch.image
-    paint = {}
-    for n in (1, 2):
-        paint.update({_key(f): f for f, _ in faces[n].animations["Paint"].frames})
-    paint = {k: v for k, v in paint.items() if k not in base}
-    b = sum(encoded_bytes(i, enc) for i in base.values())
-    p = sum(encoded_bytes(i, enc) for i in patches.values())
-    q = sum(encoded_bytes(i, enc) for i in paint.values())
-    print(f"overlay option: blank face {b} B + {len(patches)} eye patches {p} B + Paint {q} B = {b + p + q} B")
+
+def _pictures(faces) -> tuple[list[Image.Image], list[list[int]]]:
+    """Every frame of the faces and the order they play in, as the sprite
+    component hands them to encode_set: each animation, then [first frame,
+    blink] and [first frame, wink]."""
+    images: list[Image.Image] = []
+    sequences: list[list[int]] = []
+
+    def add(img: Image.Image) -> int:
+        images.append(img)
+        return len(images) - 1
+
+    for face in faces:
+        for anim in face.animations.values():
+            seq = [add(f) for f, _ in anim.frames]
+            sequences.append(seq)
+            sequences += [[seq[0], add(i)] for i in (anim.blink, anim.wink) if i is not None]
+    return images, sequences
 
 
 def main(out: Path) -> None:

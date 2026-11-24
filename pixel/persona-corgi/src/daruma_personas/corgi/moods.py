@@ -1,7 +1,8 @@
 """The corgi's moods and animations: each is a list of (Pose, milliseconds) frames that loops.
 
 Add a posture: make a Pose with new numbers. Add an animation: list poses.
-The mood poses and the wag are shared by every pet (rig.py).
+The mood poses and the wag are shared by every pet (rig.py). The quirks
+(quirks.py) are added at the end.
 """
 
 from __future__ import annotations
@@ -23,11 +24,13 @@ from daruma_shapes.pets.rig import (  # noqa: F401  (the mood poses are this mod
     with_,
 )
 
+from . import quirks
+
 # Reading, petted or startled: the reactions over the focus keep the book.
 LOVED_READING = with_(READING, eyes="heart", mouth="open", blush=True, ears=-4, extras=("hearts",))
 SCARED_READING = with_(READING, eyes="small", mouth="o", ears=30, extras=("sweat",))
 
-ANIMATIONS: dict[str, list[tuple[Pose, int]]] = {
+ANIMATIONS: dict[str, list[tuple[Pose | quirks.Trip, int]]] = {
     # Calm idle: breathing, an ear twitch, then a small lazy wag.
     "Neutral": [
         (NEUTRAL, 900),
@@ -64,6 +67,7 @@ ANIMATIONS: dict[str, list[tuple[Pose, int]]] = {
     "LovedFocus": [*wag_cycle(LOVED_READING), *wag_cycle(LOVED_READING), (LOVED_READING, 600)],
     # Startled while reading: wide eyes, ears back, a tremble.
     "ScaredFocus": [(SCARED_READING, 120), (with_(SCARED_READING, breath=1), 120)],
+    **quirks.ANIMATIONS,
 }
 
 # Single frames shown when the hub blinks or winks, per animation.

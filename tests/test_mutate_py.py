@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import os
 import shutil
 import subprocess
@@ -13,12 +12,10 @@ import types
 from pathlib import Path
 
 import changed_lines
+import mutate_plan
 import mutate_py
 import mutmut_run
 import pytest
-
-# Under mutmut the tests run from its copy, whose sources hold the mutants.
-needs_sources = pytest.mark.skipif(mutate_py.ROOT.name == "mutants", reason="mutmut's copy of the sources is mutated")
 
 
 @pytest.mark.parametrize(
@@ -218,13 +215,36 @@ def test_diff_finds_a_survivor_on_a_changed_line(tmp_path: Path, monkeypatch, ca
     assert set(seen) == set(status), "each mutant ran the probe test"
     assert set(seen.values()) == {"True"}, "a mutant ran under mutmut's own trampoline, not mutmut_fast's"
 
-    # In two parts, the one function goes to part 1; part 2 has nothing to run.
-    assert mutate_py.run_diff("main", shard=(1, 2)) == 0
-    assert "Part 2 of 2 has none of the 1 changed functions." in capsys.readouterr().out
-    assert mutate_py.run_all(shard=(0, 2)) == 0
+    _two_parts_on_another_runner(tmp_path, monkeypatch, capsys, status)
+
+
+def _two_parts_on_another_runner(project: Path, monkeypatch, capsys, status: dict[str, str]) -> None:
+    """The plan job plans two parts. Each runs on a copy of the project, as
+    a CI runner does: newer sources, and the plan's mutants unpacked."""
+    monkeypatch.setattr(mutate_plan, "part_count", lambda total, workers, max_parts=3: 2)
+    assert mutate_py.run_diff("main", max_parts=2) == 0
+    assert "1 changed functions, 5 mutants, 2 part(s)" in capsys.readouterr().out
+    shutil.make_archive(str(project / "plan"), "gztar", project, "mutants")
+    runner = project.parent / "runner"
+    shutil.copytree(project, runner, ignore=shutil.ignore_patterns("mutants", "plan.tar.gz"))
+    later = time.time() + 5
+    for file in (runner / "src" / "pkg").iterdir():
+        os.utime(file, (later, later))
+    shutil.unpack_archive(project / "plan.tar.gz", runner)
+    monkeypatch.setattr(mutate_py, "ROOT", runner)
+    monkeypatch.setattr(changed_lines, "ROOT", runner)
+
+    outputs = [mutate_py.run_part(index) for index in (0, 1)]
     out = capsys.readouterr().out
-    assert "Part 1 of 2: 1 of 1 functions." in out
-    assert "pkg.mod.x_sign__mutmut_" in out, "part 1 reports the survivors"
+    assert "would redo the recorded run" not in out
+    assert 1 in outputs, "a part with a survivor fails"
+    assert out.count("src/pkg/mod.py:2: pkg.mod.x_sign") == 2, "the parts report both survivors"
+    assert "Part 1 of 2" in out and "Part 2 of 2" in out
+    assert mutate_py.results() == status, "the parts find what one run found"
+
+    (runner / mutate_plan.STATS_FILE).unlink()
+    assert mutate_py.run_part(0) == 1
+    assert "Part 1 of 2 would redo the recorded run" in capsys.readouterr().out
 
 
 def test_mutmut_past_its_minutes_stops_with_its_children(tmp_path: Path, monkeypatch) -> None:
@@ -244,88 +264,3 @@ def test_mutmut_past_its_minutes_stops_with_its_children(tmp_path: Path, monkeyp
         for _ in range(50):
             os.kill(pid, 0)
             time.sleep(0.1)
-
-
-# --shard: the parts split the functions, and together hold every mutant once.
-
-
-def test_shards_split_by_cost_the_same_way_each_time() -> None:
-    doll = "pixel/persona-daruma/src/daruma_personas/daruma/doll.py"
-    registry = "src/esphome/components/daruma/registry.py"
-    targets = {
-        "daruma_personas.daruma.doll.x_a__mutmut_*": (doll, (1, 20)),
-        "daruma_personas.daruma.doll.x_b__mutmut_*": (doll, (21, 40)),
-        "esphome.components.daruma.registry.x_c__mutmut_*": (registry, (1, 50)),
-        "esphome.components.daruma.registry.x_d__mutmut_*": (registry, (51, 60)),
-    }
-    parts = mutate_py.shards(targets, 2)
-    assert parts == mutate_py.shards(dict(reversed(targets.items())), 2)
-    # The two doll functions cost 200 each: one goes to each part.
-    assert [sum("doll" in g for g in part) for part in parts] == [1, 1]
-    assert sorted(g for part in parts for g in part) == sorted(targets)
-
-
-def test_a_mutant_in_no_part_or_two_stops_the_run() -> None:
-    parts = [["a.x_f__mutmut_*"], ["a.x_g__mutmut_*"]]
-    mutate_py.check_shards(["a.x_f__mutmut_1", "a.x_g__mutmut_2"], parts)
-    with pytest.raises(mutate_py.Unsharded, match="no part"):
-        mutate_py.check_shards(["a.x_h__mutmut_1"], parts)
-    with pytest.raises(mutate_py.Unsharded, match="more than one"):
-        mutate_py.check_shards([], [["a.x_f__mutmut_*"], ["a.x_f__mutmut_*"]])
-
-
-@pytest.mark.parametrize(("text", "shard"), [("1/3", (0, 3)), ("3/3", (2, 3)), ("1/1", (0, 1))])
-def test_parse_shard(text: str, shard: tuple[int, int]) -> None:
-    assert mutate_py.parse_shard(text) == shard
-
-
-@pytest.mark.parametrize("text", ["0/3", "4/3", "3", "a/b"])
-def test_parse_shard_rejects(text: str) -> None:
-    with pytest.raises(argparse.ArgumentTypeError):
-        mutate_py.parse_shard(text)
-
-
-def _mutant_keys(path: str) -> list[str]:
-    """The mutants mutmut makes of a file, named as combine_mutations_to_source
-    names them. Rendering each mutant takes minutes for the whole repository,
-    so this follows its loop; the next test checks it against mutmut's own."""
-    import libcst as cst
-    from mutmut.mutation.file_mutation import create_mutations, group_by_top_level_node
-
-    module, mutations, _, _ = create_mutations(path, (mutate_py.ROOT / path).read_text())
-    by_node = group_by_top_level_node(mutations)
-    keys = []
-    for node in module.body:
-        if isinstance(node, cst.FunctionDef) and node in by_node:
-            keys += [f"x_{node.name.value}__mutmut_{i}" for i in range(1, len(by_node[node]) + 1)]
-        elif isinstance(node, cst.ClassDef) and isinstance(node.body, cst.IndentedBlock):
-            for method in node.body.body:
-                if isinstance(method, cst.FunctionDef) and method in by_node:
-                    name = f"xǁ{node.name.value}ǁ{method.name.value}"
-                    keys += [f"{name}__mutmut_{i}" for i in range(1, len(by_node[method]) + 1)]
-    return keys
-
-
-SMALL_FILES = [
-    "demos/scenario.py",
-    "pixel/daruma-pixel/src/daruma_pixel/pixelkit.py",
-    "src/esphome/components/daruma_sprites/extend.py",
-]
-
-
-@needs_sources
-@pytest.mark.parametrize("path", SMALL_FILES)
-def test_mutant_keys_are_the_names_mutmut_makes(path: str) -> None:
-    from mutmut.mutation.file_mutation import mutate_file_contents
-
-    real = mutate_file_contents(path, (mutate_py.ROOT / path).read_text()).mutant_names
-    assert sorted(_mutant_keys(path)) == sorted(real)
-
-
-@needs_sources
-def test_the_shards_hold_every_mutant_exactly_once() -> None:
-    names = [f"{mutate_py.module_name(p)}.{key}" for p in mutate_py.source_files() for key in _mutant_keys(p)]
-    assert len(names) > 1000
-    parts = mutate_py.shards(mutate_py.all_targets(), 3)
-    mutate_py.check_shards(names, parts)
-    assert all(parts), "every part has functions"

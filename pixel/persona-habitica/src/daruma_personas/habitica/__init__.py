@@ -46,7 +46,7 @@ from . import api, fixture, moods, sources
 from .actor import Avatars, Layers
 from .compose import compose as compose_avatar
 from .compose import plan
-from .look import Look, from_user
+from .look import Look, from_user, look_text, short_id
 
 BACKGROUND = 0x609C4C  # Any margin round the room: the ground.
 NOT_DRAWN = frozenset({"zzz"})  # The persona draws its own (daruma_pixel.effects).
@@ -122,6 +122,12 @@ def cache_inputs(name: str, options: Mapping[str, Any], data_dir: Path | None) -
         data = source.fetch(sprite)
         out.append(f"{sprite}:{hashlib.sha256(data).hexdigest() if data is not None else 'missing'}")
     return out
+
+
+def look_id(name: str, options: Mapping[str, Any], data_dir: Path | None) -> str:
+    """The short id of the look drawn (look.short_id): daruma_sprites puts it
+    in the persona's look sensor, "Avatar look"."""
+    return short_id(look_text(look_of(options, data_dir)))
 
 
 FIXTURE_LAYERS = Layers(lambda: avatars(look_of({}), fixture.source()))

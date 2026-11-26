@@ -23,6 +23,7 @@ explains cards. It also has an import button for each blueprint.
 | [prompt_demos](script/prompt_demos.yaml) | script | A two-minute tour of every kind of card: a yes/no question, an urgent alert, a card that stays, a scrolling list, two alerts at once. After each one, it shows the answer the device sent back. Start here. |
 | [doorbell_prompt](automation/doorbell_prompt.yaml) | automation | When your doorbell rings, the device shows "Someone's at the door" with Unlock, Talk and Ignore. Unlock opens the lock you pick. Talk runs an action you pick, such as a two-way audio call. |
 | [quiz](script/quiz.yaml) | script | A quiz from your own list of questions. Each question has four answers and a 50:50 button that hides two wrong ones, once per game. The device keeps the score. |
+| [habitica_look_changed](automation/habitica_look_changed.yaml) | automation | Not a card. When your Habitica look changes, Home Assistant tells you to rebuild Daruma, so the Habitica persona shows the new look. It needs the "Habitica look" sensor from [habitica-avatar.md](../docs/habitica-avatar.md). |
 | [task_list](script/task_list.yaml) | script | Not a card. The device's Tasks app can show tasks from a to-do list or from a script. This script reads a list of tasks from a sensor, so the app can show them. |
 
 ## Writing a new blueprint

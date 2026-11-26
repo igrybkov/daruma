@@ -21,7 +21,7 @@ from PIL import Image, ImageChops
 
 from daruma_personas import habitica
 from daruma_personas.habitica import actor, api, compose, fixture, moods, room, sources
-from daruma_personas.habitica.look import from_user
+from daruma_personas.habitica.look import from_user, look_text, short_id
 from daruma_pixel import effects, personas
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -201,6 +201,14 @@ def test_offline_layers_and_build_use_the_last_look_in_the_data_folder(monkeypat
     habitica._users.clear()
     with pytest.raises(api.LookUnavailable):
         habitica.layers_of(options, None)
+
+
+def test_the_look_id_reads_the_last_look_offline(monkeypatch, tmp_path):
+    api.save_last_look(tmp_path, {"preferences": {"skin": "old"}})
+    monkeypatch.setattr(api, "http_get", FakeHabitica(error=urllib.error.URLError("offline")))
+    options = {"token": TOKEN, "user_id": USER_ID}
+    want = short_id(look_text(from_user({"preferences": {"skin": "old"}})))
+    assert habitica.look_id("habitica", options, tmp_path) == want
 
 
 def test_cdn_sprites_need_the_data_folder(monkeypatch, tmp_path):

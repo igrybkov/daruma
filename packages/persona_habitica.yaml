@@ -17,6 +17,10 @@
 # A firmware built with it is for your own device, not for sale. Habitica
 # does not endorse this project.
 #
+# A diagnostic text sensor, "Avatar look", shows a short id of the look the
+# firmware was built with. The "Habitica look changed" blueprint compares
+# it with Habitica's look today (docs/habitica-avatar.md).
+#
 # States find animations by name (petted -> Petted, focus -> Focus); the
 # rest fall back, and the build log lists how
 # (src/esphome/components/daruma/registry.py).
@@ -32,6 +36,8 @@ daruma_sprites:
       persona: habitica
       options:
         source: fixture
+      # "Avatar look": the short id of the look this firmware draws.
+      look_sensor: habitica_avatar_look
     # A reaction during a focus session keeps the book.
     during:
       focus: { Petted: PettedFocus, Startled: StartledFocus, Celebrate: CelebrateFocus }
@@ -49,3 +55,10 @@ daruma_sprites:
       dock: "F9F9FB"
       dock_ink: "2A2535"
       dock_muted: "6B6578"
+
+text_sensor:
+  - platform: template
+    id: habitica_avatar_look
+    name: Avatar look
+    icon: mdi:account-box-outline
+    entity_category: diagnostic

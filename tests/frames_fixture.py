@@ -95,6 +95,7 @@ def persona_builds() -> list[tuple[str, object]]:
         ("the_boss", lambda: [personas.build("the_boss")]),
         ("jack_russell", lambda: [personas.build("jack_russell")]),
         ("tabby_cat", lambda: [personas.build("tabby_cat")]),
+        ("habitica", lambda: [personas.build("habitica")]),
         ("daruma", lambda: [daruma_persona.build(n) for n in (0, 1, 2)]),
     ]
 

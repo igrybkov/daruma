@@ -26,6 +26,7 @@
 #   persona_the_boss.yaml     a pixel-art executive at her desk
 #   persona_jack_russell.yaml a pixel-art Jack Russell terrier
 #   persona_tabby_cat.yaml    a pixel-art tabby cat in a portrait studio
+#   persona_habitica.yaml     your Habitica avatar (docs/habitica-avatar.md)
 #   persona_eyes.yaml         eyes drawn from shapes
 #   persona_images.yaml       a persona from PNG pictures (include per set)
 #   menu.yaml              tap menu (without it, a tap pets the hub)

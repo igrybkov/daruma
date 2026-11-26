@@ -1,0 +1,26 @@
+{
+ "background": "609C4C",
+ "sprite_offset": [17, 1],
+ "window": null,
+ "plant_offset": [0, 0],
+ "recolor_from": [],
+ "recolor_by_weekday": [],
+ "animations": {
+  "Neutral": [500, 500, 500, 500],
+  "Happy": [120, 120, 120, 120, 120, 120, 600],
+  "Sad": [700, 700, 700, 700],
+  "Loved": [140, 140, 140, 140, 140, 140],
+  "Scared": [90, 90, 90, 90],
+  "Sleepy": [800, 800, 800, 800],
+  "Sleeping": [700, 700, 700],
+  "Thinking": [600, 600, 600, 600],
+  "Talking": [180, 180],
+  "Focus": [1400, 600],
+  "Petted": [110, 110, 110, 110, 110, 110, 400],
+  "Startled": [70, 70, 70, 70, 200],
+  "Celebrate": [110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110],
+  "PettedFocus": [300, 300],
+  "StartledFocus": [120, 120, 120, 120],
+  "CelebrateFocus": [250, 250]
+ }
+}

@@ -614,6 +614,14 @@ or Pause), an action, another menu, `more` (the app board), or a button
 that fires the Home Assistant event `esphome.daruma_menu` with your
 `event`. Automations in Home Assistant can do anything with that event.
 
+**Quick panel.** A swipe down on the persona opens a panel from the top
+of the screen. It shows every Settings row as a round tile: Sounds, Do
+not disturb, Mic mute, Jokes, Temperature. A tap flips one and the panel
+stays open. A swipe up, a tap under the panel or back closes it. The
+tiles follow the `daruma: settings:` order. With a message bubble on
+screen, the first swipe clears it and the next opens the panel. Bind
+`menu.quick` to a button on a board without touch.
+
 ## Buttons and gestures: bindings
 
 The board names its inputs. On the BOX-3: `home` (the red circle), `top`
@@ -638,7 +646,7 @@ input, so nothing waits that need not.
 
 Actions in the box3 build include `daruma.pet`, `daruma.next_persona`,
 `daruma.previous_persona`, `daruma.close_message`, `voice.start`,
-`menu.open`, `menu.app:<id>`, `pomodoro.toggle`, `pomodoro.start`,
+`menu.open`, `menu.app:<id>`, `menu.quick`, `pomodoro.toggle`, `pomodoro.start`,
 `pomodoro.stop`, `pomodoro.skip`, `pomodoro.break`,
 `pomodoro.long_break` and `pomodoro.custom`. A binding to an action that no
 included module offers fails the build.

@@ -1,0 +1,20 @@
+name: quick
+description: >-
+  The quick panel in every persona's theme: a swipe down over the persona
+  shows the Settings rows as tiles, with Do not disturb on.
+# A test only: golden pictures in every persona's theme, and no GIF.
+personas: []
+test_personas: all
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - set: {Do not disturb: true}
+  - wait: 1
+  - swipe: {from: [160, 40], to: [160, 160]}
+  - expect: {visible: {role: panel, name: Quick settings}}
+  - wait: 1.5
+  - snapshot: panel
+  - swipe: {from: [160, 160], to: [160, 40]}
+  - wait: 1

@@ -42,7 +42,9 @@ device yaml picks one. Today's defaults:
   focus binds `home.press: { action: pomodoro.toggle, when: idle }`;
 - screen.stroke: daruma.pet;
 - screen.swipe_left and screen.swipe_right: change the persona;
-- screen.swipe_down: close the message.
+- screen.swipe_down: menu.quick, the quick panel (menu). A message bubble
+  on screen closes instead. Without menu.yaml, the core's
+  daruma.close_message.
 
 A module default whose action belongs to a module the build lacks (the
 pomodoro's menu without menu.yaml) is skipped, and the build log says so.

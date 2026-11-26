@@ -5,6 +5,7 @@
 
 #include "esphome/components/daruma/hub.h"
 #include "esphome/core/component.h"
+#include "quick_grid.h"
 
 namespace Daruma {
 
@@ -16,14 +17,16 @@ namespace Daruma {
 //          "Next" for the rest. `main` opens on a tap and ends with "More";
 //   board  the apps, grid_cols x grid_rows per page (2x2, 3x2 on wide
 //          screens), swipe left/right for more pages;
-//   app    one app in the content area, under a header with a back arrow.
+//   app    one app in the content area, under a header with a back arrow;
+//   quick  a panel that hangs from the top over the persona: one round
+//          tile per Settings row (Hub::settings()). A tap flips it.
 //
 // Touch boards tap and swipe. Boards without touch move a focus ring with
 // NEXT and PREV and press SELECT; an open app gets them first (App::input).
 // The board's `back` input goes back one level; `close` closes the menu.
 // As a module it offers the actions menu.open (main, or `menu.open:<name>`),
-// menu.app (the app board, or `menu.app:<id>` for one app), menu.back and
-// menu.close.
+// menu.app (the app board, or `menu.app:<id>` for one app), menu.quick (the
+// quick panel), menu.back and menu.close.
 class MenuController : public esphome::Component, public Module {
  public:
   MenuController() : Module("menu") {}
@@ -51,9 +54,12 @@ class MenuController : public esphome::Component, public Module {
   // the badge): back closes it. An unknown or switched-off app logs and
   // does nothing. "" opens the app board.
   void open_app(const std::string &id);
+  // Opens the quick panel. A message bubble on screen closes instead, so a
+  // swipe down still clears it. With no settings it does nothing.
+  void open_quick();
 
  protected:
-  enum class Level { CLOSED, DOCK, BOARD, APP };
+  enum class Level { CLOSED, DOCK, BOARD, APP, QUICK };
 
   // Buttons the dock lays out; a longer menu shows one fewer and "Next".
   static const int MAX_BUTTONS = 5;
@@ -63,6 +69,8 @@ class MenuController : public esphome::Component, public Module {
   bool on_dock_input_(Input input, int x, int y);
   bool on_board_input_(Input input, int x, int y);
   bool on_app_input_(Input input, int x, int y);
+  bool on_quick_input_(Input input, int x, int y);
+  bool on_quick_focus_(Input input);
   void touch_();  // Something happened: push the timeout back and redraw.
 
   // Dock.
@@ -87,6 +95,15 @@ class MenuController : public esphome::Component, public Module {
   void draw_frame_(esphome::display::Display &display, const Theme &theme, const std::string &title);
   void draw_card_(esphome::display::Display &display, const Theme &theme, const Rect &card);
   void draw_focus_(esphome::display::Display &display, const Theme &theme, const Rect &around, int radius);
+  // Quick panel (quick_panel.cpp).
+  QuickGrid quick_grid_() const;
+  int quick_count_() const { return (int) this->hub_->settings().size(); }
+  void flip_quick_(int index);
+  void page_quick_(int step);
+  int quick_room_(esphome::display::Display &display, const QuickGrid &g, int slot, int index);
+  void draw_quick_(esphome::display::Display &display, const Theme &theme);
+  void draw_quick_tile_(esphome::display::Display &display, const Theme &theme, const Setting &s, int cx, int top,
+                        int room, bool focused);
   void print_icon_(esphome::display::Display &display, int x, int y, const std::string &icon, esphome::Color color,
                    esphome::Color background);
   std::string app_name_(const App &app, const Theme &theme) const;
@@ -115,6 +132,7 @@ class MenuController : public esphome::Component, public Module {
   // Boards without touch: the focused dock button and app.
   FocusRing dock_focus_;
   FocusRing board_focus_;
+  FocusRing quick_focus_;
 };
 
 }  // namespace Daruma

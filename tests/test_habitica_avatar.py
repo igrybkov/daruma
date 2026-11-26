@@ -110,6 +110,7 @@ def test_canonical_is_stable_and_tells_looks_apart():
     assert replace(a, buffs=frozenset({"snowball", "seafoam"})).canonical().count('"seafoam","snowball"') == 1
     assert replace(a, shirt="other").canonical() != a.canonical()
     assert replace(a, equipped={"armor": "armor_y"}).canonical() != a.canonical()
+    assert replace(a, costume_gear={"armor": "armor_y"}).canonical() != a.canonical()
 
 
 # --- plan: what goes where --------------------------------------------------

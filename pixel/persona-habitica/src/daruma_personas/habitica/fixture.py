@@ -102,6 +102,7 @@ def _boxes(d: ImageDraw.ImageDraw, color, *boxes: tuple[int, int, int, int]) -> 
 
 def skin(asleep: bool) -> Image.Image:
     """Head, hands, legs and shoes. Asleep, the eyes are closed."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, SKIN, (11, 13, 18, 20), (9, 23, 10, 24), (19, 23, 20, 24))
     _boxes(d, SKIN_SHADE, (11, 20, 18, 20), (12, 26, 13, 27), (16, 26, 17, 27))
@@ -115,12 +116,14 @@ def skin(asleep: bool) -> Image.Image:
 
 
 def head_0() -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, SKIN_SHADE, (10, 16, 10, 17), (19, 16, 19, 17))  # Ears.
     return _three(img)
 
 
 def shirt(broad: bool) -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     x0, x1 = (11, 18) if broad else (12, 17)
     _boxes(d, SHIRT, (x0, 21, x1, 25), (x0 - 2, 21, x0 - 1, 22), (x1 + 1, 21, x1 + 2, 22))
@@ -129,6 +132,7 @@ def shirt(broad: bool) -> Image.Image:
 
 
 def armor(broad: bool) -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     x0, x1 = (11, 18) if broad else (12, 17)
     _boxes(d, METAL, (x0, 21, x1, 24), (x0 - 2, 21, x0 - 1, 22), (x1 + 1, 21, x1 + 2, 22))
@@ -138,6 +142,7 @@ def armor(broad: bool) -> Image.Image:
 
 
 def hair_bangs() -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, HAIR, (11, 13, 18, 14), (11, 15, 11, 16), (18, 15, 18, 15))
     _boxes(d, HAIR_DARK, (13, 14, 14, 14))
@@ -151,6 +156,7 @@ def hair_bangs() -> Image.Image:
 
 
 def hair_base() -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, HAIR, (11, 11, 18, 12), (10, 13, 10, 19), (19, 13, 19, 19))
     _boxes(d, HAIR_DARK, (10, 18, 10, 19), (19, 18, 19, 19))
@@ -158,6 +164,7 @@ def hair_base() -> Image.Image:
 
 
 def helmet() -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, METAL, (10, 10, 19, 13))
     _boxes(d, METAL_DARK, (10, 13, 19, 13), (14, 10, 15, 10))
@@ -170,6 +177,7 @@ def helmet() -> Image.Image:
 
 
 def sword() -> Image.Image:
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(BODY, BODY)
     _boxes(d, BLADE, (21, 12, 21, 22))
     _boxes(d, HILT, (20, 23, 22, 23), (21, 24, 21, 25))
@@ -182,6 +190,7 @@ def sword() -> Image.Image:
 
 def zzz() -> Image.Image:
     """40x40 at screen size, soft alpha: never on the grid."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(40, 40)
     for x, y, size, alpha in ((22, 2, 8, 255), (30, 12, 6, 200), (34, 20, 4, 140)):
         d.line((x, y, x + size, y), fill=(*ZZZ, alpha), width=2)
@@ -192,6 +201,7 @@ def zzz() -> Image.Image:
 
 def pet() -> Image.Image:
     """A round pet, 81x99 like Habitica's, standing at its bottom left."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(27, 33)
     d.ellipse((7, 24, 17, 32), fill=PET)
     _boxes(d, PET_SHADE, (8, 31, 16, 32))
@@ -202,6 +212,7 @@ def pet() -> Image.Image:
 
 def mount_body() -> Image.Image:
     """A pony's body, 135x135 like Habitica's mounts; its back meets the rider's hips."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(45, 45)
     _boxes(d, PONY, (4, 20, 26, 27))
     _boxes(d, PONY_SHADE, (4, 27, 26, 27), (5, 28, 6, 35), (23, 28, 24, 35), (9, 28, 10, 34), (19, 28, 20, 34))
@@ -211,6 +222,7 @@ def mount_body() -> Image.Image:
 
 def mount_head() -> Image.Image:
     """The pony's neck and head, drawn in front of the rider."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(45, 45)
     _boxes(d, PONY, (24, 11, 28, 22), (27, 9, 33, 14))
     _boxes(d, MANE, (23, 9, 24, 19))
@@ -221,6 +233,7 @@ def mount_head() -> Image.Image:
 
 def background() -> Image.Image:
     """A meadow, 141x147. Not made to tile: a rock at the left, a tree at the right."""
+    # pragma: no mutate block, fixture art pinned by hash in tests; a box past the edge or under another draws the same
     img, d = _art(47, 49)
     for i, color in enumerate(SKY):
         _boxes(d, color, (0, i * 9, 46, i * 9 + 8))

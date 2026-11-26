@@ -67,7 +67,7 @@ class MemorySource:
         self._files: dict[str, bytes] = {}
         for name, img in pictures.items():
             out = io.BytesIO()
-            img.save(out, "PNG")
+            img.save(out, "PNG")  # pragma: no mutate (Pillow reads the format in any case)
             self._files[name] = out.getvalue()
 
     def fetch(self, name: str) -> bytes | None:
@@ -92,6 +92,7 @@ class DirSource:
 
 def download(url: str) -> bytes | None:
     """The file at `url`, or None when the server has no such file."""
+    # pragma: no mutate block, urllib sends header names in its own case
     request = urllib.request.Request(url, headers={"x-client": CLIENT, "User-Agent": CLIENT})
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 - a fixed https URL
@@ -124,7 +125,7 @@ class CdnSource:
             return None
         self.folder.mkdir(parents=True, exist_ok=True)
         path = self.folder / f"{name}.png"
-        tmp = path.with_suffix(".tmp")
+        tmp = path.with_suffix(".tmp")  # pragma: no mutate (any spare name works)
         tmp.write_bytes(data)
         tmp.replace(path)
         return data

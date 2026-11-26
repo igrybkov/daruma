@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import sys
+from pathlib import Path
 
 import esphome.config_validation as cv
 import esphome_components  # noqa: F401
@@ -91,6 +92,8 @@ def test_frozen():
     assert sprites._frozen(None) == ""
     assert sprites._frozen({"b": 1, "a": [2]}) == '{"a": [2], "b": 1}'
     assert sprites._frozen({}) == "{}"
+    # A value JSON has no form for (a path, say) becomes its text.
+    assert sprites._frozen({"p": Path("/x")}) == '{"p": "/x"}'
 
 
 # --- the cache key ----------------------------------------------------------
@@ -220,7 +223,7 @@ def cache_inputs(name, options, data_dir):
 def build(name, options, data_dir):
     color = options["color"]
     room = Image.new("RGBA", (4, 4), (color, 0, 0, 255))
-    frame = Image.new("RGBA", (2, 2), (0, color, 0, 255) if name == "p" else (0, 0, color, 255))
+    frame = Image.new("RGBA", (2, 2), (0, color, ord(name[0]), 255))
     neutral = Animation([(frame, 100)])
     return Persona(background=color, backdrop=room, sprite_offset=(1, 1), animations={"Neutral": neutral})
 """
@@ -234,6 +237,6 @@ def test_from_script_hands_options_to_every_stage(config_dir):
     out = sprites._from_script({"pixel_art": art, "play_once": []})
     assert out["background"] == 9
     assert out["backdrop"].getpixel((0, 0)) == (9, 0, 0, 255)
-    assert out["animations"]["Neutral"]["frames"][0]["image"].getpixel((0, 0)) == (0, 9, 0, 255)
-    assert out["animations"]["Neutral:done"]["frames"][0]["image"].getpixel((0, 0)) == (0, 0, 9, 255)
+    assert out["animations"]["Neutral"]["frames"][0]["image"].getpixel((0, 0)) == (0, 9, ord("p"), 255)
+    assert out["animations"]["Neutral:done"]["frames"][0]["image"].getpixel((0, 0)) == (0, 9, ord("q"), 255)
     sys.modules.pop("daruma_pixel_art_staged", None)

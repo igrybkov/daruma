@@ -44,12 +44,12 @@ def _block(px, x0: int, y0: int) -> tuple[tuple[int, int, int, int], bool]:
             if a < OPAQUE:
                 clear += 1
             else:
-                colors[(r, g, b)] += 1
+                colors[(r, g, b)] += 1  # pragma: no mutate (any equal step ranks colors the same)
     uniform = clear == BLOCK * BLOCK or (clear == 0 and len(colors) == 1)
     if clear >= MAJORITY:
         return CLEAR, uniform
     rgb = max(colors, key=colors.__getitem__)  # The first of the most common: a Counter keeps order.
-    return (*rgb, 255), uniform
+    return (*rgb, 255), uniform  # pragma: no mutate (Pillow clips alpha to 255)
 
 
 def reduce(layer: Image.Image) -> Reduced:
@@ -58,7 +58,7 @@ def reduce(layer: Image.Image) -> Reduced:
     if layer.width % BLOCK or layer.height % BLOCK:
         raise ValueError(f"A layer of {layer.size} is not whole 3x3 blocks")
     src = layer.load()
-    out = Image.new("RGBA", (layer.width // BLOCK, layer.height // BLOCK), CLEAR)
+    out = Image.new("RGBA", (layer.width // BLOCK, layer.height // BLOCK), (0, 0, 0, 0))
     dst = out.load()
     non_uniform = 0
     for by in range(out.height):

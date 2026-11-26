@@ -593,6 +593,10 @@ Built in:
 
   [examples/variant_apps.yaml](../examples/variant_apps.yaml) builds two of
   each.
+- **Due today only.** `due_today_only: "true"` on a Tasks copy hides
+  open items due after today, and open items with no due date. Use it for
+  a list that holds tomorrow's items too, such as Habitica's dailies:
+  [habitica.md](habitica.md).
 - **Your own app.** An app is a C++ class with its own screen, registered
   in a module's setup. [src/esphome/components/daruma_weather](../src/esphome/components/daruma_weather/)
   is a compact model to copy: one component, one package, one theme.

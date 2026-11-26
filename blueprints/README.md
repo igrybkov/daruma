@@ -24,6 +24,7 @@ explains cards. It also has an import button for each blueprint.
 | [doorbell_prompt](automation/doorbell_prompt.yaml) | automation | When your doorbell rings, the device shows "Someone's at the door" with Unlock, Talk and Ignore. Unlock opens the lock you pick. Talk runs an action you pick, such as a two-way audio call. |
 | [quiz](script/quiz.yaml) | script | A quiz from your own list of questions. Each question has four answers and a 50:50 button that hides two wrong ones, once per game. The device keeps the score. |
 | [task_list](script/task_list.yaml) | script | Not a card. The device's Tasks app can show tasks from a to-do list or from a script. This script reads a list of tasks from a sensor, so the app can show them. |
+| [habitica_focus_habit](automation/habitica_focus_habit.yaml) | automation | Not a card. Each focus block you finish on the device scores a habit in Habitica, for XP and gold. [habitica.md](../docs/habitica.md) has the setup. |
 
 ## Writing a new blueprint
 

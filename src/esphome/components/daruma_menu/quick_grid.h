@@ -12,13 +12,14 @@
 namespace Daruma {
 
 // The panel hangs from the top of the screen. All sizes in screen pixels.
+// quick_grid() fills every field.
 struct QuickGrid {
-  int pad{0};     // Space at the left, the right and above the first row.
-  int cols{1};    // Tiles in a row.
-  int rows{1};    // Rows on a page.
-  int cell_w{0};  // One tile's slot.
-  int cell_h{0};
-  int height{0};  // The whole panel, with the room left under the rows.
+  int pad;     // Space at the left, the right and above the first row.
+  int cols;    // Tiles in a row.
+  int rows;    // Rows on a page.
+  int cell_w;  // One tile's slot.
+  int cell_h;
+  int height;  // The whole panel, with the room left under the rows.
 
   int per_page() const { return this->cols * this->rows; }
 };
@@ -40,11 +41,8 @@ inline QuickGrid quick_grid(int width, int count, int min_cell_w, int cell_h, in
   return g;
 }
 
-inline int quick_pages(int count, int per_page) {
-  if (per_page <= 0)
-    return 1;
-  return std::max(1, (count + per_page - 1) / per_page);
-}
+// `per_page` comes from QuickGrid::per_page(), always 1 or more.
+inline int quick_pages(int count, int per_page) { return std::max(1, (count + per_page - 1) / per_page); }
 
 // The slot on the page under (x, y), or -1 for none. A tap under the rows
 // (on the handle) hits no tile.
@@ -64,10 +62,9 @@ inline int quick_slot_top(const QuickGrid &g, int slot) { return g.pad + (slot /
 
 // The room a tile's label may take: its slot, plus what both neighbours in
 // the row leave free, as the dock does. `left` and `right` are the spare
-// room on each side: quick_spare() of a neighbour, or the pad at the edge.
-inline int quick_spare(int cell_w, int label_w) {
-  return label_w < 0 ? cell_w / 2 : std::max(0, (cell_w - label_w) / 2);
-}
+// room on each side: quick_spare() of a neighbour (an empty slot has a
+// label 0 wide), or the pad at the edge.
+inline int quick_spare(int cell_w, int label_w) { return std::max(0, (cell_w - label_w) / 2); }
 inline int quick_label_room(int cell_w, int left, int right, int gap) {
   return std::max(0, cell_w + 2 * std::min(left, right) - gap);
 }

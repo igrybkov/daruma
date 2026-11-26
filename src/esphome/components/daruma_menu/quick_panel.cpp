@@ -154,8 +154,7 @@ int MenuController::quick_room_(Display &display, const QuickGrid &g, int slot, 
   const int count = (int) settings.size();
   const int col = slot % g.cols;
   auto spare = [&](int i) {
-    return i < count ? quick_spare(g.cell_w, text_width(display, this->small_font_, settings[i].label))
-                     : quick_spare(g.cell_w, -1);
+    return quick_spare(g.cell_w, i < count ? text_width(display, this->small_font_, settings[i].label) : 0);
   };
   const int left = col == 0 ? g.pad : spare(index - 1);
   const int right = col == g.cols - 1 ? g.pad : spare(index + 1);

@@ -46,6 +46,8 @@ static void grid() {
   CHECK(none.height == 78);
   // A wide screen fits more columns.
   CHECK(quick_grid(480, 5, 74, 70, 8, 2, 14).cols == 6);
+  // Cells one pixel wide: one column per pixel.
+  CHECK(quick_grid(10, 3, 1, 70, 0, 2, 0).cols == 10);
 }
 
 static void pages() {
@@ -54,7 +56,8 @@ static void pages() {
   CHECK(quick_pages(9, 8) == 2);
   CHECK(quick_pages(16, 8) == 2);
   CHECK(quick_pages(17, 8) == 3);
-  CHECK(quick_pages(5, 0) == 1);
+  // One tile a page: a page per tile.
+  CHECK(quick_pages(3, 1) == 3);
 }
 
 static void taps() {
@@ -73,6 +76,11 @@ static void taps() {
   // A grid with no width hits nothing.
   CHECK(quick_slot_at(quick_grid(0, 3, 74, 70, 8, 2, 14), 8, 8) == -1);
   CHECK(quick_slot_at(quick_grid(320, 3, 74, 0, 8, 2, 14), 8, 8) == -1);
+  // Cells of one pixel still hit.
+  const QuickGrid tiny = quick_grid(3, 6, 1, 1, 0, 2, 0);
+  CHECK(tiny.cell_w == 1);
+  CHECK(quick_slot_at(tiny, 1, 0) == 1);
+  CHECK(quick_slot_at(tiny, 2, 1) == 5);
 }
 
 static void places() {
@@ -88,8 +96,8 @@ static void label_room() {
   // A neighbour with a short label leaves half of what it does not use.
   CHECK(quick_spare(76, 40) == 18);
   CHECK(quick_spare(76, 90) == 0);
-  // No neighbour: the whole half slot.
-  CHECK(quick_spare(76, -1) == 38);
+  // An empty slot: the whole half slot.
+  CHECK(quick_spare(76, 0) == 38);
   // The smaller side counts twice, less the gap.
   CHECK(quick_label_room(76, 18, 8, 4) == 88);
   CHECK(quick_label_room(76, 8, 18, 4) == 88);
@@ -111,6 +119,21 @@ static void label_lines() {
   CHECK(lines.size() == 2);
   CHECK(lines[0] == "Do");
   CHECK(lines[1] == "not disturb");
+  // Exactly the room: still one line.
+  lines = quick_label_lines("Do not", 60, width);
+  CHECK(lines.size() == 1);
+  // A first line exactly the room fits.
+  lines = quick_label_lines("Do not disturb", 60, width);
+  CHECK(lines.size() == 2);
+  CHECK(lines[0] == "Do not");
+  // A one-letter first word.
+  lines = quick_label_lines("A bcdef", 30, width);
+  CHECK(lines.size() == 2);
+  CHECK(lines[0] == "A");
+  // Two spaces in a row: each one is tried.
+  lines = quick_label_lines("ab  cdefgh", 25, width);
+  CHECK(lines.size() == 2);
+  CHECK(lines[0] == "ab");
   // One long word, or no first line that fits: one line, for the caller to shorten.
   CHECK(quick_label_lines("Temperature", 60, width).size() == 1);
   CHECK(quick_label_lines("Doing it", 30, width).size() == 1);

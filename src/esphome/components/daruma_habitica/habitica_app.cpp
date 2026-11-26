@@ -59,7 +59,8 @@ void HabiticaApp::setup() {
 
 void HabiticaApp::loop() {
   auto *api = esphome::api::global_api_server;
-  const bool connected = api != nullptr && api->is_connected();
+  // Only a client with state subscriptions is HA; a log viewer is not.
+  const bool connected = api != nullptr && api->is_connected(true);
   if (connected != this->connected_) {
     this->connected_ = connected;
     if (!connected) {

@@ -60,6 +60,11 @@ cache_inputs(name, options=..., data_dir=...): strings its drawing depends
 on beyond its code (a look, the hashes of downloaded pictures). They join
 the key of the drawn-persona cache. The options themselves never do, and
 are never logged, so a secret in them (a token) stays out of both.
+
+`pixel_art: look_sensor:` names a text sensor that shows which look the
+persona was drawn with: the module's look_id(name, options=...,
+data_dir=...), set once at boot. Home Assistant can compare it with the
+look the persona would draw today, and say when a new build is due.
 """
 
 import hashlib
@@ -72,6 +77,7 @@ from pathlib import Path
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.components import text_sensor
 from esphome.components.daruma import CONF_DARUMA_ID, Hub, Persona, build_profile, daruma_ns
 from esphome.components.daruma.persona import (
     BEHAVIORS_SCHEMA,
@@ -130,6 +136,7 @@ CONF_WILTED = "wilted"
 CONF_GOAL = "goal"
 CONF_PLAY_ONCE = "play_once"
 CONF_OPTIONS = "options"
+CONF_LOOK_SENSOR = "look_sensor"
 GOAL_STAGES = ("none", "started", "done")  # signals.h Goal, in order.
 _STAGES = "_goal_stages"  # Internal: per stage, the animation keys it uses.
 
@@ -243,6 +250,8 @@ PIXEL_ART_SCHEMA = cv.All(
             cv.Optional(CONF_GOAL): cv.Schema({cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}),
             # Handed to the module's build() and cache_inputs(), never hashed.
             cv.Optional(CONF_OPTIONS): _options,
+            # A text sensor for the module's look_id(): the look drawn.
+            cv.Optional(CONF_LOOK_SENSOR): cv.use_id(text_sensor.TextSensor),
         }
     ),
     cv.has_exactly_one_key(CONF_SCRIPT, CONF_MODULE),
@@ -486,6 +495,32 @@ def _cache_path(script: Path, name: str, extra: list[str] = ()) -> Path | None:
         return Path(CORE.data_dir) / "daruma_pixel_art" / f"{name}-{digest.hexdigest()[:24]}.pickle"
     except Exception:
         return None
+
+
+def _module(script: Path):
+    """The pixel_art module _build() imported."""
+    library = _library_module(script)
+    return importlib.import_module(library) if library is not None else sys.modules[f"daruma_pixel_art_{script.stem}"]
+
+
+def _look_id(config) -> str:
+    """The module's look_id() for the persona and its options."""
+    art = config[CONF_PIXEL_ART]
+    script = Path(CORE.relative_config_path(art[CONF_SCRIPT])).resolve()
+    hook = getattr(_module(script), "look_id", None)
+    if hook is None:
+        raise cv.Invalid("look_sensor needs a pixel_art module with look_id(name, options=..., data_dir=...)")
+    options = json.loads(_frozen(art.get(CONF_OPTIONS)) or "{}")
+    return str(hook(art[CONF_PERSONA], options=options, data_dir=_data_dir()))
+
+
+async def _look_to_code(config) -> None:
+    """Sets the look sensor, if the config names one, to the look drawn."""
+    art = config.get(CONF_PIXEL_ART) or {}
+    if CONF_LOOK_SENSOR not in art:
+        return
+    sensor = await cg.get_variable(art[CONF_LOOK_SENSOR])
+    cg.add(sensor.publish_state(_look_id(config)))
 
 
 def _same_room(a, b, label):
@@ -763,6 +798,7 @@ async def to_code(config):
         for row in _goal_maps(config, names):
             cg.add(var.add_goal_map(row))
 
+    await _look_to_code(config)
     await theme_to_code(var, config)
     await sounds_to_code(var, config)
     hub = await cg.get_variable(config[CONF_DARUMA_ID])

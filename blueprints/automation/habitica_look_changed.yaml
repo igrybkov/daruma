@@ -1,0 +1,69 @@
+blueprint:
+  name: Daruma Habitica look changed
+  domain: automation
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/automation/habitica_look_changed.yaml
+  description: >-
+    Tells you when your Habitica look changed, so you can rebuild Daruma's
+    Habitica persona. The persona draws the look it read when the firmware
+    was built; a new build reads the new look.
+
+
+    Needs the "Habitica look" sensor from docs/habitica-avatar.md: its
+    attribute `look` holds your look, its state a short id of it. A change
+    to the look shows a notification. A trip to the inn, a buff, a restart
+    of Home Assistant, or the sensor going unknown or unavailable shows
+    nothing. With the device's "Avatar look" sensor picked, a look the
+    device already shows shows nothing too.
+  input:
+    look_sensor:
+      name: Habitica look
+      description: The "Habitica look" sensor.
+      selector:
+        entity:
+          domain: sensor
+    device_look:
+      name: Avatar look (optional)
+      description: >-
+        The device's "Avatar look" sensor: the look the firmware was built
+        with. Leave it empty to be told of every change.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          integration: esphome
+    also_do:
+      name: Also do
+      description: More actions when the look changed, such as a notification to your phone.
+      default: []
+      selector:
+        action: {}
+
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input look_sensor
+    attribute: look
+
+variables:
+  device_look: !input device_look
+  device_look_id: "{{ states(device_look) if device_look else '' }}"
+
+conditions:
+  - condition: template
+    value_template: >-
+      {% set gone = ['unknown', 'unavailable', ''] %}
+      {% set before = trigger.from_state.attributes.get('look') if trigger.from_state else none %}
+      {% set after = trigger.to_state.attributes.get('look') if trigger.to_state else none %}
+      {{ before and after and before != after
+         and trigger.from_state.state not in gone and trigger.to_state.state not in gone
+         and (device_look_id in gone or device_look_id != trigger.to_state.state) }}
+
+actions:
+  - action: persistent_notification.create
+    data:
+      notification_id: daruma_habitica_look
+      title: Daruma
+      message: Your Habitica look changed. Rebuild Daruma.
+  - sequence: !input also_do

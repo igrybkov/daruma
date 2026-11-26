@@ -108,3 +108,41 @@ def from_user(data: Mapping[str, Any]) -> Look:
         klass=_text(stats.get("class"), Look.klass),
         buffs=frozenset(name for name in BUFFS if buffs.get(name)),
     )
+
+
+def look_text(look: Look) -> str:
+    """The look as Home Assistant's "Habitica look" sensor writes it
+    (docs/habitica-avatar.md): what a new build would draw differently.
+    It leaves out sleep, buffs and class, which change at run time.
+
+        skin=..;hair=<color>/<base>/<bangs>/<mustache>/<beard>/<flower>;size=..;
+        shirt=..;chair=..;background=..;costume=0|1;gear=<slot>:<name>,...;pet=..;mount=..
+
+    The gear is the gear on show, in GEAR_SLOTS order.
+    """
+    h = look.hair
+    hair = "/".join(str(v) for v in (h.color, h.base, h.bangs, h.mustache, h.beard, h.flower))
+    gear = ",".join(f"{slot}:{look.gear[slot]}" for slot in GEAR_SLOTS if slot in look.gear)
+    parts = (
+        ("skin", look.skin),
+        ("hair", hair),
+        ("size", look.size),
+        ("shirt", look.shirt),
+        ("chair", look.chair),
+        ("background", look.background),
+        ("costume", int(look.costume)),
+        ("gear", gear),
+        ("pet", look.pet),
+        ("mount", look.mount),
+    )
+    return ";".join(f"{key}={value}" for key, value in parts)
+
+
+def short_id(text: str) -> str:
+    """A short id of a look text: 8 hex digits. Home Assistant's templates
+    compute the same (h = h * 31 + ord(c), modulo 2**32), so the device's
+    "Avatar look" can be compared with the "Habitica look" sensor."""
+    h = 0
+    for c in text:
+        h = (h * 31 + ord(c)) % 4294967296
+    return f"{h:08x}"

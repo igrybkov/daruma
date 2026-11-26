@@ -9,6 +9,7 @@ the options never reaches the key, the cache file or the log.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import sys
@@ -240,3 +241,84 @@ def test_from_script_hands_options_to_every_stage(config_dir):
     assert out["animations"]["Neutral"]["frames"][0]["image"].getpixel((0, 0)) == (0, 9, ord("p"), 255)
     assert out["animations"]["Neutral:done"]["frames"][0]["image"].getpixel((0, 0)) == (0, 9, ord("q"), 255)
     sys.modules.pop("daruma_pixel_art_staged", None)
+
+
+# --- the look sensor ------------------------------------------------------------
+
+LOOK_MODULE = """
+def look_id(name, options, data_dir):
+    return f"{name}:{options.get('look')}:{data_dir is not None}"
+
+
+def build(name):
+    return name
+"""
+
+
+class FakeCodegen:
+    def __init__(self):
+        self.added = []
+
+    async def get_variable(self, id_):
+        return FakeSensor(id_)
+
+    def add(self, expression):
+        self.added.append(expression)
+
+
+class FakeSensor:
+    def __init__(self, id_):
+        self.id = id_
+
+    def publish_state(self, value):
+        return (self.id, "publish_state", value)
+
+
+def look_config(path, **art):
+    return {"pixel_art": {"script": str(path), "persona": "p", **art}}
+
+
+def test_schema_takes_a_look_sensor():
+    conf = sprites.PIXEL_ART_SCHEMA({"module": "m", "persona": "p", "look_sensor": "avatar_look"})
+    assert conf["look_sensor"].id == "avatar_look"
+
+
+def test_the_look_sensor_shows_the_modules_look_id(config_dir, monkeypatch):
+    path = config_dir / "looks.py"
+    path.write_text(LOOK_MODULE)
+    sys.modules.pop("daruma_pixel_art_looks", None)
+    sprites._build(path.resolve(), "p", "")  # Imports the module, as _from_script does.
+    fake = FakeCodegen()
+    monkeypatch.setattr(sprites, "cg", fake)
+    asyncio.run(sprites._look_to_code(look_config(path, options={"look": "a", "token": TOKEN}, look_sensor="sens")))
+    assert fake.added == [("sens", "publish_state", "p:a:True")]
+    asyncio.run(sprites._look_to_code(look_config(path, look_sensor="sens")))
+    assert fake.added[-1] == ("sens", "publish_state", "p:None:True")
+    sys.modules.pop("daruma_pixel_art_looks", None)
+
+
+def test_no_look_sensor_adds_nothing(monkeypatch):
+    fake = FakeCodegen()
+    monkeypatch.setattr(sprites, "cg", fake)
+    asyncio.run(sprites._look_to_code({"pixel_art": {"module": "m", "persona": "p"}}))
+    asyncio.run(sprites._look_to_code({"animations": {}}))
+    assert fake.added == []
+
+
+def test_look_id_from_a_pixel_package(config_dir):
+    from daruma_personas import habitica
+
+    path = Path(habitica.__file__)
+    got = sprites._look_id({"pixel_art": {"script": str(path), "persona": "habitica"}})
+    assert got == habitica.look_id("habitica", {}, None)
+
+
+def test_look_id_needs_the_hook(config_dir):
+    path = config_dir / "plain.py"
+    path.write_text("def build(name):\n    return name\n")
+    sys.modules.pop("daruma_pixel_art_plain", None)
+    sprites._build(path.resolve(), "p", "")
+    with pytest.raises(cv.Invalid) as err:
+        sprites._look_id(look_config(path))
+    assert err.value.msg == "look_sensor needs a pixel_art module with look_id(name, options=..., data_dir=...)"
+    sys.modules.pop("daruma_pixel_art_plain", None)

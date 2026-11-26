@@ -22,9 +22,10 @@ event in full. The rest of this page explains what you just saw.
 | [Doorbell prompt](../blueprints/automation/doorbell_prompt.yaml) (automation) | When the doorbell rings, an urgent card offers Unlock, Talk and Ignore. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fdoorbell_prompt.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 | [Quiz](../blueprints/script/quiz.yaml) (script) | A quiz from your list of questions, with a score and a 50:50 button. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fquiz.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 | [Task list from a sensor](../blueprints/script/task_list.yaml) (script) | Turns a list of tasks in a sensor attribute into a source for the Tasks app. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Ftask_list.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
+| [Habitica look changed](../blueprints/automation/habitica_look_changed.yaml) (automation) | Not a card. Tells you to rebuild when your Habitica look changed, for the Habitica persona ([habitica-avatar.md](habitica-avatar.md)). | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fhabitica_look_changed.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 
-Each blueprint asks for the device's node name (default `daruma`, as in
-examples/box3.yaml), since the action names come from it.
+Each blueprint that uses cards asks for the device's node name (default
+`daruma`, as in examples/box3.yaml), since the action names come from it.
 
 ## Actions
 
@@ -280,10 +281,13 @@ The blueprints are listed with import buttons under
   with a score and a 50:50 button. Each question waits 60 s by default.
 - `blueprints/script/task_list.yaml`: not a prompt. It turns a task list
   in a sensor attribute into a source for the Tasks app.
+- `blueprints/automation/habitica_look_changed.yaml`: not a prompt. It
+  tells you to rebuild when your Habitica look changed
+  ([habitica-avatar.md](habitica-avatar.md)).
 
 The doorbell and the quiz show the card with `prompt_show` and wait for
 the answer event, so the wait can be longer than `ask` allows.
 
-All of them ask for the node name (default `daruma`, as in
+The card blueprints ask for the node name (default `daruma`, as in
 examples/box3.yaml), since the action names come from it, not from the
 device's name in HA.

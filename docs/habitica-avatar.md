@@ -58,7 +58,116 @@ What the build does:
 - The inn and buffs are left out. They change at run time, and a new
   build is not needed for them.
 
-A change of look in Habitica needs a new build of the firmware.
+A change of look in Habitica needs a new build of the firmware. The new
+build reads the new look by itself. Home Assistant can tell you when a
+build is due (below).
+
+## When your look changes
+
+The device has a diagnostic sensor, "Avatar look". It shows a short id
+of the look the firmware was built with. Home Assistant can read your
+look from Habitica too, and compare. Then the "Habitica look changed"
+blueprint tells you to rebuild.
+
+Home Assistant can't rebuild Daruma by itself. Rebuild it in the ESPHome
+builder when the notification comes.
+
+### 1. The template file
+
+Save this as `custom_templates/habitica.jinja` in Home Assistant's
+config folder. It writes the look the way the build does: skin, hair,
+size, shirt, chair, background, costume, the gear on show, pet and
+mount. It leaves out sleep, buffs and class: those change at run time,
+and a new build would draw nothing different for them.
+
+```jinja
+{#- Daruma: the Habitica look, as daruma_personas.habitica.look writes it. -#}
+{%- macro _or(value, default) -%}{{ default if value is none else value }}{%- endmacro -%}
+
+{%- macro habitica_look(user) -%}
+  {%- set p = user.get('preferences') if user.get('preferences') is mapping else {} -%}
+  {%- set i = user.get('items') if user.get('items') is mapping else {} -%}
+  {%- set h = p.get('hair') if p.get('hair') is mapping else {} -%}
+  {%- set sets = i.get('gear') if i.get('gear') is mapping else {} -%}
+  {%- set worn = sets.get('costume' if p.get('costume') else 'equipped') -%}
+  {%- set worn = worn if worn is mapping else {} -%}
+  {%- set ns = namespace(gear=[], hair=[_or(h.get('color'), 'red')]) -%}
+  {%- for slot in ['back', 'armor', 'body', 'eyewear', 'head', 'headAccessory', 'shield', 'weapon'] -%}
+    {%- if worn.get(slot) -%}{%- set ns.gear = ns.gear + [slot ~ ':' ~ worn.get(slot)] -%}{%- endif -%}
+  {%- endfor -%}
+  {%- for part in ['base', 'bangs', 'mustache', 'beard', 'flower'] -%}
+    {%- set ns.hair = ns.hair + [(h.get(part) or 0) | int] -%}
+  {%- endfor -%}
+  skin={{ _or(p.get('skin'), '915533') }};hair={{ ns.hair | join('/') }};size={{ _or(p.get('size'), 'slim') }};
+  {{- '' }}shirt={{ _or(p.get('shirt'), 'black') }};chair={{ _or(p.get('chair'), 'none') }};
+  {{- '' }}background={{ _or(p.get('background'), '') }};costume={{ 1 if p.get('costume') else 0 }};
+  {{- '' }}gear={{ ns.gear | join(',') }};pet={{ _or(i.get('currentPet'), '') }};mount={{ _or(i.get('currentMount'), '') }}
+{%- endmacro -%}
+
+{#- A short id of a look: 8 hex digits, as the device's "Avatar look" shows. -#}
+{%- macro habitica_look_id(look) -%}
+  {%- set ns = namespace(h=0) -%}
+  {%- for c in look -%}{%- set ns.h = (ns.h * 31 + (c | ord)) % 4294967296 -%}{%- endfor -%}
+  {{- '%08x' | format(ns.h) -}}
+{%- endmacro -%}
+```
+
+### 2. The sensors
+
+Put this in a package of Home Assistant's configuration. It reads your
+user from Habitica every 30 minutes: change `scan_interval` for another
+pace. A REST sensor can't be a blueprint, so you add it by hand.
+
+```yaml
+# Daruma: Habitica look. One request to Habitica every 30 minutes.
+rest:
+  - resource: "https://habitica.com/api/v3/user?userFields=preferences,items.gear.equipped,items.gear.costume,items.currentPet,items.currentMount"
+    scan_interval: 1800
+    timeout: 20
+    headers:
+      x-api-user: !secret habitica_user_id
+      x-api-key: !secret habitica_api_token
+      x-client: !secret habitica_x_client
+    sensor:
+      - name: Habitica user
+        unique_id: daruma_habitica_user
+        value_template: "{{ 'ok' if value_json.success else 'error' }}"
+        json_attributes_path: "$.data"
+        json_attributes: [preferences, items]
+
+template:
+  - sensor:
+      - name: Habitica look
+        unique_id: daruma_habitica_look
+        icon: mdi:account-box-outline
+        availability: "{{ state_attr('sensor.habitica_user', 'preferences') is mapping }}"
+        state: >-
+          {% from 'habitica.jinja' import habitica_look, habitica_look_id %}
+          {% set user = {'preferences': state_attr('sensor.habitica_user', 'preferences'),
+                         'items': state_attr('sensor.habitica_user', 'items')} %}
+          {{ habitica_look_id(habitica_look(user)) }}
+        attributes:
+          look: >-
+            {% from 'habitica.jinja' import habitica_look %}
+            {{ habitica_look({'preferences': state_attr('sensor.habitica_user', 'preferences'),
+                              'items': state_attr('sensor.habitica_user', 'items')}) }}
+```
+
+In `secrets.yaml`, `habitica_x_client` is your user id followed by
+`-daruma`: Habitica asks every tool to name itself in this header.
+
+The state of "Habitica look" is the same short id the device shows in
+"Avatar look" when it was built from that look.
+
+### 3. The blueprint
+
+Import the "Habitica look changed" blueprint
+([prompts.md](prompts.md#try-it-first) has the button). Pick the "Habitica
+look" sensor, and the device's "Avatar look" sensor if you like. When
+the look changes, Home Assistant shows "Your Habitica look changed.
+Rebuild Daruma." A trip to the inn, a restart, or the sensor going
+unavailable shows nothing. With the device's sensor picked, a look the
+device already shows shows nothing too.
 
 ## Pictures of your avatar
 

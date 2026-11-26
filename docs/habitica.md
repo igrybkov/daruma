@@ -3,8 +3,9 @@
 [Habitica](https://habitica.com) turns your habits, dailies and to-dos
 into a role-playing game. Home Assistant's
 [Habitica integration](https://www.home-assistant.io/integrations/habitica/)
-connects to your account. The device then shows your dailies and to-dos,
-and each focus block you finish earns XP and gold.
+connects to your account. The device then shows your dailies, your
+to-dos and your hero's stats, and each focus block you finish earns XP
+and gold.
 
 The device never holds your Habitica token. It talks only to Home
 Assistant, and Home Assistant talks to Habitica.
@@ -71,3 +72,83 @@ scores a habit each time you finish a focus block.
 
 Each score is one request to Habitica. Habitica allows 30 a minute for
 your account, shared with its apps and Home Assistant's own polling.
+
+## Your hero on the device
+
+The module [habitica.yaml](../packages/habitica.yaml) follows your
+hero's stats. It adds the Character app, and the persona reacts when the
+numbers change. It needs no automation in Home Assistant: the device
+follows the Habitica entities itself.
+
+```yaml
+packages:
+  daruma:
+    url: https://github.com/igrybkov/daruma
+    ref: main
+    files:
+      # ... your other packages
+      - path: packages/habitica.yaml
+        vars:
+          user: <user>
+
+daruma:
+  apps: [dailies, todos, character, calendar, weather, stats]
+```
+
+`user` is the entity prefix from [Before you start](#before-you-start).
+The module reads these entities:
+
+- `sensor.<user>_health`, `_experience`, `_next_level`, `_mana`,
+  `_max_mana`, `_level`, `_class` and `_gold`;
+- `switch.<user>_rest_in_the_inn`;
+- `button.<user>_buy_a_health_potion`, `_start_my_day`,
+  `_revive_from_death` and `_allocate_all_stat_points`.
+
+Home Assistant has no sensor for max HP. The var `hp_max` sets it, 50 by
+default, as in Habitica.
+
+### The Character app
+
+- HP, XP and MP as bars with their numbers, in that order. Each has a
+  label, so gray and mono screens tell them apart.
+- Your level, class and gold on top. "In the inn" while you rest.
+- Buttons for Buy potion, Start my day, Revive and Allocate. Each shows
+  only while Home Assistant offers it: Start my day before the day
+  starts, Revive at 0 HP.
+- A tap presses the Home Assistant button. Buy potion asks first, since
+  it spends 25 gold.
+- The tile on the app board reads "Lv 12 · HP 45".
+
+### Reactions
+
+| When | State | Kind | Without its own animation |
+|---|---|---|---|
+| The level goes up | `level_up` | reaction | celebrate |
+| HP drops by `hurt_threshold` or more (1 by default) | `hurt` | reaction | scared |
+| HP is 0 | `fainted` | activity | sad |
+| You rest in the inn | `resting` | activity | sleeping |
+| Home Assistant sends a drop | `drop` | reaction | happy |
+
+- The first numbers after a boot or a reconnect fill the sheet. They
+  play nothing.
+- The same numbers twice play once.
+- The sheet keeps its numbers across a reboot. It shows them until Home
+  Assistant sends new ones.
+
+### Events from Home Assistant
+
+The numbers can't show a drop or a quest. Send them with the action
+`esphome.<device>_habitica_event`. Both fields are required; send `""`
+for no message.
+
+```yaml
+action: esphome.daruma_habitica_event
+data:
+  kind: drop            # drop or quest
+  message: Found a Wolf egg!
+```
+
+- `drop` plays the `drop` reaction and shows the message.
+- `quest` shows the message.
+
+The message waits while Do not disturb is on.

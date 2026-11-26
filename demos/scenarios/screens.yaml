@@ -2,7 +2,7 @@ name: screens
 description: >-
   Stills for the README's screens table: the focus menu, a focus block,
   the Pomodoro page, the app board, Tasks, the Calendar's Agenda and day
-  view, Weather, Controls, Settings, the voice assistant, and three cards from Home Assistant.
+  view, Weather, Controls, Settings, Character, the voice assistant, and three cards from Home Assistant.
   Made-up data. Each snapshot becomes a PNG in docs/demos/screens/.
 personas: [Daruma]
 stills: true
@@ -82,6 +82,12 @@ steps:
   - expect: {visible: {role: switch, name: Sounds}}
   - wait: 1.5
   - snapshot: settings
+  # Character (habitica.yaml), next to Settings: a made-up hero.
+  - tap: {role: button, name: Back}
+  - tap: {role: tile, name: Character}
+  - expect: {visible: {role: meter, name: HP}}
+  - wait: 1.5
+  - snapshot: character
   - press: {input: home, seconds: 2}
   - wait: 1
   # The quick panel: a swipe down from the top edge.

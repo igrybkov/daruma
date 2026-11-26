@@ -132,6 +132,7 @@ font:
       - "\U000F0128"  # chart-bar (Stats)
       - "\U000F0756"  # format-list-checks (Tasks)
       - "\U000F00ED"  # calendar (Calendar)
+      - "\U000F0787"  # sword-cross (Character, habitica.yaml)
       - "\U000F1AD3"  # timer-edit-outline (Custom focus length)
       - "\U000F04B9"  # sofa (Long break)
       # Settings (app_settings.yaml) and the rows core, quiet and voice offer.

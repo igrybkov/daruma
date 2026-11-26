@@ -3,8 +3,9 @@ description: >-
   Every activity the registry knows, and the pomodoro's reactions, with a
   caption: the voice assistant's screens, attention, offline and waking,
   then a focus block's states, the menu and the Weather app in the
-  persona's theme, a message and a doorbell card. Together with
-  emotions.yaml it shows every state (see covered_states).
+  persona's theme, a message, a doorbell card, and the Habitica hero
+  fainted and in the inn. Together with emotions.yaml it shows every
+  state (see covered_states).
 showcase: true
 personas: all
 test_personas: all
@@ -122,3 +123,14 @@ steps:
       - wait: 2.5
       - tap: {role: button, name: Unlock}
       - wait: 1.5
+  # Habitica (habitica.yaml): the hero at 0 HP, and in the inn.
+  - caption: "Habitica: fainted"
+    steps:
+      - show: fainted
+      - wait: 2
+  - caption: "Habitica: resting in the inn"
+    steps:
+      - show: resting
+      - wait: 2
+      - show: ""
+      - wait: 0.5

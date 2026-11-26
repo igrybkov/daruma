@@ -83,12 +83,16 @@ packages:
         - { entity: light.floor_lamp, label: Floor lamp, icon: "mdi:lamp" }
         - { entity: fan.ceiling, label: Fan }
         - { entity: sensor.office_temperature, label: Temperature }
+  # A made-up Habitica hero; the demo runner plays its entities.
+  habitica: !include
+    file: ../packages/habitica.yaml
+    vars: { user: demo_hero }
   app_settings: !include ../packages/app_settings.yaml
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats, controls, room, settings]
+  apps: [tasks, calendar, weather, stats, controls, room, settings, character]
   settings: [sounds, dnd, mute]
   progress:
     pomodoro: 1

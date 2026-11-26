@@ -43,6 +43,8 @@ How it is built:
   error, waking and attention; the reactions petted, startled,
   celebrate and paint (see the `goal` signal in [signals.md](signals.md)). Pomodoro adds focus, break, focus_done, goal, paused,
   focus_stopped and break_over. Tasks adds task_done and tasks_done.
+  Habitica adds the reactions level_up, hurt and drop, and the activities
+  fainted and resting.
 - A reaction has a duration. A duration of 0 means sound only (`paused`).
   A reaction whose chain passes through `celebrate` ends with a double
   wink.

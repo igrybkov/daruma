@@ -71,6 +71,19 @@ def test_controls_entities_start_as_the_demos_show_them():
     assert DemoData().entity_value("switch.kettle", None) == "off"
 
 
+def test_habitica_entities_start_as_the_demos_show_them():
+    data = DemoData()
+    # The Controls entities are still there next to them.
+    assert data.entity_value("light.desk_lamp", None) == "on"
+    assert data.entity_value("sensor.demo_hero_health", None) == "41.5"
+    assert data.entity_value("sensor.demo_hero_class", None) == "healer"
+    assert data.entity_value("button.demo_hero_revive_from_death", None) == "unavailable"
+    # A button press is recorded and changes nothing.
+    assert data.answer("button.press", {"entity_id": "button.demo_hero_buy_a_health_potion"}) == (True, None)
+    assert data.controlled == [("button.press", "button.demo_hero_buy_a_health_potion")]
+    assert data.entity_value("button.demo_hero_buy_a_health_potion", None) == "unknown"
+
+
 @pytest.mark.parametrize(
     ("action", "entity", "values"),
     [

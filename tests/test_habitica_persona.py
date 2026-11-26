@@ -191,6 +191,18 @@ def test_the_build_reads_the_api_with_the_options_and_the_data_folder(habitica_a
     assert api.read_last_look(tmp_path) == USER
 
 
+def test_offline_layers_and_build_use_the_last_look_in_the_data_folder(monkeypatch, tmp_path):
+    api.save_last_look(tmp_path, {"preferences": {"skin": "old"}})
+    monkeypatch.setattr(api, "http_get", FakeHabitica(error=urllib.error.URLError("offline")))
+    options = {"token": TOKEN, "user_id": USER_ID}
+    habitica.layers_of(options, tmp_path)  # Each call on its own: no request shared.
+    habitica._users.clear()
+    habitica.build("habitica", options=options, data_dir=tmp_path)
+    habitica._users.clear()
+    with pytest.raises(api.LookUnavailable):
+        habitica.layers_of(options, None)
+
+
 def test_cdn_sprites_need_the_data_folder(monkeypatch, tmp_path):
     monkeypatch.setattr(sources, "download", lambda url: None)
     options = {"look": fixture.USER, "source": "cdn"}
@@ -266,6 +278,7 @@ def test_room_takes_any_picture_mode():
 
 def test_room_without_a_background():
     out = room.room(None)
+    assert out.size == (64, 48)
     assert out.getpixel((0, 0)) == (*room.SKY, 255) and out.getpixel((63, 31)) == (*room.SKY, 255)
     assert out.getpixel((0, 32)) == (*room.GROUND, 255)
     assert room.room(Image.new("RGBA", (47, 49))).tobytes() == out.tobytes()

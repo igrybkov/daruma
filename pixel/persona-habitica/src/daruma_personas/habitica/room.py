@@ -63,4 +63,5 @@ def _sides(colors: list[tuple[int, int, int]]) -> Image.Image:
     """The room filled row by row with one color each."""
     column = Image.new("RGB", (1, len(colors)))
     column.putdata(colors)
+    # pragma: no mutate block, any filter scales a one-pixel column the same
     return column.resize((W, len(colors)), Image.NEAREST).convert("RGBA")

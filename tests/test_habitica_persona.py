@@ -363,6 +363,11 @@ def test_reactions_during_focus_keep_the_rider_and_the_book_still():
 
 
 def tracked() -> list[str]:
+    """The files git tracks here. Skips in a copy of the checkout, such as
+    mutmut's mutants/, which git does not track."""
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=ROOT, capture_output=True, text=True)
+    if top.returncode or Path(top.stdout.strip()).resolve() != ROOT:
+        pytest.skip("not a git checkout of its own")
     return subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/igrybkov/daruma/compare/v0.2.0...v0.3.0) (2026-11-26)
+
+
+### Features
+
+* **menu:** open the quick panel from the top edge only ([a93b327](https://github.com/igrybkov/daruma/commit/a93b327984663ec0cdc5a844f6d9d11591479778))
+* **menu:** quick panel of switches on a swipe down ([997e033](https://github.com/igrybkov/daruma/commit/997e033daa5bb0c1ae9c0ba49d81d022cc04707f))
+* **menu:** quick panel of switches on a swipe from the top ([b7ed1f0](https://github.com/igrybkov/daruma/commit/b7ed1f0b718bff20736b2ee912a52e884f5cc7cb))
+
+
+### Bug Fixes
+
+* **menu:** drop redundant clamps in the quick grid ([e58a03d](https://github.com/igrybkov/daruma/commit/e58a03ded1c4708bb633892b86ba28ecd42035b8))
+
 ## [0.2.0](https://github.com/igrybkov/daruma/compare/v0.1.0...v0.2.0) (2026-11-26)
 
 

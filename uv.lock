@@ -24,6 +24,7 @@ members = [
     "daruma-components",
     "daruma-persona-corgi",
     "daruma-persona-daruma",
+    "daruma-persona-habitica",
     "daruma-persona-jack-russell",
     "daruma-persona-tabby-cat",
     "daruma-persona-the-boss",
@@ -883,6 +884,7 @@ dev = [
     { name = "daruma-components" },
     { name = "daruma-persona-corgi" },
     { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-habitica" },
     { name = "daruma-persona-jack-russell" },
     { name = "daruma-persona-tabby-cat" },
     { name = "daruma-persona-the-boss" },
@@ -913,6 +915,7 @@ lint = [
 pixel = [
     { name = "daruma-persona-corgi" },
     { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-habitica" },
     { name = "daruma-persona-jack-russell" },
     { name = "daruma-persona-tabby-cat" },
     { name = "daruma-persona-the-boss" },
@@ -926,6 +929,7 @@ test = [
     { name = "aioesphomeapi" },
     { name = "daruma-persona-corgi" },
     { name = "daruma-persona-daruma" },
+    { name = "daruma-persona-habitica" },
     { name = "daruma-persona-jack-russell" },
     { name = "daruma-persona-tabby-cat" },
     { name = "daruma-persona-the-boss" },
@@ -967,6 +971,7 @@ dev = [
     { name = "daruma-components", editable = "src" },
     { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
     { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-habitica", editable = "pixel/persona-habitica" },
     { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
     { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
     { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
@@ -995,6 +1000,7 @@ lint = [
 pixel = [
     { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
     { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-habitica", editable = "pixel/persona-habitica" },
     { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
     { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
     { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
@@ -1008,6 +1014,7 @@ test = [
     { name = "aioesphomeapi" },
     { name = "daruma-persona-corgi", editable = "pixel/persona-corgi" },
     { name = "daruma-persona-daruma", editable = "pixel/persona-daruma" },
+    { name = "daruma-persona-habitica", editable = "pixel/persona-habitica" },
     { name = "daruma-persona-jack-russell", editable = "pixel/persona-jack-russell" },
     { name = "daruma-persona-tabby-cat", editable = "pixel/persona-tabby-cat" },
     { name = "daruma-persona-the-boss", editable = "pixel/persona-the-boss" },
@@ -1065,6 +1072,17 @@ requires-dist = [
     { name = "daruma-pixel", editable = "pixel/daruma-pixel" },
     { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
 ]
+
+[[package]]
+name = "daruma-persona-habitica"
+version = "0.0.0"
+source = { editable = "pixel/persona-habitica" }
+dependencies = [
+    { name = "daruma-pixel" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "daruma-pixel", editable = "pixel/daruma-pixel" }]
 
 [[package]]
 name = "daruma-persona-jack-russell"

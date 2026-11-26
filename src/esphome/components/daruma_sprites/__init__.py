@@ -52,10 +52,19 @@ A pixel_art persona may look different per stage of today's goal (the `goal`
 signal: none, started, done). `pixel_art: goal:` names the script's persona for
 `started` and `done`; `persona` is the one for `none`. The personas must share the
 room. An animation a stage lacks comes from the nearest stage that has it.
+
+`pixel_art: options:` is a mapping handed to the module as it is: the
+module's build(name, options=..., data_dir=...) gets it, with the builder's
+data folder for any files it keeps. A module may also have
+cache_inputs(name, options=..., data_dir=...): strings its drawing depends
+on beyond its code (a look, the hashes of downloaded pictures). They join
+the key of the drawn-persona cache. The options themselves never do, and
+are never logged, so a secret in them (a token) stays out of both.
 """
 
 import hashlib
 import importlib.util
+import json
 import pickle
 import sys
 from functools import cache
@@ -120,6 +129,7 @@ CONF_STAGES = "stages"
 CONF_WILTED = "wilted"
 CONF_GOAL = "goal"
 CONF_PLAY_ONCE = "play_once"
+CONF_OPTIONS = "options"
 GOAL_STAGES = ("none", "started", "done")  # signals.h Goal, in order.
 _STAGES = "_goal_stages"  # Internal: per stage, the animation keys it uses.
 
@@ -215,6 +225,13 @@ def _pictures(config):
     return names
 
 
+def _options(value):
+    """Any mapping, kept as it is: a !secret in it stays the object ESPHome knows."""
+    if not isinstance(value, dict):
+        raise cv.Invalid("options must be a mapping")
+    return value
+
+
 PIXEL_ART_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -224,6 +241,8 @@ PIXEL_ART_SCHEMA = cv.All(
             cv.Required(CONF_PERSONA): cv.string_strict,
             # The script's persona per goal stage after none (CONF_PERSONA).
             cv.Optional(CONF_GOAL): cv.Schema({cv.Optional(stage): cv.string_strict for stage in GOAL_STAGES[1:]}),
+            # Handed to the module's build() and cache_inputs(), never hashed.
+            cv.Optional(CONF_OPTIONS): _options,
         }
     ),
     cv.has_exactly_one_key(CONF_SCRIPT, CONF_MODULE),
@@ -374,10 +393,31 @@ def _script_sources(script: Path) -> list[Path]:
     return sorted(files)
 
 
+def _frozen(options) -> str:
+    """pixel_art options as one string, so _build's memo can key on them ("" for none)."""
+    return "" if options is None else json.dumps(options, sort_keys=True, default=str)
+
+
+def _data_dir() -> Path | None:
+    """The builder's data folder, where a module may keep its own files."""
+    try:
+        return Path(CORE.data_dir)
+    except Exception:  # No config loaded (a host test): no folder.
+        return None
+
+
+def _extra_inputs(module, name: str, options, data_dir: Path | None) -> list[str]:
+    """What the module's cache_inputs() says its drawing depends on; nothing without one."""
+    hook = getattr(module, "cache_inputs", None)
+    if hook is None:
+        return []
+    return [str(item) for item in hook(name, options=options or {}, data_dir=data_dir)]
+
+
 @cache
-def _build(script: Path, name: str):
+def _build(script: Path, name: str, options: str = ""):
     """The pixel_art script's persona, built once per build: final validation
-    and code generation both need it."""
+    and code generation both need it. `options` comes from _frozen()."""
     for folder in reversed(_script_path(script)):
         if str(folder) not in sys.path:
             sys.path.insert(0, str(folder))
@@ -389,14 +429,16 @@ def _build(script: Path, name: str):
         # Registered first: dataclasses in the script look their module up here.
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
-    cache = _cache_path(script, name)
+    opts = json.loads(options) if options else None
+    data_dir = _data_dir()
+    cache = _cache_path(script, name, _extra_inputs(module, name, opts, data_dir))
     if cache is not None and cache.is_file():
         try:
             with cache.open("rb") as f:
                 return pickle.load(f)
         except Exception:  # A stale or unreadable cache: draw again.
             pass
-    persona = _draw(module, name)
+    persona = _draw(module, name, opts, data_dir)
     if cache is not None:
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
@@ -411,8 +453,13 @@ def _build(script: Path, name: str):
     return persona
 
 
-def _draw(module, name: str):
-    """The module's own build(name), or personas.build() from its Spec."""
+def _draw(module, name: str, options=None, data_dir: Path | None = None):
+    """The module's own build(name), or personas.build() from its Spec. With
+    options, the module's build(name, options=..., data_dir=...)."""
+    if options is not None:
+        if not hasattr(module, "build"):
+            raise cv.Invalid("pixel_art options need a module with build(name, options=..., data_dir=...)")
+        return module.build(name, options=options, data_dir=data_dir)
     if hasattr(module, "build"):
         return module.build(name)
     from daruma_pixel import personas
@@ -420,11 +467,12 @@ def _draw(module, name: str):
     return personas.build(name, module)
 
 
-def _cache_path(script: Path, name: str) -> Path | None:
+def _cache_path(script: Path, name: str, extra: list[str] = ()) -> Path | None:
     """Where a drawn persona is kept between builds. Drawing some personas takes most
     of a config check, and it only changes when the art scripts do, so the key
     hashes every script it can import (_script_sources), the persona name and
-    the Pillow and Python versions."""
+    the Pillow and Python versions. `extra` is what the module's cache_inputs()
+    adds; without any, the key is what it always was."""
     try:
         import PIL
 
@@ -432,6 +480,8 @@ def _cache_path(script: Path, name: str) -> Path | None:
         for path in _script_sources(script):
             digest.update(path.name.encode())
             digest.update(path.read_bytes())
+        for item in extra:
+            digest.update(b"\0" + item.encode())
         digest.update(f"{name}|{PIL.__version__}|{sys.version_info[:2]}".encode())
         return Path(CORE.data_dir) / "daruma_pixel_art" / f"{name}-{digest.hexdigest()[:24]}.pickle"
     except Exception:
@@ -467,14 +517,15 @@ def _from_script(config):
     "Name" for none and "Name:stage" for the others; _STAGES lists, per
     stage, the key each animation name uses."""
     script = Path(CORE.relative_config_path(config[CONF_PIXEL_ART][CONF_SCRIPT])).resolve()
-    persona = _build(script, config[CONF_PIXEL_ART][CONF_PERSONA])
+    options = _frozen(config[CONF_PIXEL_ART].get(CONF_OPTIONS))
+    persona = _build(script, config[CONF_PIXEL_ART][CONF_PERSONA], options)
     stage_personas = [persona]
     for stage in GOAL_STAGES[1:]:
         name = config[CONF_PIXEL_ART].get(CONF_GOAL, {}).get(stage)
         if name is None:
             stage_personas.append(None)
             continue
-        other = _build(script, name)
+        other = _build(script, name, options)
         _same_room(persona, other, name)
         stage_personas.append(other)
 

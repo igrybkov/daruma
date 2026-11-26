@@ -58,6 +58,7 @@ pixel = [
     "daruma-persona-tabby-cat",
     "daruma-persona-the-boss",
     "daruma-persona-daruma",
+    "daruma-persona-habitica",
 ]
 # The components by their ESPHome names (esphome.components.daruma), for
 # scripts and the REPL. Editable only: src/pyproject.toml.
@@ -112,6 +113,7 @@ daruma-persona-jack-russell = { workspace = true }
 daruma-persona-tabby-cat = { workspace = true }
 daruma-persona-the-boss = { workspace = true }
 daruma-persona-daruma = { workspace = true }
+daruma-persona-habitica = { workspace = true }
 
 # Lint and format. The version is pinned in .pre-commit-config.yaml; CI
 # runs the same hooks.

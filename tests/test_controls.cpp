@@ -91,6 +91,10 @@ static void numbers() {
   CHECK_EQ(control_number("12abc"), "12abc");
   CHECK_EQ(control_number("unknown"), "unknown");
   CHECK_EQ(control_number("inf"), "inf");
+  CHECK_EQ(control_number("0.05"), "0.1");
+  CHECK_EQ(control_number("999999999999999"), "999999999999999");
+  CHECK_EQ(control_number("1000000000000000"), "1000000000000000");
+  CHECK_EQ(control_number("1e15"), "1e15");
 }
 
 static void texts() {
@@ -108,6 +112,10 @@ static void texts() {
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "255"), w), "On · 100%");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "300"), w), "On · 100%");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "-5"), w), "On · 0%");
+  // Rounded to the nearest percent.
+  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "9"), w), "On · 4%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "14"), w), "On · 5%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "32"), w), "On · 13%");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "None"), w), "On");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("unknown"), w), "unknown");
 

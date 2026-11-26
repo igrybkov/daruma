@@ -81,7 +81,7 @@ ControlsApp = daruma_ns.class_("ControlsApp", cg.Component)
 
 
 def domain(entity: str) -> str:
-    return entity.split(".", 1)[0]
+    return entity.partition(".")[0]
 
 
 def tile_entity(value):
@@ -107,7 +107,7 @@ def tile_icon(tile) -> str:
 
 def tile_label(tile) -> str:
     """A tile's label: its own, or the entity's name part ("Desk lamp")."""
-    return tile.get(CONF_LABEL) or tile[CONF_ENTITY].split(".", 1)[1].replace("_", " ").capitalize()
+    return tile.get(CONF_LABEL) or tile[CONF_ENTITY].partition(".")[2].replace("_", " ").capitalize()
 
 
 def glyph(name: str) -> str:
@@ -136,9 +136,9 @@ CONFIG_SCHEMA = cv.Schema(
 
 def font_glyphs(font_conf) -> set[str]:
     """Every glyph a font config lists, its extras' included."""
-    strings = list(font_conf.get(CONF_GLYPHS, []))
+    strings = list(font_conf[CONF_GLYPHS])
     for extra in font_conf.get(CONF_EXTRAS, []):
-        strings += extra.get(CONF_GLYPHS, [])
+        strings += extra[CONF_GLYPHS]
     return {ch for s in strings for ch in s}
 
 
@@ -159,7 +159,8 @@ def check_icons(config, fonts) -> None:
 
 
 def _final_validate(config):
-    fonts = fv.full_config.get().get("font", [])
+    # The component depends on font, so the config has fonts.
+    fonts = fv.full_config.get()["font"]
     for conf in config if isinstance(config, list) else [config]:
         check_icons(conf, fonts)
 

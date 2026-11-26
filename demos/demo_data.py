@@ -156,7 +156,7 @@ class DemoData:
         if values is None:
             return False
         self.controlled.append((action, entity))
-        domain, verb = action.split(".", 1)
+        domain, _, verb = action.partition(".")  # pragma: no mutate (an HA action has one dot)
         if domain == "scene" or domain == "script":
             values["state"] = "2026-01-01T19:00:00+00:00" if domain == "scene" else "off"
         elif verb in ("toggle", "media_play_pause"):

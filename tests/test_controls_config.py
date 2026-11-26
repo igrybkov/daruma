@@ -4,6 +4,7 @@ and icons missing from the icon font (daruma_controls/__init__.py).
     python3 -m unittest discover -s tests
 """
 
+import asyncio
 import re
 import unittest
 from pathlib import Path
@@ -67,6 +68,11 @@ class IconName(unittest.TestCase):
     def test_label_falls_back_to_the_entity_name(self):
         self.assertEqual(controls.tile_label({"entity": "light.desk_lamp"}), "Desk lamp")
         self.assertEqual(controls.tile_label({"entity": "light.desk_lamp", "label": "Desk"}), "Desk")
+        # Everything after the domain's dot.
+        self.assertEqual(controls.tile_label({"entity": "light.desk.lamp"}), "Desk.lamp")
+
+    def test_domain_is_before_the_first_dot(self):
+        self.assertEqual(controls.domain("light.desk.lamp"), "light")
 
     def test_glyph(self):
         self.assertEqual(controls.glyph("check"), "\U000f012c")
@@ -117,6 +123,66 @@ class IconsInTheFont(unittest.TestCase):
         have = {int(h, 16) for h in re.findall(r'"\\U000(F[0-9A-F]{4})"', text)}
         missing = [n for n, code in controls.ICONS.items() if code not in have]
         self.assertEqual(missing, [])
+
+
+class FakeVar:
+    """The app's C++ variable: each method call comes back as (name, args)."""
+
+    def __init__(self, id_):
+        self.id = id_
+
+    def __getattr__(self, name):
+        return lambda *args: (name, args)
+
+
+class FakeCodegen:
+    """The parts of esphome.codegen that to_code calls, recorded."""
+
+    def __init__(self):
+        self.defines, self.added, self.registered = [], [], []
+
+    def add_define(self, name):
+        self.defines.append(name)
+
+    def new_Pvariable(self, id_):  # noqa: N802 - ESPHome's name
+        return FakeVar(id_)
+
+    async def register_component(self, var, conf):
+        self.registered.append((var.id, conf))
+
+    async def get_variable(self, id_):
+        return f"var:{id_}"
+
+    def add(self, expression):
+        self.added.append(expression)
+
+
+class ToCode(unittest.TestCase):
+    def test_tiles_go_to_the_app_in_order(self):
+        fake = FakeCodegen()
+        conf = {
+            "id": "controls_app",
+            "daruma_id": "hub",
+            "icon_font": ICON_FONT,
+            "tiles": [{"entity": "light.desk_lamp"}, {"entity": "scene.movie", "label": "Movie", "icon": "movie"}],
+        }
+        real = controls.cg
+        controls.cg = fake
+        try:
+            asyncio.run(controls.to_code(conf))
+        finally:
+            controls.cg = real
+        self.assertEqual(fake.defines, ["USE_API_HOMEASSISTANT_STATES", "USE_API_HOMEASSISTANT_SERVICES"])
+        self.assertEqual(fake.registered, [("controls_app", conf)])
+        self.assertEqual(
+            fake.added,
+            [
+                ("set_hub", ("var:hub",)),
+                ("set_check_icon", (controls.glyph("check"),)),
+                ("add_tile", ("light.desk_lamp", "Desk lamp", controls.glyph("lightbulb"))),
+                ("add_tile", ("scene.movie", "Movie", controls.glyph("movie"))),
+            ],
+        )
 
 
 if __name__ == "__main__":

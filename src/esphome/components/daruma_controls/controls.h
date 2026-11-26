@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <string>
 
@@ -97,15 +96,16 @@ inline std::string control_number(const std::string &text) {
   const double v = std::strtod(text.c_str(), &end);
   if (end == nullptr || *end != '\0' || !std::isfinite(v))
     return text;
-  const double r = std::round(v * 10.0) / 10.0;
-  char buf[24];
-  if (r == std::floor(r)) {
-    std::snprintf(buf, sizeof buf, "%.0f", r);
-  } else {
-    std::snprintf(buf, sizeof buf, "%.1f", r);
-  }
-  // "-0" reads oddly.
-  return std::string(buf) == "-0" ? std::string("0") : std::string(buf);
+  if (std::fabs(v) >= 1e15)
+    return text;
+  // In tenths, so "-0.01" comes out as "0", not "-0".
+  const long long tenths = std::llround(v * 10.0);
+  const long long whole = std::llabs(tenths) / 10, tenth = std::llabs(tenths) % 10;
+  std::string out = tenths < 0 ? "-" : "";
+  out += std::to_string(whole);
+  if (tenth != 0)
+    out += "." + std::to_string(tenth);
+  return out;
 }
 
 // "On · 60%" for a light at brightness 153 of 255; "On" without one.
@@ -118,7 +118,9 @@ inline std::string control_toggle_text(const TileState &s, const ControlWords &w
   const long b = std::strtol(s.extra.c_str(), &end, 10);
   if (s.extra.empty() || end == nullptr || *end != '\0')
     return w.on;
-  const long pct = std::lround(std::max(0L, std::min(255L, b)) * 100.0 / 255.0);
+  // No brightness lands on a half, so any offset near 127 rounds the same.
+  const long half = 127;  // pragma: no mutate
+  const long pct = (std::max(0L, std::min(255L, b)) * 100 + half) / 255;
   return w.on + " · " + std::to_string(pct) + "%";
 }
 

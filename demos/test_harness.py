@@ -53,6 +53,67 @@ def test_the_all_day_event_spans_a_local_sunday():
     assert end - start == 24 * HOUR
 
 
+def test_controls_entities_start_as_the_demos_show_them():
+    data = DemoData()
+    assert data.entity_value("light.desk_lamp", None) == "on"
+    assert data.entity_value("light.desk_lamp", "brightness") == "153"
+    assert data.entity_value("media_player.office", "media_title") == "Rain on a Tin Roof"
+    assert data.entity_value("fan.desk", "") == "unavailable"
+    assert data.entity_value("cover.blinds", "current_position") == "40"
+    assert data.entity_value("sensor.office_co2", "unit_of_measurement") == "ppm"
+    assert data.entity_value("sensor.office_temperature", None) == "21.5"
+    assert data.entity_value("switch.kettle", None) == "off"
+    # An attribute HA lacks, and an entity it lacks.
+    assert data.entity_value("switch.kettle", "brightness") is None
+    assert data.entity_value("light.nowhere", None) is None
+    # Each run starts from the same states.
+    data.entities["switch.kettle"]["state"] = "on"
+    assert DemoData().entity_value("switch.kettle", None) == "off"
+
+
+@pytest.mark.parametrize(
+    ("action", "entity", "values"),
+    [
+        ("light.toggle", "light.desk_lamp", {"state": "off", "brightness": "153"}),
+        ("switch.toggle", "switch.kettle", {"state": "on"}),
+        (
+            "media_player.media_play_pause",
+            "media_player.office",
+            {"state": "paused", "media_title": "Rain on a Tin Roof"},
+        ),
+        ("scene.turn_on", "scene.movie_night", {"state": "2026-01-01T19:00:00+00:00"}),
+        ("cover.close_cover", "cover.blinds", {"state": "closed", "current_position": "0"}),
+        ("cover.stop_cover", "cover.blinds", {"state": "open", "current_position": "40"}),
+        ("fan.toggle", "fan.desk", {"state": "unavailable"}),
+    ],
+)
+def test_a_controls_action_changes_its_entity(action, entity, values):
+    data = DemoData()
+    assert data.answer(action, {"entity_id": entity}) == (True, None)
+    assert data.entities[entity] == values
+    assert data.controlled == [(action, entity)]
+
+
+def test_opening_a_cover_and_running_a_script():
+    data = DemoData(entities={"cover.door": {"state": "closed"}, "script.night": {"state": "on"}})
+    assert data.control("cover.open_cover", "cover.door")
+    assert data.entities["cover.door"] == {"state": "open", "current_position": "100"}
+    assert data.control("script.turn_on", "script.night")
+    assert data.entities["script.night"] == {"state": "off"}
+    # The music plays again after a pause.
+    data.entities["media_player.x"] = {"state": "paused"}
+    data.control("media_player.media_play_pause", "media_player.x")
+    assert data.entities["media_player.x"]["state"] == "playing"
+
+
+def test_an_action_on_an_entity_ha_lacks():
+    data = DemoData()
+    assert not data.control("light.toggle", "light.nowhere")
+    assert data.controlled == []
+    # answer() leaves it to the other actions: it does nothing.
+    assert data.answer("light.toggle", {"entity_id": "light.nowhere"}) == (True, None)
+
+
 def test_a_failed_start_stops_the_program(device_build, tmp_path, monkeypatch):
     started = []
     real_popen = harness.subprocess.Popen

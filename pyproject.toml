@@ -24,7 +24,7 @@
 # its dependency groups but builds nothing from it.
 [project]
 name = "daruma"
-version = "0.1.0"
+version = "0.2.0"
 description = "An ESPHome framework for an animated desk companion"
 requires-python = ">=3.12"
 

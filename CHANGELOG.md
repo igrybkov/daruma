@@ -1,5 +1,76 @@
 # Changelog
 
+## [0.2.0](https://github.com/igrybkov/daruma/compare/v0.1.0...v0.2.0) (2026-11-26)
+
+
+### Features
+
+* **apps:** controls app with live Home Assistant state ([e230f12](https://github.com/igrybkov/daruma/commit/e230f12da771371237cbba9e00ee8ffcc3ce47b5))
+* **apps:** controls app with live Home Assistant state ([aca2ab2](https://github.com/igrybkov/daruma/commit/aca2ab2734d5c3591ab81fcfc5d9996bcb9c722d)), closes [#83](https://github.com/igrybkov/daruma/issues/83)
+* **apps:** icons-only controls ([7fab87f](https://github.com/igrybkov/daruma/commit/7fab87f775b5da5d09c49bc43cd344363d21b168))
+* **apps:** media player panel with buttons and volume ([9ad12ee](https://github.com/igrybkov/daruma/commit/9ad12eeab0bd0e7beca27b083fa7be7b13daa3b5))
+* **apps:** set a light's brightness or a fan's speed ([1544be4](https://github.com/igrybkov/daruma/commit/1544be4121879c2bf5e42f4964db1c2ed0a0c475))
+* **apps:** settings page with rows the modules offer ([204f553](https://github.com/igrybkov/daruma/commit/204f553e7cad419b090c47fb4c03e6aa4229b4ff))
+* **apps:** settings page with rows the modules offer ([2355255](https://github.com/igrybkov/daruma/commit/2355255934c4202c632bed3e8b15b25a4a2ed6f6))
+* **demos:** add the random_event step, scenario subfolders and the events build ([b616466](https://github.com/igrybkov/daruma/commit/b616466c0e00ea1ac9527cbe6ad048af17fb339e))
+* **demos:** add the random_event step, scenario subfolders and the events build ([e43de90](https://github.com/igrybkov/daruma/commit/e43de90420f9f6f961ded92d197c5fc3677f87a4)), closes [#64](https://github.com/igrybkov/daruma/issues/64)
+* **demos:** run the scenarios of DARUMA_PERSONA_PATH folders ([c504225](https://github.com/igrybkov/daruma/commit/c50422596afe74874117f3936b40cd74a117a818))
+* **demos:** run the scenarios of DARUMA_PERSONA_PATH folders ([73b7814](https://github.com/igrybkov/daruma/commit/73b78149414e33fcdf6b58e504bbf3b6a972a83c))
+* **images:** give the device's flat corgi its say-only events too ([7060463](https://github.com/igrybkov/daruma/commit/7060463f004a6a71d9d7a7aa0d71b6660632a9a1))
+* **images:** say-only random events for the images persona ([64d4bc5](https://github.com/igrybkov/daruma/commit/64d4bc5f9fc3efc99cb49ac3c582e40685ff4598))
+* **images:** say-only random events for the images persona ([f4c33a6](https://github.com/igrybkov/daruma/commit/f4c33a69af36a4584d191e1c17411c45f6b9fb0d))
+* **pixel:** add the corgi's quirk animations ([d21005f](https://github.com/igrybkov/daruma/commit/d21005f704af421d261db8b201b8651d11840d9a))
+* **pixel:** add the corgi's quirk animations ([7f99f16](https://github.com/igrybkov/daruma/commit/7f99f16c003f31a763fcaf5386fd1f972ef23363)), closes [#64](https://github.com/igrybkov/daruma/issues/64)
+* **pixel:** give the pixel corgi random events ([36b7a12](https://github.com/igrybkov/daruma/commit/36b7a1235feecf50514f308191acdb2f52019682))
+* **pixel:** give the pixel corgi random events ([ae91d41](https://github.com/igrybkov/daruma/commit/ae91d41fa3c1c5156930d68d91d095c697da4bb7))
+* **pixel:** the corgi looks out the window ([651ddb9](https://github.com/igrybkov/daruma/commit/651ddb93c082c5e713e6facd7b2f8df981c5e69b))
+* **quiet:** quiet hours, do not disturb and idle dimming ([e121f4e](https://github.com/igrybkov/daruma/commit/e121f4ef56598a4683fc35996306ffe933dbf15b))
+* **quiet:** quiet hours, do not disturb and idle dimming ([3ba3ae8](https://github.com/igrybkov/daruma/commit/3ba3ae848ed100f4dbfb13c9a8a0f747b73a8036)), closes [#80](https://github.com/igrybkov/daruma/issues/80)
+* **random-events:** add the event engine and its host tests ([f3babd0](https://github.com/igrybkov/daruma/commit/f3babd05ebc7a59456adaa82dd07b3fd499a97dc))
+* **random-events:** add the event engine and its host tests ([8d6e455](https://github.com/igrybkov/daruma/commit/8d6e45522ddef83377d44773905291f73c69787a))
+* **random-events:** add the persona schema, conditions and build checks ([2de8114](https://github.com/igrybkov/daruma/commit/2de811470b883557f4f5e682b57175b2ff652712))
+* **random-events:** add the persona schema, conditions and build checks ([74c0fee](https://github.com/igrybkov/daruma/commit/74c0fee8f2e52aed9db84373461ca810f55beecf))
+* **random-events:** wire the engine to the hub, personas and Home Assistant ([d24de38](https://github.com/igrybkov/daruma/commit/d24de381600aab2df179fbbdd8a6ea0e85aea957))
+* **random-events:** wire the engine to the hub, personas and Home Assistant ([5688ea9](https://github.com/igrybkov/daruma/commit/5688ea93c8d3e16193abed9f9622e465e58a2378))
+
+
+### Bug Fixes
+
+* **apps:** controls lint, labels and mutation targets ([e67c952](https://github.com/igrybkov/daruma/commit/e67c95216b635b3eb7b43d9748211ce1b0c2b8fd))
+* **apps:** one thermometer glyph in the icon font ([fbd3368](https://github.com/igrybkov/daruma/commit/fbd33680c6fa2f2ac78cfa65ac09b8071c4b338c))
+* **deps:** include alloc_helpers.h for str_sprintf ([278932f](https://github.com/igrybkov/daruma/commit/278932f3db8c82d7621401b331c15ff1a042cd3d))
+* **desktop:** drop APIs deprecated in ESPHome 2026.11.0 ([8270869](https://github.com/igrybkov/daruma/commit/82708699a82c5030f467d6486801a147a7b706e7))
+* **desktop:** drop deprecated color order arguments ([345745e](https://github.com/igrybkov/daruma/commit/345745e2be69d46da41c147f5252a00e477b2668))
+* **desktop:** move build flags out of platformio_options ([6dcdde2](https://github.com/igrybkov/daruma/commit/6dcdde29aa93eb8994db5610f2d1ecdb90e44e6a))
+* **mutation:** keep the plan's switches out of runs a test starts ([4e80cf1](https://github.com/igrybkov/daruma/commit/4e80cf13d3a864cfaf5d2630cea50b645e93c16c))
+* **pixel:** a softer window glance, and no bubble over the corgi's trip ([8c68674](https://github.com/igrybkov/daruma/commit/8c6867432e5954f79907d570c25a8372ffee6e1e))
+* **pixel:** give the corgi's paw-up stance a natural leg pose ([e8bca94](https://github.com/igrybkov/daruma/commit/e8bca94ddfbf215be9418307a9f8130cf04b2160))
+* **pixel:** keep the corgi's lifted paw joined to its leg ([2d1abab](https://github.com/igrybkov/daruma/commit/2d1abab0b0495ddf9558d914390118da6e798179))
+* **pixel:** move the corgi's raised elbow onto its chest ([3efce81](https://github.com/igrybkov/daruma/commit/3efce81787d0d2dc377e58ef5f9f582c2f47ae18))
+* **pixel:** root the corgi's raised leg across from the planted one ([cb0f160](https://github.com/igrybkov/daruma/commit/cb0f160136ec70ff9bc59d85df29c4623c9faf42))
+* **quiet:** move queued messages out of the queue ([51f6017](https://github.com/igrybkov/daruma/commit/51f60174dfd2c8208fe4f5ea79a14cdcdac9fc8b))
+* **random-events:** clear the event's bubble when it is cancelled ([bb1f021](https://github.com/igrybkov/daruma/commit/bb1f0213b4e499ec357000af1eacc57732172caf))
+* **random-events:** let an empty-name play skip the gap ([c94acbf](https://github.com/igrybkov/daruma/commit/c94acbfe0807beb95141c28c789b80116e53ee8d))
+* **voice:** wake a dim or quiet screen on the wake word ([b963477](https://github.com/igrybkov/daruma/commit/b963477ff874c950e96ad48a90bf716309ebf29e))
+* **voice:** wake a dim or quiet screen on the wake word ([db689cd](https://github.com/igrybkov/daruma/commit/db689cdd3e823409929e5fbec8a2ad736557ac5c))
+
+
+### Performance Improvements
+
+* **mutation:** call each mutant through a cheaper trampoline ([4f33bee](https://github.com/igrybkov/daruma/commit/4f33bee3eac2702a801ecd7037e0a861d3f7327b))
+* **mutation:** end looping mutants sooner and run fast tests first ([688972e](https://github.com/igrybkov/daruma/commit/688972e18382006bfc1f32e3d856d65c81a84a2f))
+* **mutation:** fail a test that runs far past its clean time ([fd6a8fe](https://github.com/igrybkov/daruma/commit/fd6a8fe8bd4ea93b5545f42f85cf14aecfd374d1))
+* **mutation:** start a part in seconds, and set the split from CI times ([604d8df](https://github.com/igrybkov/daruma/commit/604d8df39de810886bb29eb15761d9c7b53e68f8))
+* **pixel:** draw the daruma's shared parts once, same pixels ([c573129](https://github.com/igrybkov/daruma/commit/c573129d0e350e514f0b10d02241c7747a6191c6))
+* **pixel:** draw the daruma's shared parts once, same pixels ([b5f8fc3](https://github.com/igrybkov/daruma/commit/b5f8fc3e80e8ac13c067994579c8afec82ee5969))
+
+
+### Documentation
+
+* random events ([2ad9e82](https://github.com/igrybkov/daruma/commit/2ad9e82285e3f6c53a0c58b8f76d86e9996841b5))
+* random events ([e609780](https://github.com/igrybkov/daruma/commit/e609780b091190b37f33c4121b0fc0383d5613b8))
+* **testing:** give the full mutation run's time ([831973d](https://github.com/igrybkov/daruma/commit/831973dcf4288d036f3f9c34cff61c530c6b7873))
+
 ## 0.1.0 (2026-11-18)
 
 

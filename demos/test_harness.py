@@ -136,6 +136,17 @@ def test_the_skills_script_lists_the_heros_class():
     assert "\tNeeds level 11" in data.answer("script.demo_skills", {"op": "list"})[1]
 
 
+def test_the_skills_script_edges():
+    data = DemoData()
+    # Mana exactly the cost is enough.
+    data.entities["sensor.demo_hero_mana"]["state"] = "15"
+    assert "K\theal\t15\t11\ts\t1\tHealing Light\t" in data.answer("script.demo_skills", {"op": "list"})[1]
+    # A sensor HA lacks reads 0; no class sensor, no class.
+    assert data._hero("nothing") == 0
+    del data.entities["sensor.demo_hero_class"]
+    assert data.answer("script.demo_skills", {"op": "list"})[1] == "C\t"
+
+
 def test_a_cast_is_recorded():
     data = DemoData()
     assert data.answer("script.demo_skills", {"op": "cast", "id": "smash", "task": "snack"}) == (True, "R\t1")

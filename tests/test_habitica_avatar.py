@@ -368,6 +368,14 @@ def test_layers_stack_in_order_within_a_group():
     assert avatar.missing == ["head_0"]
 
 
+def test_skipped_sprites_leave_the_rest():
+    src = sources.MemorySource({"zzz": solid(40, 40, RED), "Pet-p": solid(81, 99, BLUE)})
+    avatar = compose.compose(Look(sleep=True, pet="p"), src, skip=frozenset({"zzz"}))
+    assert avatar.groups[ZZZ].getbbox() is None
+    assert avatar.groups[PET].getbbox() is not None  # Drawn after zzz.
+    assert "zzz" not in avatar.missing
+
+
 def test_flat_stacks_groups_back_to_front():
     src = sources.MemorySource({"Pet-p": solid(81, 99, BLUE), "skin_a": solid(90, 90, RED)})
     avatar = compose.compose(Look(skin="a", pet="p"), src)

@@ -24,16 +24,14 @@ def _with(pose: Pose, **changes) -> Pose:
 
 def _breathing(base: Pose, ms: int) -> list[tuple[Pose, int]]:
     """Rider down a pixel and back; the pet bobs up half a period later."""
-    rider = (0, 0, 1, 1)
-    pet = (-1, 0, 0, -1)
-    return [(_with(base, dy=base.dy + r, pet_dy=p), ms) for r, p in zip(rider, pet, strict=True)]
+    steps = ((0, -1), (0, 0), (1, 0), (1, -1))  # (rider, pet)
+    return [(_with(base, dy=base.dy + r, pet_dy=p), ms) for r, p in steps]
 
 
 def _hop(base: Pose, ms: int) -> list[tuple[Pose, int]]:
     """A hop: the rider up three pixels and down; the pet one frame after."""
-    heights = (0, -2, -3, -2, 0, 0)
-    pet = (0, 0, -2, -3, -2, 0)
-    return [(_with(base, dy=r, pet_dy=p, step=i), ms) for i, (r, p) in enumerate(zip(heights, pet, strict=True))]
+    steps = ((0, 0), (-2, 0), (-3, -2), (-2, -3), (0, -2), (0, 0))  # (rider, pet)
+    return [(_with(base, dy=r, pet_dy=p, step=i), ms) for i, (r, p) in enumerate(steps)]
 
 
 def _shake(base: Pose, ms: int) -> list[tuple[Pose, int]]:

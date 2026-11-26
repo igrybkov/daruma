@@ -17,7 +17,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageChops
 
 from daruma_personas import habitica
 from daruma_personas.habitica import actor, api, compose, fixture, moods, room, sources
@@ -181,6 +181,26 @@ def test_one_request_per_build(habitica_api, tmp_path):
     assert len(habitica_api.asked) == 2
 
 
+def test_the_build_reads_the_api_with_the_options_and_the_data_folder(habitica_api, tmp_path):
+    options = {"token": TOKEN, "user_id": USER_ID, "source": "fixture"}
+    habitica.cache_inputs("habitica", options, tmp_path)
+    habitica.layers_of(options, tmp_path)
+    habitica.build("habitica", options=options, data_dir=tmp_path)
+    (_url, headers), *_ = habitica_api.asked
+    assert (headers["x-api-user"], headers["x-api-key"]) == (USER_ID, TOKEN)
+    assert api.read_last_look(tmp_path) == USER
+
+
+def test_cdn_sprites_need_the_data_folder(monkeypatch, tmp_path):
+    monkeypatch.setattr(sources, "download", lambda url: None)
+    options = {"look": fixture.USER, "source": "cdn"}
+    layers = habitica.layers_of(options, tmp_path)
+    assert layers.avatars.awake.missing  # Nothing on the fake CDN; nothing raised.
+    assert any(item.endswith(":missing") for item in habitica.cache_inputs("habitica", options, tmp_path))
+    with pytest.raises(ValueError, match="data folder"):
+        habitica.layers_of(options, None)
+
+
 def test_the_look_leaves_out_sleep_and_buffs():
     user = {"preferences": {"sleep": True}, "stats": {"buffs": {"seafoam": True}}}
     look = habitica.look_of({"look": user})
@@ -214,6 +234,17 @@ def test_side_colors_take_each_rows_most_common_color():
     assert room.side_colors(bg) == [SKY, SKY, GRASS]
 
 
+def test_side_colors_take_the_most_common_not_the_largest_color():
+    bg = stripes([SKY, GRASS, GRASS])
+    bg.paste((*SKY, 255), (0, 1, 10, 2))  # A little sky in a row of grass: still grass.
+    assert room.side_colors(bg) == [SKY, GRASS, GRASS]
+
+
+def test_a_row_halfway_is_sky():
+    sky, mid, ground = (100, 100, 100), (105, 100, 100), (110, 100, 100)
+    assert room.side_colors(stripes([sky, mid, ground])) == [sky, sky, ground]
+
+
 def test_one_color_is_all_sky():
     assert room.side_colors(stripes([SKY] * 4)) == [SKY] * 4
 
@@ -226,6 +257,11 @@ def test_room_around_a_background():
     assert out.getpixel((8, 0)) == (1, 2, 3, 255)  # The top row is cut: row 1 is the room's row 0.
     assert out.getpixel((0, 18)) == (*SKY, 255) and out.getpixel((63, 19)) == (*GRASS, 255)
     assert out.getpixel((7, 0)) == (*SKY, 255) and out.getpixel((55, 47)) == (*GRASS, 255)
+
+
+def test_room_takes_any_picture_mode():
+    bg = stripes([SKY] * 20 + [GRASS] * 29)
+    assert room.room(bg.convert("RGB")).tobytes() == room.room(bg).tobytes()
 
 
 def test_room_without_a_background():
@@ -291,6 +327,21 @@ def test_effects_stay_on_screen_on_a_mount():
     for layers in (habitica.FIXTURE_LAYERS, layers_for(RIDING)):
         # Three dots of eight ring pixels each, all on screen.
         assert ring(layers.foreground(thinking)) - ring(layers.foreground(plain)) == 24
+
+
+def test_effects_rise_no_higher_than_their_top_on_a_mount():
+    assert actor.EFFECTS_TOP == 4
+    thinking = moods.ANIMATIONS["Thinking"][0][0]
+    layers = layers_for(RIDING)
+    dots = ImageChops.difference(layers.foreground(thinking), layers.foreground(replace(thinking, extras=())))
+    assert dots.getbbox()[1] == 2  # The anchor at row 4; the top dot's ring starts 2 above it.
+
+
+def test_the_book_moves_with_the_rider():
+    layers = habitica.FIXTURE_LAYERS
+    still = layers.foreground(actor.Pose(book=True)).crop((27, 29, 35, 33))
+    moved = layers.foreground(actor.Pose(book=True, dx=1, dy=2)).crop((28, 31, 36, 35))
+    assert moved.tobytes() == still.tobytes()
 
 
 def test_scene_is_room_then_foreground():

@@ -27,6 +27,7 @@ PLAQUE_CLEAR = 17  # The first room column right of the pomodoro plaque (72 px f
 BOOK = (11, 22, 19, 26)  # In the rider's body canvas: x0, y0, x1, y1, end exclusive.
 COVER, PAGE, PAGE_LINE = (122, 52, 40), (246, 238, 214), (190, 176, 150)
 SPARKLE = (255, 236, 140)
+EFFECTS_TOP = 4  # The highest the effects anchor goes, so zzz and dots stay on screen on a mount.
 HEART_ROWS = (".X.X.", "XXXXX", ".XXX.", "..X..")
 
 
@@ -35,7 +36,6 @@ class Pose:
     dy: int = 0  # The rider (and mount), down.
     dx: int = 0
     pet_dy: int = 0
-    pet_dx: int = 0
     eyes_closed: bool = False  # The `_sleep` skin.
     extras: tuple[str, ...] = ()  # zzz, sweat, dots, hearts, sparkle
     step: int = 0  # Moves an effect: zzz drift, hearts and sparkles swap places.
@@ -104,9 +104,9 @@ class Layers:
             _book(c, bx + pose.dx, by + pose.dy, pose.page)
         out.alpha_composite(c.img)
         pet = self.avatars.awake.groups[PET]
-        out.alpha_composite(_moved(pet, room.ART_X + self.pet_shift + pose.pet_dx, room.ART_Y + pose.pet_dy))
+        out.alpha_composite(_moved(pet, room.ART_X + self.pet_shift, room.ART_Y + pose.pet_dy))
         fx = Canvas(room.W, room.H)
-        _extras(fx, pose, bx + pose.dx, max(by, 4) + pose.dy)
+        _extras(fx, pose, bx + pose.dx, max(by, EFFECTS_TOP) + pose.dy)
         out.alpha_composite(fx.img)
         return out
 
@@ -147,6 +147,7 @@ def _heart(c: Canvas, x: int, y: int) -> None:
 
 def _sparkle(c: Canvas, x: int, y: int) -> None:
     for d in (-2, -1, 0, 1, 2):
+        # pragma: no mutate block, the cross is the same mirrored
         c.dot(x + d, y, SPARKLE)
         c.dot(x, y + d, SPARKLE)
 

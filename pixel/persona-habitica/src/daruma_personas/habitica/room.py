@@ -33,7 +33,7 @@ def _row(img: Image.Image, y: int) -> list[tuple[int, int, int]]:
 
 
 def _distance(a, b) -> int:
-    return sum((p - q) ** 2 for p, q in zip(a, b, strict=True))
+    return sum((a[i] - b[i]) ** 2 for i in range(3))
 
 
 def side_colors(bg: Image.Image) -> list[tuple[int, int, int]]:
@@ -51,12 +51,16 @@ def side_colors(bg: Image.Image) -> list[tuple[int, int, int]]:
 
 def room(background: Image.Image | None) -> Image.Image:
     """The 64x48 room around the avatar's background (a 47x49 picture, or None)."""
-    out = Image.new("RGBA", (W, H), (*GROUND, 255))
     if background is None or background.getbbox() is None:
-        out.paste((*SKY, 255), (0, 0, W, H * 2 // 3))
-        return out
+        return _sides([SKY] * (H * 2 // 3) + [GROUND] * (H - H * 2 // 3))
     bg = background.convert("RGBA").crop((0, -ART_Y, background.width, background.height))
-    for y, color in enumerate(side_colors(bg)):
-        out.paste((*color, 255), (0, y, W, y + 1))
+    out = _sides(side_colors(bg))
     out.alpha_composite(bg, (ART_X, 0))
     return out
+
+
+def _sides(colors: list[tuple[int, int, int]]) -> Image.Image:
+    """The room filled row by row with one color each."""
+    column = Image.new("RGB", (1, len(colors)))
+    column.putdata(colors)
+    return column.resize((W, len(colors)), Image.NEAREST).convert("RGBA")

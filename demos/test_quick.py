@@ -56,3 +56,20 @@ def test_a_swipe_down_closes_a_message_first(device):
     # With the message gone, the next swipe opens the panel.
     _swipe_down(device)
     expect(device.get_by_role("panel", "Quick settings")).to_be_visible()
+
+
+def test_do_not_disturb_holds_sounds(device):
+    device.advance(2)
+    _swipe_down(device)
+    sounds = device.get_by_role("switch", "Sounds")
+    dnd = device.get_by_role("switch", "Do not disturb")
+    dnd.tap()
+    expect(dnd).to_have_value("on")
+    expect(sounds).to_have_value("held")
+    # One page of tiles: a sideways swipe keeps the panel as it is.
+    w, h = device.screen_size()
+    device.swipe(w * 3 // 4, h // 4, w // 4, h // 4)
+    device.swipe(w // 4, h // 4, w * 3 // 4, h // 4)
+    expect(sounds).to_have_value("held")
+    dnd.tap()
+    expect(sounds).to_have_value("on")

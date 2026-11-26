@@ -118,6 +118,46 @@ class Task:
     flag: str = ""  # "f" flagged, "o" overdue, "d" due today
 
 
+# The habits the Habits app shows (script.demo_habits): id, title, up,
+# down, value, count up, count down, period.
+HABITS = [
+    ("water", "Drink water", True, False, 6.2, 3, 0, "d"),
+    ("stretch", "Stretch", True, False, 0.5, 1, 0, "d"),
+    ("snack", "Late snack", True, True, -11.0, 1, 2, "w"),
+    ("stairs", "Take the stairs", True, False, 12.0, 9, 0, "m"),
+    ("scroll", "Doomscrolling", False, True, -22.0, 0, 1, "d"),
+]
+# The hero's sensors a score's reply carries, in the order of an S line
+# without max HP.
+HERO_STATS = ["health", "mana", "max_mana", "experience", "next_level", "gold", "level"]
+
+
+@dataclass
+class DemoHabit:
+    id: str
+    title: str
+    up: bool
+    down: bool
+    value: float
+    count_up: int
+    count_down: int
+    period: str
+
+    def line(self) -> str:
+        """The H line the device gets for it."""
+        sides = f"{int(self.up)}\t{int(self.down)}"
+        counts = f"{self.count_up}\t{self.count_down}"
+        return f"H\t{self.id}\t{sides}\t{self.value}\t{counts}\t{self.period}\t{self.title}"
+
+    def score(self, up: bool) -> None:
+        if up:
+            self.count_up += 1
+            self.value += 0.5
+        else:
+            self.count_down += 1
+            self.value -= 0.5
+
+
 @dataclass
 class DemoData:
     tasks: list[Task] = field(
@@ -137,11 +177,41 @@ class DemoData:
     # Controls actions and Habitica button presses performed: (action, entity).
     controlled: list[tuple[str, str]] = field(default_factory=list)
 
+    habits: list[DemoHabit] = field(default_factory=lambda: [DemoHabit(*h) for h in HABITS])
+    # Scores the Habits app asked for: (habit id, direction).
+    scored: list[tuple[str, str]] = field(default_factory=list)
+    # What the next score answers, in the device's lines; None for an
+    # ordinary reply with the hero's numbers.
+    next_score: str | None = None
+
     # HA actions to refuse, as HA does when an entity is gone or a call
     # fails: "calendar.get_events", "todo.get_items".
     failing: set[str] = field(default_factory=set)
+    # The error HA gives for a refused action.
+    error: str = "demo: refused"
     # The home's time zone (an IANA name): its days start at local midnight.
     zone: str = "UTC"
+
+    def habits_reply(self, data: dict[str, str]) -> str:
+        """The habits script, as the device's response template renders it."""
+        if data.get("op") == "score":
+            return self._score(data["id"], data.get("direction", "up"))
+        rows = [f"L\t{len(self.habits)}"]
+        rows += [h.line() for h in self.habits]
+        return "\n".join(rows)
+
+    def _score(self, habit_id: str, direction: str) -> str:
+        self.scored.append((habit_id, direction))
+        reply, self.next_score = self.next_score, None
+        if reply is not None:
+            return reply
+        for h in self.habits:
+            if h.id == habit_id:
+                h.score(direction == "up")
+        hero = [self.entity_value(f"sensor.demo_hero_{k}", None) for k in HERO_STATS]
+        hero.insert(1, "50")  # Max HP: no sensor.
+        delta = "0.5" if direction == "up" else "-0.5"
+        return f"R\t1\t{delta}\t0\t\nS\t" + "\t".join(v or "-1" for v in hero)
 
     def _at(self, day: date, hour: int = 0, minute: int = 0) -> int:
         """Epoch seconds of a local time on `day`."""
@@ -238,6 +308,8 @@ class DemoData:
             return True, self.calendar(epoch(data["start_date_time"]), epoch(data["end_date_time"]))
         if action in ("todo.get_items", "recorder.get_statistics"):
             return True, self.todo()
+        if action == "script.demo_habits":
+            return True, self.habits_reply(data)
         if action == "weather.get_forecasts":
             return True, self.weather(data.get("type", "hourly"), now)
         if data.get("entity_id") in self.entities:

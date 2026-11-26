@@ -658,7 +658,7 @@ class Device:
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
             self._client.send_homeassistant_action_response(
-                call.call_id, success=ok, error_message="" if ok else "demo: refused", response_data=body
+                call.call_id, success=ok, error_message="" if ok else self.data.error, response_data=body
             )
             self._answers += 1
 

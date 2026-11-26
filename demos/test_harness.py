@@ -84,6 +84,40 @@ def test_habitica_entities_start_as_the_demos_show_them():
     assert data.entity_value("button.demo_hero_buy_a_health_potion", None) == "unknown"
 
 
+def test_the_habits_script_lists_in_the_device_lines():
+    ok, text = DemoData().answer("script.demo_habits", {"op": "list"})
+    lines = text.split("\n")
+    assert ok and lines[0] == "L\t5" and len(lines) == 6
+    assert lines[1] == "H\twater\t1\t0\t6.2\t3\t0\td\tDrink water"
+    assert lines[3] == "H\tsnack\t1\t1\t-11.0\t1\t2\tw\tLate snack"
+    assert lines[5] == "H\tscroll\t0\t1\t-22.0\t0\t1\td\tDoomscrolling"
+
+
+def test_a_habit_score_counts_and_answers_with_the_hero():
+    data = DemoData()
+    ok, text = data.answer("script.demo_habits", {"op": "score", "id": "snack", "direction": "down"})
+    assert ok and text == "R\t1\t-0.5\t0\t\nS\t41.5\t50\t22.4\t45\t380\t520\t93.71\t12"
+    snack = data.habits[2]
+    assert (snack.count_up, snack.count_down, snack.value) == (1, 3, -11.5)
+    data.answer("script.demo_habits", {"op": "score", "id": "snack", "direction": "up"})
+    assert (snack.count_up, snack.count_down, snack.value) == (2, 3, -11.0)
+    assert data.answer("script.demo_habits", {"op": "score", "id": "water"})[1].startswith("R\t1\t0.5\t")
+    assert data.scored == [("snack", "down"), ("snack", "up"), ("water", "up")]
+    # A set answer goes once, and scores nothing.
+    data.next_score = "R\t0\t0\t0\t"
+    assert data.answer("script.demo_habits", {"op": "score", "id": "water", "direction": "up"})[1] == "R\t0\t0\t0\t"
+    assert data.habits[0].count_up == 4 and data.next_score is None
+    # A hero sensor HA lacks is -1.
+    del data.entities["sensor.demo_hero_level"]
+    assert data.answer("script.demo_habits", {"op": "score", "id": "x", "direction": "up"})[1].endswith("\t-1")
+
+
+def test_a_refused_habits_script_says_why():
+    data = DemoData(failing={"script.demo_habits"})
+    assert data.reply("script.demo_habits", {"op": "list"}) == (False, None)
+    assert data.error == "demo: refused"
+
+
 @pytest.mark.parametrize(
     ("action", "entity", "values"),
     [

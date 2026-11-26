@@ -23,6 +23,7 @@ event in full. The rest of this page explains what you just saw.
 | [Quiz](../blueprints/script/quiz.yaml) (script) | A quiz from your list of questions, with a score and a 50:50 button. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fquiz.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 | [Task list from a sensor](../blueprints/script/task_list.yaml) (script) | Turns a list of tasks in a sensor attribute into a source for the Tasks app. | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Ftask_list.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 | [Focus scores a Habitica habit](../blueprints/automation/habitica_focus_habit.yaml) (automation) | Each finished focus block scores a Habitica habit. Setup: [habitica.md](habitica.md). | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fhabitica_focus_habit.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
+| [Habitica habits](../blueprints/script/habitica_habits.yaml) (script) | Lists your Habitica habits for the Habits app, and scores one on a tap. Setup: [habitica.md](habitica.md). | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fhabitica_habits.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a> |
 
 Each blueprint asks for the device's node name (default `daruma`, as in
 examples/box3.yaml), since the action names come from it.
@@ -281,6 +282,8 @@ The blueprints are listed with import buttons under
   with a score and a 50:50 button. Each question waits 60 s by default.
 - `blueprints/script/task_list.yaml`: not a prompt. It turns a task list
   in a sensor attribute into a source for the Tasks app.
+- `blueprints/script/habitica_habits.yaml`: not a prompt. It is the
+  Habits app's source for Habitica.
 
 The doorbell and the quiz show the card with `prompt_show` and wait for
 the answer event, so the wait can be longer than `ask` allows.

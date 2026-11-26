@@ -17,8 +17,13 @@
 #include "esphome/components/daruma/focus.h"
 #include "esphome/components/daruma/hub.h"
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
 #include "esphome/core/preferences.h"
 #include "habitica.h"
+
+#ifdef USE_DARUMA_HABITS
+#include "esphome/components/daruma_habits/habits_app.h"
+#endif
 
 namespace Daruma {
 
@@ -43,10 +48,21 @@ class HabiticaApp : public esphome::Component {
 
   // New numbers from anywhere: the known fields of `news`. Plays what the
   // change calls for. Other modules (a score reply) call it too.
-  void apply_stats(const HabiticaStats &news);
+  // Returns how long the reaction it played lasts (0 for none).
+  uint32_t apply_stats(const HabiticaStats &news);
   // An event numbers can't show: "drop" (a reaction and its words) or
   // "quest" (progress words). The message goes in the bubble.
   void event(const std::string &kind, const std::string &message);
+  // A score reply: its numbers, then its drop once the numbers' reaction
+  // (a level up) has played.
+  void apply_reply(const HabiticaStats &news, const std::string &drop);
+  // One row of the hero's stats in `row`: the level, three thin bars (HP,
+  // XP, MP) and the gold. Other apps draw it as a header.
+  void draw_header(AppView &v, const Rect &row);
+#ifdef USE_DARUMA_HABITS
+  // The Habits app shows the stats row, and its replies come here.
+  void attach_habits(HabitsApp *habits);
+#endif
   const HabiticaStats &stats() const { return this->model_.stats(); }
 
   // App hooks, for Daruma::App.

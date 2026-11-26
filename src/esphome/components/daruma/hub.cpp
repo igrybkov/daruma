@@ -779,7 +779,11 @@ uint16_t Hub::bound_mask_(int input) const {
         mask |= gesture_bit(nav.gesture);
     }
   }
-  // On an open screen, touch gestures belong to it; idle bindings rest.
+  // On an open screen, touch gestures belong to it, a long press too (the
+  // Controls app opens a level with one); idle bindings rest. A touch tap
+  // waits for lift-off anyway, so the hold adds no delay.
+  if (touch && this->ui_open())
+    mask |= gesture_bit(Gesture::HOLD);
   if (!(touch && this->ui_open())) {
     for (const auto &binding : this->bindings_) {
       if (binding.input == input && (!this->ui_open() || !binding.idle_only) && binding.action != "none" &&

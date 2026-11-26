@@ -71,3 +71,32 @@ def test_icons_only(device):
     device.get_by_role("control", "Fan").tap()
     expect(device.get_by_role("control", "Fan")).to_have_value("Off")
     assert ("fan.toggle", "fan.ceiling") in device.data.controlled
+
+
+def test_long_press_sets_a_level(device):
+    _open_controls(device, "Room")
+    # A long press on the fan opens its level; a three-speed fan is at 67%.
+    x, y = device.get_by_role("control", "Fan").wait_for().center
+    device.hold(x, y, 2.0)
+    bar = device.get_by_role("slider", "Fan")
+    expect(bar).to_have_value("67%")
+    expect(device).to_match_screenshot("fan")
+    # A tap near the left end snaps to the lowest speed.
+    bx, by, bw, bh = bar.bounding_box()
+    device.tap(bx + bw // 5, by + bh // 2)
+    expect(bar).to_have_value("33%")
+    assert device.data.entities["fan.ceiling"]["percentage"] == "33"
+    # Back goes to the tiles; the floor lamp's level turns it on.
+    device.get_by_role("button", "Back").tap()
+    expect(device.get_by_role("control", "Fan")).to_have_value("On · 33%")
+    x, y = device.get_by_role("control", "Floor lamp").wait_for().center
+    device.hold(x, y, 2.0)
+    bar = device.get_by_role("slider", "Floor lamp")
+    expect(bar).to_have_value("0%")
+    bx, by, bw, bh = bar.bounding_box()
+    device.tap(bx + bw * 3 // 4, by + bh // 2)
+    expect(bar).to_have_value("75%")
+    assert device.data.entities["light.floor_lamp"] == {"state": "on", "brightness": "191"}
+    # A tap on the top row toggles it.
+    device.get_by_role("button", "Floor lamp").tap()
+    expect(bar).to_have_value("0%")

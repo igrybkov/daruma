@@ -94,6 +94,19 @@ def test_a_controls_action_changes_its_entity(action, entity, values):
     assert data.controlled == [(action, entity)]
 
 
+def test_a_level_sets_brightness_and_speed():
+    data = DemoData()
+    assert data.answer("light.turn_on", {"entity_id": "light.floor_lamp", "brightness_pct": "40"}) == (True, None)
+    assert data.entities["light.floor_lamp"] == {"state": "on", "brightness": "102"}
+    data.control("light.turn_on", "light.floor_lamp", {"brightness_pct": "100"})
+    assert data.entities["light.floor_lamp"]["brightness"] == "255"
+    assert data.answer("fan.set_percentage", {"entity_id": "fan.ceiling", "percentage": "33"}) == (True, None)
+    assert data.entities["fan.ceiling"]["percentage"] == "33"
+    assert data.entities["fan.ceiling"]["state"] == "on"
+    data.control("fan.set_percentage", "fan.ceiling", {"percentage": "0"})
+    assert data.entities["fan.ceiling"]["state"] == "off"
+
+
 def test_opening_a_cover_and_running_a_script():
     data = DemoData(entities={"cover.door": {"state": "closed"}, "script.night": {"state": "on"}})
     assert data.control("cover.open_cover", "cover.door")

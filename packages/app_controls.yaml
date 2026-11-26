@@ -15,6 +15,10 @@
 # 6 by 3 on wide screens. The lit rim and icon still show on and off; a
 # sensor shows its value instead of an icon.
 #
+# A long press on a light or a fan opens its level: a wide bar. A tap on
+# the bar sets the brightness or the speed there (a fan snaps to its
+# speeds); a tap on the top row toggles it. Back returns to the tiles.
+#
 # A tile greys out while its entity is unavailable, and while HA is away.
 # More tiles than fit go on more pages: swipe left or right, or NEXT and
 # PREV on a board without touch.
@@ -113,6 +117,9 @@ daruma:
         c->set_actor([](const std::string &action, const std::string &entity) {
           id(${app_id}_act).execute(action, entity);
         });
+        c->set_leveler([](const std::string &entity, int level) {
+          id(${app_id}_level).execute(entity, level);
+        });
 
         Daruma::App app;
         app.id = "${app_id}";
@@ -124,6 +131,7 @@ daruma:
         app.input = [c](Daruma::Input input, int x, int y) { return c->input(input, x, y); };
         app.on_open = [c]() { c->on_open(); };
         app.on_close = [c]() { c->on_close(); };
+        app.back = [c]() { return c->back(); };
         hub.add_app(app);
 
 script:
@@ -139,3 +147,26 @@ script:
           action: !lambda return action;
           data:
             entity_id: !lambda return entity;
+
+  # A light's brightness or a fan's speed, from the level panel.
+  - id: ${app_id}_level
+    mode: queued
+    parameters:
+      entity: string
+      level: int
+    then:
+      - if:
+          condition:
+            lambda: 'return entity.rfind("fan.", 0) == 0;'
+          then:
+            - homeassistant.action:
+                action: fan.set_percentage
+                data:
+                  entity_id: !lambda return entity;
+                  percentage: !lambda return std::to_string(level);
+          else:
+            - homeassistant.action:
+                action: light.turn_on
+                data:
+                  entity_id: !lambda return entity;
+                  brightness_pct: !lambda return std::to_string(level);

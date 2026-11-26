@@ -37,6 +37,19 @@ static TileState state(const std::string &s, const std::string &extra = "") {
   return t;
 }
 
+static TileState light(const std::string &s, const std::string &brightness = "") {
+  TileState t = state(s, brightness);
+  t.scale = 255;
+  return t;
+}
+
+static TileState fan(const std::string &s, const std::string &pct = "", const std::string &step = "") {
+  TileState t = state(s, pct);
+  t.scale = 100;
+  t.step = step;
+  return t;
+}
+
 static void kinds() {
   CHECK_EQ(control_domain("light.desk"), "light");
   CHECK_EQ(control_domain("nodot"), "");
@@ -56,6 +69,7 @@ static void kinds() {
   CHECK_EQ(control_attribute("media_player.office"), "media_title");
   CHECK_EQ(control_attribute("cover.blinds"), "current_position");
   CHECK_EQ(control_attribute("sensor.co2"), "unit_of_measurement");
+  CHECK_EQ(control_attribute("fan.office"), "percentage");
   CHECK_EQ(control_attribute("switch.kettle"), "");
   CHECK_EQ(control_attribute("scene.movie"), "");
 }
@@ -108,15 +122,15 @@ static void texts() {
   // Toggles: on, off, a brightness, anything else as HA says it.
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("off"), w), "Off");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("on"), w), "On");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "153"), w), "On · 60%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "255"), w), "On · 100%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "300"), w), "On · 100%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "-5"), w), "On · 0%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "153"), w), "On · 60%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "255"), w), "On · 100%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "300"), w), "On · 100%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "-5"), w), "On · 0%");
   // Rounded to the nearest percent.
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "9"), w), "On · 4%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "14"), w), "On · 5%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "32"), w), "On · 13%");
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "None"), w), "On");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "9"), w), "On · 4%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "14"), w), "On · 5%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "32"), w), "On · 13%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "None"), w), "On");
   CHECK_EQ(control_text(ControlKind::TOGGLE, state("unknown"), w), "unknown");
 
   // Media: the title while playing.
@@ -151,7 +165,7 @@ static void texts() {
   // The words come from the theme.
   ControlWords de;
   de.on = "An";
-  CHECK_EQ(control_text(ControlKind::TOGGLE, state("on", "255"), de), "An · 100%");
+  CHECK_EQ(control_text(ControlKind::TOGGLE, light("on", "255"), de), "An · 100%");
 }
 
 static void actions() {
@@ -173,8 +187,81 @@ static void actions() {
   CHECK_EQ(control_action("light.desk", TileState{}), "");
 }
 
+static void levels() {
+  CHECK(control_scale("light.desk") == 255);
+  CHECK(control_scale("fan.office") == 100);
+  CHECK(control_scale("switch.kettle") == 0);
+  CHECK(control_fresh("light.desk").scale == 255);
+  CHECK(!control_fresh("light.desk").known);
+  CHECK(control_has_level("light.desk"));
+  CHECK(control_has_level("fan.office"));
+  CHECK(!control_has_level("switch.kettle"));
+  CHECK(!control_has_level("cover.blinds"));
+
+  // Percent from HA's attribute.
+  CHECK(control_percent(light("on", "153")) == 60);
+  CHECK(control_percent(light("on", "152.6")) == 60);
+  CHECK(control_percent(light("on", "300")) == 100);
+  CHECK(control_percent(light("on", "-5")) == 0);
+  CHECK(control_percent(light("on", "None")) == -1);
+  CHECK(control_percent(light("on", "inf")) == -1);
+  CHECK(control_percent(light("on")) == -1);
+  CHECK(control_percent(state("on", "153")) == -1);  // No scale: not a light or fan.
+  CHECK(control_percent(fan("on", "66")) == 66);
+  CHECK(control_percent(fan("on", "67.0")) == 67);
+  CHECK_EQ(control_text(ControlKind::TOGGLE, fan("on", "66"), ControlWords{}), "On · 66%");
+
+  // The bar: 0 while off, 100 while on without a level.
+  CHECK(control_level(light("off", "None")) == 0);
+  CHECK(control_level(light("on")) == 100);
+  CHECK(control_level(light("on", "153")) == 60);
+  CHECK(control_level(light("on", "0")) == 0);
+  CHECK(control_level(light("on", "1")) == 0);
+  CHECK(control_level(fan("unavailable", "50")) == 0);
+
+  // Steps.
+  CHECK(control_step(fan("on", "", "33.333333333333336")) > 33.3);
+  CHECK(control_step(fan("on", "", "")) == 1.0);
+  CHECK(control_step(fan("on", "", "None")) == 1.0);
+  CHECK(control_step(fan("on", "", "0.5")) == 1.0);
+  CHECK(control_step(fan("on", "", "1")) == 1.0);
+  CHECK(control_step(fan("on", "", "100")) == 100.0);
+  CHECK(control_step(fan("on", "", "101")) == 100.0);
+  CHECK(control_step(fan("on", "", "nan")) == 1.0);
+  CHECK(control_step(fan("on", "", "1.5")) == 1.5);
+  CHECK(control_step(fan("on", "", "25x")) == 1.0);
+
+  // A tap on the bar.
+  const TileState l = light("on", "153");
+  CHECK(control_level_at(0, 200, l) == 1);
+  CHECK(control_level_at(-10, 200, l) == 1);
+  CHECK(control_level_at(1, 200, l) == 1);
+  CHECK(control_level_at(3, 200, l) == 2);
+  CHECK(control_level_at(100, 200, l) == 50);
+  CHECK(control_level_at(199, 200, l) == 100);
+  CHECK(control_level_at(250, 200, l) == 100);
+  CHECK(control_level_at(10, 0, l) == 100);  // No bar: a 1-pixel one.
+  CHECK(control_level_at(10, -5, l) == 100);
+  CHECK(control_level_at(1, 1, l) == 100);
+  CHECK(control_level_at(0, 2, l) == 1);
+  CHECK(control_level_at(1, 100, fan("on", "", "1.5")) == 2);
+  // A three-speed fan snaps to 33, 67 or 100.
+  const TileState f = fan("on", "67", "33.333333333333336");
+  CHECK(control_level_at(0, 300, f) == 33);
+  CHECK(control_level_at(49, 300, f) == 33);
+  CHECK(control_level_at(51, 300, f) == 33);
+  CHECK(control_level_at(150, 300, f) == 67);
+  CHECK(control_level_at(249, 300, f) == 67);
+  CHECK(control_level_at(251, 300, f) == 100);
+  CHECK(control_level_at(300, 300, f) == 100);
+  // A four-speed fan.
+  CHECK(control_level_at(110, 300, fan("on", "", "25")) == 25);
+  CHECK(control_level_at(115, 300, fan("on", "", "25")) == 50);
+}
+
 int main() {
   kinds();
+  levels();
   availability();
   numbers();
   texts();

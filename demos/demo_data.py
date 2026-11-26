@@ -56,7 +56,7 @@ CONTROLS = {
     "switch.kettle": {"state": "off"},
     "light.ceiling": {"state": "on", "brightness": "255"},
     "light.floor_lamp": {"state": "off"},
-    "fan.ceiling": {"state": "on"},
+    "fan.ceiling": {"state": "on", "percentage": "67", "percentage_step": "33.333333333333336"},
 }
 
 # What a Controls action does to its entity's state.
@@ -153,8 +153,9 @@ class DemoData:
             return None
         return values.get(attribute or "state")
 
-    def control(self, action: str, entity: str) -> bool:
-        """A Controls tap: changes the entity as HA would. False for an entity HA lacks."""
+    def control(self, action: str, entity: str, data: dict[str, str] | None = None) -> bool:
+        """A Controls tap: changes the entity as HA would. False for an entity HA lacks.
+        `data` holds a level: brightness_pct for a light, percentage for a fan."""
         values = self.entities.get(entity)
         if values is None:
             return False
@@ -167,6 +168,12 @@ class DemoData:
         elif verb in ("open_cover", "close_cover"):
             values["state"] = "open" if verb == "open_cover" else "closed"
             values["current_position"] = "100" if verb == "open_cover" else "0"
+        elif action == "light.turn_on":
+            values["state"] = "on"
+            values["brightness"] = str(round(int(data["brightness_pct"]) * 255 / 100))
+        elif action == "fan.set_percentage":
+            values["percentage"] = data["percentage"]
+            values["state"] = "off" if data["percentage"] == "0" else "on"
         return True
 
     def reply(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:
@@ -189,7 +196,7 @@ class DemoData:
         if action == "weather.get_forecasts":
             return True, self.weather(data.get("type", "hourly"), now)
         if data.get("entity_id") in self.entities:
-            return self.control(action, data["entity_id"]), None
+            return self.control(action, data["entity_id"], data), None
         if action == "todo.update_item":
             return self.check(data.get("item", ""), data.get("status") == "completed"), None
         return True, None

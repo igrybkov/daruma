@@ -44,6 +44,8 @@ inline const char *control_attribute(const std::string &entity) {
   const std::string d = control_domain(entity);
   if (d == "light")
     return "brightness";
+  if (d == "fan")
+    return "percentage";
   if (d == "media_player")
     return "media_title";
   if (d == "cover")
@@ -57,8 +59,26 @@ inline const char *control_attribute(const std::string &entity) {
 struct TileState {
   bool known{false};  // A state came since HA connected.
   std::string state;  // "on", "playing", "21.5", "unavailable", ...
-  std::string extra;  // The attribute: brightness, title, position or unit.
+  std::string extra;  // The attribute: brightness, percentage, title, position or unit.
+  int scale{0};       // What `extra` counts to as a level: 255 for a light, 100 for a fan, else 0.
+  std::string step;   // A fan's percentage_step: 33.3 for three speeds.
 };
+
+// The full scale of an entity's level: a light's brightness goes to 255, a
+// fan's percentage to 100. 0 for an entity without a level.
+inline int control_scale(const std::string &entity) {
+  const std::string d = control_domain(entity);
+  if (d == "light")
+    return 255;
+  return d == "fan" ? 100 : 0;
+}
+
+// A tile's state before HA sends anything.
+inline TileState control_fresh(const std::string &entity) {
+  TileState s;
+  s.scale = control_scale(entity);
+  return s;
+}
 
 // The words a tile shows. Theme words under the app id fill them.
 struct ControlWords {
@@ -108,20 +128,60 @@ inline std::string control_number(const std::string &text) {
   return out;
 }
 
+// The level HA sent, in percent: brightness 153 of 255 is 60. -1 without one.
+inline int control_percent(const TileState &s) {
+  if (s.scale == 0 || s.extra.empty())
+    return -1;
+  char *end = nullptr;
+  const double v = std::strtod(s.extra.c_str(), &end);
+  if (*end != '\0' || !std::isfinite(v))
+    return -1;
+  const long long raw = std::max(0LL, std::min((long long) s.scale, std::llround(v)));
+  // No brightness lands on a half, so any offset near 127 rounds the same.
+  const long long half = s.scale / 2;  // pragma: no mutate
+  return (int) ((raw * 100 + half) / s.scale);
+}
+
 // "On · 60%" for a light at brightness 153 of 255; "On" without one.
 inline std::string control_toggle_text(const TileState &s, const ControlWords &w) {
   if (s.state == "off")
     return w.off;
   if (s.state != "on")
     return s.state;
+  const int pct = control_percent(s);
+  return pct < 0 ? w.on : w.on + " · " + std::to_string(pct) + "%";
+}
+
+// A light or a fan: a long press opens its level.
+inline bool control_has_level(const std::string &entity) { return control_scale(entity) != 0; }
+
+// The level the bar shows: 0 while off, 100 while on without a level.
+inline int control_level(const TileState &s) {
+  if (s.state != "on")
+    return 0;
+  const int pct = control_percent(s);
+  return pct < 0 ? 100 : pct;
+}
+
+// A fan's speed step in percent, 1 to 100; 1 (any level) without one.
+inline double control_step(const TileState &s) {
   char *end = nullptr;
-  const long b = std::strtol(s.extra.c_str(), &end, 10);
-  if (s.extra.empty() || end == nullptr || *end != '\0')
-    return w.on;
-  // No brightness lands on a half, so any offset near 127 rounds the same.
-  const long half = 127;  // pragma: no mutate
-  const long pct = (std::max(0L, std::min(255L, b)) * 100 + half) / 255;
-  return w.on + " · " + std::to_string(pct) + "%";
+  const double v = std::strtod(s.step.c_str(), &end);
+  if (*end != '\0' || !std::isfinite(v))
+    return 1.0;
+  return std::min(100.0, std::max(1.0, v));
+}
+
+// The level for a tap `offset` pixels into a bar `width` wide: 1 to 100, on
+// a fan's speed step. The left end is the lowest level, not off.
+inline int control_level_at(int offset, int width, const TileState &s) {
+  const long w = std::max(1, width);
+  const long clamped = std::max(0L, std::min((long) offset, w));
+  const long pct = (clamped * 100 + w / 2) / w;
+  // On a step: a step of 1 leaves the level as it is.
+  const double step = control_step(s);
+  const long speeds = std::max(1L, std::lround(pct / step));
+  return (int) std::min(100L, std::lround(speeds * step));
 }
 
 // The title while playing, else "Playing", "Paused", "Idle" or "Off".

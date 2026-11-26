@@ -137,6 +137,8 @@ for a touch screen. Touch has a second
 hold, `long_hold`, so the screen can keep two holds: 1-2.5 s toggles and
 3 s stops. In an open menu or app, screen gestures go to it. Screen
 bindings rest there, so a hold on the dock doesn't reach the pomodoro.
+A screen hold there fires `Input::HOLD` at hold time, still held. The
+Controls app opens a light's or a fan's level with it.
 
 **No delay unless it is needed.** What counts is what is bound in the
 current context: idle, or navigation (`when: idle` bindings rest while a

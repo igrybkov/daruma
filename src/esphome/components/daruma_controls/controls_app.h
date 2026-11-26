@@ -24,6 +24,8 @@ class ControlsApp : public esphome::Component {
  public:
   // Performs HA's `action` on `entity` ("light.toggle", "light.desk").
   using Actor = std::function<void(const std::string &action, const std::string &entity)>;
+  // Sets a light's brightness or a fan's speed, in percent.
+  using Leveler = std::function<void(const std::string &entity, int level)>;
 
   struct Tile {
     std::string entity;
@@ -35,6 +37,7 @@ class ControlsApp : public esphome::Component {
 
   void set_hub(Hub *hub) { this->hub_ = hub; }
   void set_actor(Actor actor) { this->actor_ = std::move(actor); }
+  void set_leveler(Leveler leveler) { this->leveler_ = std::move(leveler); }
   // The theme keys' prefix: the app's id ("controls.on").
   void set_theme_prefix(const std::string &prefix) { this->prefix_ = prefix; }
   void set_check_icon(const std::string &icon) { this->check_icon_ = icon; }
@@ -50,7 +53,9 @@ class ControlsApp : public esphome::Component {
   void draw(AppView &v);
   bool input(Input input, int x, int y);
   void on_open();
-  void on_close() { this->open_ = false; }
+  void on_close();
+  // Back from a level panel to the tiles. False on the tiles.
+  bool back();
 
   const std::vector<Tile> &tiles() const { return this->tiles_; }
 
@@ -75,15 +80,21 @@ class ControlsApp : public esphome::Component {
   void changed_();
   void act_(int index);
   void page_to_focus_();
+  int tile_at_(int x, int y) const;
   ControlWords words_() const;
   std::string word_(const char *key) const;
   void draw_tile_(AppView &v, const Tile &tile, const Rect &r, bool focused, const ControlWords &w);
+  bool panel_input_(Input input, int x, int y);
+  void open_panel_(int index);
+  void set_level_(int level);
+  void draw_panel_(AppView &v, const Tile &tile);
   void draw_icon_only_(AppView &v, const Rect &r, ControlKind kind, const TileLook &look);
   void draw_words_(AppView &v, const Rect &r, const std::string &label, const TileLook &look);
   void draw_dots_(AppView &v, const Grid &g, int pages);
 
   Hub *hub_{nullptr};
   Actor actor_;
+  Leveler leveler_;
   std::string prefix_{"controls"};
   std::string check_icon_;
   bool icons_only_{false};
@@ -98,6 +109,12 @@ class ControlsApp : public esphome::Component {
   uint32_t check_until_ms_{0};
   // The last grid drawn, for taps.
   Grid last_grid_;
+  // The level panel: which tile, the bar and the top row as last drawn (in
+  // app-area coordinates), and the level a tap set until HA confirms it.
+  int panel_index_{-1};
+  Rect bar_, head_;
+  int pending_level_{-1};
+  uint32_t pending_until_ms_{0};
 };
 
 }  // namespace Daruma

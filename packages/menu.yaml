@@ -133,7 +133,6 @@ font:
       - "\U000F0493"  # cog (Settings)
       - "\U000F057E"  # volume-high (Sounds)
       - "\U000F01F5"  # emoticon-happy-outline (Jokes)
-      - "\U000F050F"  # thermometer (Temperature badge)
       - "\U000F0376"  # minus-circle (Do not disturb)
       - "\U000F036D"  # microphone-off (Mic mute)
       # Weather conditions (app_weather.yaml, daruma_weather/weather.h).
@@ -178,7 +177,7 @@ font:
       - "\U000F1727"  # script-text-play
       - "\U000F04C3"  # speaker
       - "\U000F0502"  # television
-      - "\U000F050F"  # thermometer
+      - "\U000F050F"  # thermometer (also the Temperature badge setting)
       - "\U000F0521"  # toggle-switch
       - "\U000F058E"  # water-percent
       - "\U000F111C"  # window-shutter

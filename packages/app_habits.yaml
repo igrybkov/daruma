@@ -14,11 +14,12 @@
 #
 # Each tap is one score, sent one at a time. Two caps keep the account's
 # request budget: past `max_waiting` taps waiting, or `per_minute` scores
-# in a minute, a tap is dropped with the notice "Habitica is busy". So is
+# in a minute, a tap is dropped with the notice "Busy, try again soon". So is
 # a score that HA turns down for a rate limit.
 #
 # With habitica.yaml in the build, the app shows the hero's stats in a row
-# on top, and a score's reply plays level_up and drop at once.
+# on top, and a score's reply plays level_up and drop at once. A reply's
+# drop, or its quest progress ("Quest +3.5"), shows in the notice line.
 #
 # Source: the "Habits entity" setting in HA, a script that follows this
 # contract. The blueprint "Daruma: Habitica habits"
@@ -65,7 +66,8 @@ defaults:
   text_error: "Can't load the habits"
   text_empty: "No habits"
   text_no_source: "Set the Habits entity to a script"
-  text_busy: "Habitica is busy"
+  text_busy: "Busy, try again soon"
+  text_quest: "Quest +{n}"
   text_failed: "Couldn't score"
   text_status: "{net} today"
   text_today: "today"
@@ -143,6 +145,7 @@ daruma:
           empty: "${text_empty}"
           no_source: "${text_no_source}"
           busy: "${text_busy}"
+          quest: "${text_quest}"
           failed: "${text_failed}"
           status: "${text_status}"
           today: "${text_today}"

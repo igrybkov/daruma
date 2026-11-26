@@ -91,3 +91,13 @@ def test_an_error_takes_the_score_back(device):
     # The notice goes away on its own.
     device.advance(4)
     expect(device.get_by_role("notice")).to_be_hidden()
+
+
+def test_quest_progress_shows_in_the_notice_line(device):
+    _open_habits(device)
+    device.data.next_score = "R\t1\t0.5\t3.46\t"
+    device.get_by_role("button", "Drink water +").tap()
+    expect(device.get_by_role("notice", "Quest +3.5")).to_be_visible()
+    # It goes away on its own.
+    device.advance(6)
+    expect(device.get_by_role("notice")).to_be_hidden()

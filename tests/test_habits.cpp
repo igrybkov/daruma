@@ -228,6 +228,26 @@ static void small_parts() {
   CHECK(!habit_rate_limited(""));
 }
 
+static void news_of_a_reply() {
+  CHECK(habit_decimal(3.46f) == "3.5");
+  CHECK(habit_decimal(3.0f) == "3");
+  CHECK(habit_decimal(0.04f) == "0");
+  CHECK(habit_decimal(12.25f) == "12.3");
+  HabitReply r;
+  CHECK(habit_news(r, "Quest +{n}").empty());
+  r.quest = 3.5f;
+  CHECK(habit_news(r, "Quest +{n}") == "Quest +3.5");
+  CHECK(habit_news(r, "Quest") == "Quest");  // A word without {n}.
+  CHECK(habit_news(r, "+{n} dmg") == "+3.5 dmg");
+  r.quest = 0.5f;
+  CHECK(habit_news(r, "Quest +{n}") == "Quest +0.5");
+  r.drop = "You found an egg!";
+  CHECK(habit_news(r, "Quest +{n}") == "You found an egg!");
+  r.drop.clear();
+  r.quest = -1;
+  CHECK(habit_news(r, "Quest +{n}").empty());
+}
+
 static void select_once_or_twice() {
   // The default waits 400 ms; nothing waits before a press.
   HabitSelect d;
@@ -443,6 +463,7 @@ int main() {
   list_defaults();
   parse_a_reply();
   small_parts();
+  news_of_a_reply();
   select_once_or_twice();
   fetch_and_generations();
   fetch_fails_and_times_out();

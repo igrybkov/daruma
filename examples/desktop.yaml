@@ -89,7 +89,7 @@ packages:
     vars: { user: demo_hero }
   app_habits: !include
     file: ../packages/app_habits.yaml
-    vars: { entity: script.demo_habits }
+    vars: { entity: script.demo_habits, text_busy: "Habitica is busy" }
   app_settings: !include ../packages/app_settings.yaml
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml

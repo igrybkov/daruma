@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
@@ -186,7 +187,27 @@ inline int habit_today_net(const std::vector<Habit> &habits) {
   return net;
 }
 
-// "Habitica is busy": HA's error for Habitica's rate limit.
+// A number with at most one decimal: 3.46 -> "3.5", 3.0 -> "3".
+inline std::string habit_decimal(float v) {
+  const long tenths = std::lround(v * 10);
+  const std::string whole = std::to_string(tenths / 10);
+  return tenths % 10 == 0 ? whole : whole + "." + std::to_string(std::labs(tenths % 10));
+}
+
+// What a score's reply leaves in the notice line: its drop, else its quest
+// progress in `quest_word` ("Quest +{n}"); "" for neither.
+inline std::string habit_news(const HabitReply &r, std::string quest_word) {
+  if (!r.drop.empty())
+    return r.drop;
+  if (!(r.quest > 0))
+    return "";
+  const size_t at = quest_word.find("{n}");
+  if (at != std::string::npos)
+    quest_word.replace(at, 3, habit_decimal(r.quest));
+  return quest_word;
+}
+
+// The busy notice: HA's error for a rate limit.
 inline bool habit_rate_limited(std::string error) {
   for (char &c : error)
     c = (char) std::tolower((unsigned char) c);

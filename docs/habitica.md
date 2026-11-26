@@ -176,6 +176,7 @@ makes it.
          - path: packages/app_habits.yaml
            vars:
              entity: script.habitica_habits
+             text_busy: "Habitica is busy"
 
    daruma:
      apps: [dailies, todos, habits, character, calendar, weather, stats]
@@ -195,6 +196,7 @@ On the device:
 - With [habitica.yaml](../packages/habitica.yaml) in the build, a row of
   your stats sits on top. A score that levels you up plays `level_up`
   at once. A drop plays `drop` after it, and its text shows in the app.
+  Quest progress shows there too: "Quest +3.5".
 - The tile reads today's net score: "+4 today".
 - Without touch: NEXT and PREV move over the rows. SELECT scores up.
   Two quick SELECTs score down.
@@ -205,8 +207,9 @@ Two package vars keep your request budget:
 - `max_waiting` (5): a tap past five waiting ones is dropped.
 - `per_minute` (12): at most 12 scores a minute leave the device.
 
-Either shows "Habitica is busy". So does a score that Habitica turns
-down for its rate limit.
+Either shows the `text_busy` notice: "Busy, try again soon" by default,
+and "Habitica is busy" in the example above. So does a score that
+Habitica turns down for its rate limit.
 
 Listing the habits reads the integration's cache. It costs no request.
 Your notes and the history of each habit stay in Home Assistant.

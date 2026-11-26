@@ -84,8 +84,8 @@ class HabitsApp : public esphome::Component {
   HabitSelect select_timer_;
   int first_{0};  // First row shown.
   std::string shown_notice_;
-  std::string drop_;  // The last drop's words, and when it came.
-  uint32_t drop_at_{0};
+  std::string news_;  // A reply's drop or quest progress, and when it came.
+  uint32_t news_at_{0};
 
   // From the last draw, for taps (app-area coordinates).
   struct Target {

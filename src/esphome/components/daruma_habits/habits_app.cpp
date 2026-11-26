@@ -16,8 +16,8 @@ using esphome::display::TextAlign;
 static const char *const TAG = "daruma_habits";
 static const std::string PREFIX = "habits.";
 // Theme colors for Habitica's value bands, worst to best (habit_value_band).
-// How long a drop's words stay in the notice line.
-static const uint32_t DROP_MS = 5000;
+// How long a drop or quest progress stays in the notice line.
+static const uint32_t NEWS_MS = 5000;
 static const char *const BANDS[] = {"worst", "worse", "bad", "neutral", "good", "better", "best"};
 
 // The rendered text HA sends under "response".
@@ -28,9 +28,10 @@ static std::string reply_text(ArduinoJson::JsonObjectConst reply) {
 
 void HabitsApp::setup() {
   this->list_.set_on_reply([this](const HabitReply &r) {
-    if (!r.drop.empty()) {
-      this->drop_ = r.drop;
-      this->drop_at_ = esphome::millis();
+    const std::string news = habit_news(r, this->word_("quest"));
+    if (!news.empty()) {
+      this->news_ = news;
+      this->news_at_ = esphome::millis();
     }
     for (auto &listener : this->listeners_)
       listener(r);
@@ -59,12 +60,12 @@ void HabitsApp::loop() {
   }
 }
 
-// What the notice line says now: a problem, else a drop for a while.
+// What the notice line says now: a problem, else a reply's news for a while.
 std::string HabitsApp::notice_text_(uint32_t now) const {
   const HabitList::Notice notice = this->list_.notice(now);
   if (notice != HabitList::Notice::NONE)
     return this->word_(notice == HabitList::Notice::BUSY ? "busy" : "failed");
-  return now - this->drop_at_ < DROP_MS ? this->drop_ : "";
+  return now - this->news_at_ < NEWS_MS ? this->news_ : "";
 }
 
 void HabitsApp::changed_() {
@@ -276,7 +277,7 @@ void HabitsApp::draw_button_(AppView &v, const Rect &r, bool up, const std::stri
   UiTree::add("button", name, r);
 }
 
-// "Habitica is busy", "Couldn't score" or a drop, for a few seconds, at the bottom.
+// A busy notice, "Couldn't score", a drop or quest progress, at the bottom.
 void HabitsApp::draw_notice_(AppView &v) {
   const std::string text = this->notice_text_(esphome::millis());
   if (text.empty())

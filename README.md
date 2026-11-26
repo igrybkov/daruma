@@ -93,7 +93,7 @@ and messages from your home.
 ## Install
 
 You need an ESP32-S3-BOX-3, Home Assistant, and
-ESPHome 2026.11.0 or later.
+ESPHome 2026.11.1 or later.
 
 1. Copy [examples/box3.yaml](examples/box3.yaml) into your ESPHome config
    folder. It has every public persona and every app.

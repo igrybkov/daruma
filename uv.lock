@@ -975,7 +975,7 @@ dev = [
     { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
     { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
     { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
-    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.0" },
+    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.1" },
     { name = "gitlint-core", specifier = "==0.19.1" },
     { name = "grimp", specifier = ">=3.5" },
     { name = "mutmut", specifier = "==3.8.1" },
@@ -987,7 +987,7 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.8" },
     { name = "pyyaml", specifier = ">=6" },
 ]
-esphome = [{ name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.0" }]
+esphome = [{ name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.1" }]
 lint = [
     { name = "gitlint-core", specifier = "==0.19.1" },
     { name = "pre-commit", specifier = "==4.7.0" },
@@ -1016,7 +1016,7 @@ test = [
     { name = "daruma-shapes-pets", editable = "pixel/shapes-pets" },
     { name = "daruma-shapes-plants", editable = "pixel/shapes-plants" },
     { name = "daruma-shapes-rooms", editable = "pixel/shapes-rooms" },
-    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.0" },
+    { name = "esphome", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = "==2026.11.1" },
     { name = "grimp", specifier = ">=3.5" },
     { name = "mutmut", specifier = "==3.8.1" },
     { name = "pillow", specifier = ">=10" },
@@ -1253,7 +1253,7 @@ serial = [
 
 [[package]]
 name = "esphome"
-version = "2026.11.0"
+version = "2026.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aioesphomeapi" },
@@ -1290,9 +1290,9 @@ dependencies = [
     { name = "voluptuous" },
     { name = "zeroconf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/fd/00029ec45ee935214f25405b76dacffc81b26d8f2311762abbfcc2b54190/esphome-2026.11.0.tar.gz", hash = "sha256:a891c9dd45c1624fe5bf736462e1212c59172f2e46d17cf2d6deb28ca35d58dd", size = 6396434, upload-time = "2026-11-18T18:43:53.5Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/d7/0538d8fdd480be93041947f9f0b96eeb976e6dd820b4709c5cda5cfbaf58/esphome-2026.11.1.tar.gz", hash = "sha256:fa5fbaa0ef6002206de66acdf36a38fe476f75b71792694ee3daadd44fd29580", size = 6400583, upload-time = "2026-11-25T06:56:12.336Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/e0/e0473fd5a87bb46a449d812ad81718de852f2d488d22ada1e64848b3077c/esphome-2026.11.0-py3-none-any.whl", hash = "sha256:2079e37481b56fe200aa0a7b636091b23dc5335ca467393adb267b5c733a8eac", size = 8555780, upload-time = "2026-11-18T18:43:50.252Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/fc/d7bd318bd7d75a05601f89f0e8599647ef07521da6f996bd5c2908ea6784/esphome-2026.11.1-py3-none-any.whl", hash = "sha256:f9c5b9127d8b36e0e48c178fd779c8c46542e9fbe96e734086dbb3decde0b222", size = 8559737, upload-time = "2026-11-25T06:56:09.483Z" },
 ]
 
 [[package]]

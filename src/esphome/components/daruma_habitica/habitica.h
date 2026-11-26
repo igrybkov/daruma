@@ -129,7 +129,7 @@ inline int habitica_fill(float value, float max, int width) {
 // std::string::npos without one.
 inline size_t habitica_split(const std::string &text) {
   size_t best = std::string::npos;
-  for (size_t i = 0; i < text.size(); i++) {
+  for (size_t i = 0; i < text.size(); i++) {  // pragma: no mutate
     if (text[i] != ' ')
       continue;
     const long off = std::labs((long) (2 * i) - (long) text.size());
@@ -178,7 +178,7 @@ class HabiticaModel {
 
  protected:
   HabiticaActivity activity_now_() const {
-    if (habitica_known(this->shown_.hp) && std::lround(this->shown_.hp * 10) == 0)
+    if (habitica_known(this->shown_.hp) && this->shown_.hp <= 0)
       return HabiticaActivity::FAINTED;
     if (this->shown_.resting == 1)
       return HabiticaActivity::RESTING;

@@ -29,6 +29,16 @@ static HabiticaStats hero(float hp, int level) {
 
 static HabiticaStats only_hp(float hp) { return hero(hp, -1); }
 
+static void unknown_by_default() {
+  // Every field starts unknown: -1 exactly.
+  HabiticaStats s;
+  CHECK(s.hp == -1 && s.hp_max == -1 && s.mp == -1 && s.mp_max == -1);
+  CHECK(s.xp == -1 && s.xp_next == -1 && s.gold == -1);
+  CHECK(s.level == -1 && s.resting == -1 && s.cls.empty());
+  HabiticaReactions r;
+  CHECK(!r.level_up && !r.hurt && !r.activity_changed && r.activity == HabiticaActivity::NONE);
+}
+
 static void numbers_from_states() {
   CHECK(habitica_number("47.3") == 47.3f);
   CHECK(habitica_number("0") == 0.0f);
@@ -126,6 +136,7 @@ static void shown_and_bars() {
   CHECK(habitica_fill(-1, 50, 100) == 0);
   CHECK(habitica_fill(25, -1, 100) == 0);
   CHECK(habitica_fill(25, 0, 100) == 0);
+  CHECK(habitica_fill(0.25f, 0.5f, 100) == 50);  // A max under 1.
 }
 
 static void split_in_two() {
@@ -137,6 +148,7 @@ static void split_in_two() {
   CHECK(habitica_split("") == std::string::npos);
   CHECK(habitica_split("a bcdefgh") == 1);
   CHECK(habitica_split("abcdefg h") == 7);
+  CHECK(habitica_split(" abc") == 0);
 }
 
 static void first_values_play_nothing() {
@@ -147,7 +159,7 @@ static void first_values_play_nothing() {
   // One field at a time, as HA sends them: still nothing.
   HabiticaModel one;
   r = one.apply(hero(-1, 12));
-  CHECK(!r.level_up && !r.hurt);
+  CHECK(!r.level_up && !r.hurt && !r.activity_changed);
   r = one.apply(only_hp(20));
   CHECK(!r.level_up && !r.hurt);
 }
@@ -166,6 +178,10 @@ static void level_up() {
   // A set without the level leaves it alone.
   r = m.apply(only_hp(50));
   CHECK(!r.level_up && m.stats().level == 12);
+  // Any known level counts, the lowest too.
+  HabiticaModel low;
+  low.apply(hero(50, 0));
+  CHECK(low.apply(hero(50, 1)).level_up);
 }
 
 static void hurt_by_threshold() {
@@ -255,6 +271,8 @@ static void fainted_and_resting() {
   // Just above 0 is alive.
   r = m.apply(only_hp(0.2f));
   CHECK(!r.activity_changed && r.activity == HabiticaActivity::NONE);
+  r = m.apply(only_hp(0.04f));
+  CHECK(!r.activity_changed && r.activity == HabiticaActivity::NONE);
 
   // The inn.
   HabiticaStats inn;
@@ -275,6 +293,7 @@ static void fainted_and_resting() {
 }
 
 int main() {
+  unknown_by_default();
   numbers_from_states();
   fields_by_name();
   unknown_states_unset_fields();

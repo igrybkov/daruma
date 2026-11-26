@@ -237,8 +237,8 @@ void ControlsApp::draw_tile_(AppView &v, const Tile &tile, const Rect &r, bool f
   look.state_color = t.on(look.fill, t.muted);
   look.state = control_text(tile.kind, tile.state, w);
   this->draw_words_(v, r, tile.label, look);
-  // The check mark reads as "done"; an entity HA has not sent yet as unavailable.
-  UiTree::add("control", tile.label, r, focused, check ? "done" : (available ? look.state : w.unavailable));
+  // The check mark reads as "done".
+  UiTree::add("control", tile.label, r, focused, check ? "done" : look.state);
 }
 
 // The icon left, the label and the state right. Narrow tiles put the icon

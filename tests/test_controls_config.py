@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 import esphome.config_validation as cv
+import esphome.final_validate as fv
 import esphome_components  # noqa: F401
 from esphome.components import daruma_controls as controls
 
@@ -63,6 +64,10 @@ class IconName(unittest.TestCase):
         self.assertEqual(controls.tile_icon({"entity": "light.desk", "icon": "lamp"}), "lamp")
         self.assertEqual(controls.tile_icon({"entity": "cover.blinds"}), "window-shutter")
 
+    def test_label_falls_back_to_the_entity_name(self):
+        self.assertEqual(controls.tile_label({"entity": "light.desk_lamp"}), "Desk lamp")
+        self.assertEqual(controls.tile_label({"entity": "light.desk_lamp", "label": "Desk"}), "Desk")
+
     def test_glyph(self):
         self.assertEqual(controls.glyph("check"), "\U000f012c")
 
@@ -88,6 +93,23 @@ class IconsInTheFont(unittest.TestCase):
     def test_another_font_is_not_checked(self):
         other = {"id": "font_other", "glyphs": []}
         controls.check_icons(config({"entity": "fan.desk"}), [other])
+
+    def test_final_validate_reads_the_fonts_of_the_whole_config(self):
+        token = fv.full_config.set({"font": [font("palette", "check")]})
+        try:
+            with self.assertRaisesRegex(cv.Invalid, "mdi:fan"):
+                controls._final_validate(config({"entity": "fan.desk"}))
+            with self.assertRaisesRegex(cv.Invalid, "mdi:fan"):
+                controls._final_validate(
+                    [config({"entity": "scene.movie", "icon": "palette"}), config({"entity": "fan.desk"})]
+                )
+        finally:
+            fv.full_config.reset(token)
+        token = fv.full_config.set({"font": [font("fan", "check")]})
+        try:
+            controls._final_validate([config({"entity": "fan.desk"})])
+        finally:
+            fv.full_config.reset(token)
 
     def test_menu_font_has_every_icon(self):
         # menu.yaml's icon font lists every icon a tile may name.

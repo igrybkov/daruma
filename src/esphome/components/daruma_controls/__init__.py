@@ -15,7 +15,7 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome.components import font
 from esphome.components.daruma import CONF_DARUMA_ID, Hub, daruma_ns
-from esphome.const import CONF_FILE, CONF_GLYPHS, CONF_ICON, CONF_ID
+from esphome.const import CONF_GLYPHS, CONF_ICON, CONF_ID
 
 DEPENDENCIES = ["api", "daruma", "font"]
 MULTI_CONF = True
@@ -105,6 +105,11 @@ def tile_icon(tile) -> str:
     return tile.get(CONF_ICON) or DEFAULT_ICONS[domain(tile[CONF_ENTITY])]
 
 
+def tile_label(tile) -> str:
+    """A tile's label: its own, or the entity's name part ("Desk lamp")."""
+    return tile.get(CONF_LABEL) or tile[CONF_ENTITY].split(".", 1)[1].replace("_", " ").capitalize()
+
+
 def glyph(name: str) -> str:
     return chr(ICONS[name])
 
@@ -148,7 +153,7 @@ def check_icons(config, fonts) -> None:
     for name in dict.fromkeys(names):
         if glyph(name) not in have:
             raise cv.Invalid(
-                f"Icon 'mdi:{name}' is not in the font '{font_id}' ({font_conf.get(CONF_FILE)}). "
+                f"Icon 'mdi:{name}' is not in the font '{font_id}'. "
                 f'Add it to the font\'s glyphs: - "\\U{ICONS[name]:08X}"  # {name}'
             )
 
@@ -171,6 +176,4 @@ async def to_code(config):
     cg.add(var.set_hub(await cg.get_variable(config[CONF_DARUMA_ID])))
     cg.add(var.set_check_icon(glyph(CHECK_ICON)))
     for tile in config[CONF_TILES]:
-        entity = tile[CONF_ENTITY]
-        label = tile.get(CONF_LABEL) or entity.split(".", 1)[1].replace("_", " ").capitalize()
-        cg.add(var.add_tile(entity, label, glyph(tile_icon(tile))))
+        cg.add(var.add_tile(tile[CONF_ENTITY], tile_label(tile), glyph(tile_icon(tile))))

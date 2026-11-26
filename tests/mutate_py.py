@@ -223,9 +223,12 @@ def run_all() -> int:
 
 
 def _targets(changed: dict[str, set[int]]) -> dict[str, tuple[str, tuple[int, int]]]:
-    """Mutant-name glob -> (path, function span), for each changed function."""
+    """Mutant-name glob -> (path, function span), for each changed function.
+    Only Python files count: a component folder holds C++ too."""
     targets = {}
     for path, lines in changed.items():
+        if not path.endswith(".py"):
+            continue
         for key, first, last in functions(path):
             if lines & set(range(first, last + 1)):
                 targets[f"{module_name(path)}.{key}__mutmut_*"] = (path, (first, last))

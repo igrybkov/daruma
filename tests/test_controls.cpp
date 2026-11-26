@@ -20,14 +20,14 @@ static int failures = 0;
     } \
   } while (0)
 
-#define CHECK_EQ(a, b) \
-  do { \
-    const std::string got_ = (a), want_ = (b); \
-    if (got_ != want_) { \
-      std::printf("FAIL %s:%d: %s is \"%s\", want \"%s\"\n", __FILE__, __LINE__, #a, got_.c_str(), want_.c_str()); \
-      failures++; \
-    } \
-  } while (0)
+static void check_eq(const std::string &got, const std::string &want, const char *what, int line) {
+  if (got != want) {
+    std::printf("FAIL %s:%d: %s is \"%s\", want \"%s\"\n", __FILE__, line, what, got.c_str(), want.c_str());
+    failures++;
+  }
+}
+
+#define CHECK_EQ(a, b) check_eq((a), (b), #a, __LINE__)
 
 static TileState state(const std::string &s, const std::string &extra = "") {
   TileState t;
@@ -96,7 +96,9 @@ static void numbers() {
 static void texts() {
   const ControlWords w;
   TileState none;
-  CHECK_EQ(control_text(ControlKind::TOGGLE, none, w), "");
+  // Nothing from HA yet, or the entity is away.
+  CHECK_EQ(control_text(ControlKind::TOGGLE, none, w), "Unavailable");
+  CHECK_EQ(control_text(ControlKind::SCENE, none, w), "Unavailable");
   CHECK_EQ(control_text(ControlKind::SENSOR, state("unavailable"), w), "Unavailable");
 
   // Toggles: on, off, a brightness, anything else as HA says it.

@@ -155,7 +155,7 @@ inline std::string control_cover_text(const TileState &s, const ControlWords &w)
 
 // "21°" for degrees, "640 ppm" for the rest, the bare value without a unit.
 inline std::string control_sensor_text(const TileState &s) {
-  const std::string value = control_number(s.state);
+  std::string value = control_number(s.state);
   if (s.extra.empty())
     return value;
   if (s.extra == "°C" || s.extra == "°F")
@@ -165,11 +165,11 @@ inline std::string control_sensor_text(const TileState &s) {
   return value + " " + s.extra;
 }
 
-// The state line under a tile's label. Scenes and scripts have none.
+// The state line under a tile's label. Scenes and scripts have none. An
+// entity HA has not sent (it is away, or the id has a typo) reads as
+// unavailable.
 inline std::string control_text(ControlKind kind, const TileState &s, const ControlWords &w) {
-  if (!s.known)
-    return "";
-  if (s.state == "unavailable")
+  if (!control_available(s))
     return w.unavailable;
   switch (kind) {
     case ControlKind::TOGGLE:

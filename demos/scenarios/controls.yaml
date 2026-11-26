@@ -2,7 +2,8 @@ name: controls
 description: >-
   The Controls app in every persona's theme: a lit lamp, music playing, a
   scene, and a fan Home Assistant reports as unavailable. Made-up entities.
-personas: all
+# A test only: golden pictures in every persona's theme, and no GIF.
+personas: []
 test_personas: all
 setup:
   - set: {Outside temperature: 64}

@@ -573,7 +573,9 @@ Built in:
   ```
 
   The header of [app_controls.yaml](../packages/app_controls.yaml) lists
-  what a tap does for each kind of entity.
+  what a tap does for each kind of entity. With `icons_only: true` the
+  tiles show their icons alone, smaller, and more fit on a page. That
+  suits one room with a few lights and a fan.
 - **Copies.** Include `app_tasks.yaml`, `app_calendar.yaml` or
   `app_controls.yaml` again with another `app_id` for a second list,
   calendar set or page of controls:

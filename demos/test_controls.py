@@ -10,16 +10,16 @@ from __future__ import annotations
 from harness import expect
 
 
-def _open_controls(device):
+def _open_controls(device, name="Controls"):
     device.advance(2)
     device.tap(160, 100)
     device.get_by_text("More").tap()
-    tile = device.get_by_role("tile", name="Controls")
+    tile = device.get_by_role("tile", name=name)
     if not tile.is_visible():
         w, h = device.screen_size()
         device.swipe(w * 3 // 4, h // 2, w // 4, h // 2)
     tile.tap()
-    expect(device.get_by_role("app", "Controls")).to_be_visible()
+    expect(device.get_by_role("app", name)).to_be_visible()
 
 
 def test_tiles_show_live_state(device):
@@ -61,3 +61,13 @@ def test_scene_and_second_page(device):
     # The blinds close from part way open.
     device.get_by_role("control", "Blinds").tap()
     expect(device.get_by_role("control", "Blinds")).to_have_value("Closed")
+
+
+def test_icons_only(device):
+    _open_controls(device, "Room")
+    expect(device.get_by_role("control", "Ceiling")).to_have_value("On · 100%")
+    expect(device.get_by_role("control", "Temperature")).to_have_value("21.5°")
+    expect(device).to_match_screenshot("room")
+    device.get_by_role("control", "Fan").tap()
+    expect(device.get_by_role("control", "Fan")).to_have_value("Off")
+    assert ("fan.toggle", "fan.ceiling") in device.data.controlled

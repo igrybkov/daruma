@@ -115,13 +115,34 @@ ControlsApp::Grid ControlsApp::grid_(const AppView &v) const {
   } else {
     g.gap = v.px(8);
   }
+  // Icons alone take less room: twice the columns and one more row.
+  if (this->icons_only_) {
+    g.cols *= 2;
+    g.rows += 1;
+  }
   g.origin_x = v.x;
   g.origin_y = v.y;
   const int pad = v.px(8);
   g.area = Rect{v.x + pad, v.y + pad, v.w - 2 * pad, v.h - 2 * pad};
-  if ((int) this->tiles_.size() > g.per_page())
+  if ((int) this->tiles_.size() > g.per_page()) {
     g.area.h -= v.px(14);
+  } else if (this->icons_only_) {
+    centre_(g, (int) this->tiles_.size());
+  }
   return g;
+}
+
+// A few icons on one page: keep their size and put them in the middle.
+void ControlsApp::centre_(Grid &g, int count) {
+  const int cols = std::max(1, std::min(count, g.cols));
+  const int rows = std::max(1, (count + cols - 1) / cols);
+  const int cw = (g.area.w - g.gap * (g.cols - 1)) / g.cols;
+  const int ch = (g.area.h - g.gap * (g.rows - 1)) / g.rows;
+  const int w = cols * cw + (cols - 1) * g.gap;
+  const int h = rows * ch + (rows - 1) * g.gap;
+  g.area = Rect{g.area.x + (g.area.w - w) / 2, g.area.y + (g.area.h - h) / 2, w, h};
+  g.cols = cols;
+  g.rows = rows;
 }
 
 int ControlsApp::pages_(const Grid &g) const {
@@ -232,13 +253,30 @@ void ControlsApp::draw_tile_(AppView &v, const Tile &tile, const Rect &r, bool f
   const int index = (int) (&tile - this->tiles_.data());
   const bool check = index == this->check_index_ && !this->check_icon_.empty();
   look.icon = check ? this->check_icon_ : tile.icon;
+  look.available = available;
   look.label_color = t.on(look.fill, available ? t.ink : t.muted);
   look.icon_color = (active || check) ? lit : look.label_color;
   look.state_color = t.on(look.fill, t.muted);
   look.state = control_text(tile.kind, tile.state, w);
-  this->draw_words_(v, r, tile.label, look);
+  if (this->icons_only_) {
+    this->draw_icon_only_(v, r, tile.kind, look);
+  } else {
+    this->draw_words_(v, r, tile.label, look);
+  }
   // The check mark reads as "done".
   UiTree::add("control", tile.label, r, focused, check ? "done" : look.state);
+}
+
+// The icon alone, in the middle. A sensor has nothing to light up, so it
+// shows its value instead while it has one.
+void ControlsApp::draw_icon_only_(AppView &v, const Rect &r, ControlKind kind, const TileLook &look) {
+  auto &it = v.display;
+  if (kind == ControlKind::SENSOR && look.available) {
+    it.print(r.cx(), r.cy(), v.text, look.label_color, TextAlign::CENTER,
+             fit_text(it, v.text, look.state, r.w - v.px(8)).c_str(), look.fill);
+    return;
+  }
+  it.print(r.cx(), r.cy(), v.icons, look.icon_color, TextAlign::CENTER, look.icon.c_str(), look.fill);
 }
 
 // The icon left, the label and the state right. Narrow tiles put the icon

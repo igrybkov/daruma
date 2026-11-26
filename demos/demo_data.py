@@ -54,6 +54,9 @@ CONTROLS = {
     "sensor.office_co2": {"state": "640", "unit_of_measurement": "ppm"},
     "sensor.office_temperature": {"state": "21.5", "unit_of_measurement": "°C"},
     "switch.kettle": {"state": "off"},
+    "light.ceiling": {"state": "on", "brightness": "255"},
+    "light.floor_lamp": {"state": "off"},
+    "fan.ceiling": {"state": "on"},
 }
 
 # What a Controls action does to its entity's state.

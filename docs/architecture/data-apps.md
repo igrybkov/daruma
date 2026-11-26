@@ -88,7 +88,8 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
   - A tap runs the package's script with `homeassistant.action`. It wants
     no reply, so it skips the hub's gate.
   - The grid is the board's: `grid_cols` by `grid_rows`. More tiles go on
-    pages with dots under the grid.
+    pages with dots under the grid. `icons_only` doubles the columns and
+    adds a row; a short list of icons sits in the middle.
   - The build checks each tile
     (`src/esphome/components/daruma_controls/__init__.py`): a known
     domain, an icon from `ICONS`, and that icon in the icon font.

@@ -11,6 +11,10 @@
 #   cover                               open, close, or stop while it moves; shows the position
 #   sensor                              nothing; shows the value and unit
 #
+# With `icons_only: true` a tile shows its icon alone: 4 by 3 on 320x240,
+# 6 by 3 on wide screens. The lit rim and icon still show on and off; a
+# sensor shows its value instead of an icon.
+#
 # A tile greys out while its entity is unavailable, and while HA is away.
 # More tiles than fit go on more pages: swipe left or right, or NEXT and
 # PREV on a board without touch.
@@ -51,6 +55,8 @@ defaults:
   app_name: Controls
   # The tiles: a list of { entity, label, icon }. Give at least one.
   tiles: []
+  # true: the icon alone on each tile, smaller, twice as many on a page.
+  icons_only: false
   color: "F5A524"
   text_on: "On"
   text_off: "Off"
@@ -74,6 +80,7 @@ daruma_controls:
   - id: ${app_id}_app
     icon_font: font_icons
     tiles: ${tiles}
+    icons_only: ${icons_only}
 
 color:
   - id: ${app_id}_color

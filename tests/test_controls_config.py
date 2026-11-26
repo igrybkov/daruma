@@ -164,6 +164,7 @@ class ToCode(unittest.TestCase):
             "id": "controls_app",
             "daruma_id": "hub",
             "icon_font": ICON_FONT,
+            "icons_only": True,
             "tiles": [{"entity": "light.desk_lamp"}, {"entity": "scene.movie", "label": "Movie", "icon": "movie"}],
         }
         real = controls.cg
@@ -179,6 +180,7 @@ class ToCode(unittest.TestCase):
             [
                 ("set_hub", ("var:hub",)),
                 ("set_check_icon", (controls.glyph("check"),)),
+                ("set_icons_only", (True,)),
                 ("add_tile", ("light.desk_lamp", "Desk lamp", controls.glyph("lightbulb"))),
                 ("add_tile", ("scene.movie", "Movie", controls.glyph("movie"))),
             ],

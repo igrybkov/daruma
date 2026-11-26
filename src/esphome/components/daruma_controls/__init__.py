@@ -22,6 +22,7 @@ MULTI_CONF = True
 
 CONF_LABEL = "label"
 CONF_TILES = "tiles"
+CONF_ICONS_ONLY = "icons_only"
 CONF_ICON_FONT = "icon_font"
 CONF_ENTITY = "entity"
 CONF_EXTRAS = "extras"
@@ -130,6 +131,8 @@ CONFIG_SCHEMA = cv.Schema(
         # The Material Design Icons font the tiles' icons come from.
         cv.Required(CONF_ICON_FONT): cv.use_id(font.Font),
         cv.Required(CONF_TILES): cv.All(cv.ensure_list(TILE_SCHEMA), cv.Length(min=1)),
+        # Tiles without words: the icon alone, twice as many on a page.
+        cv.Optional(CONF_ICONS_ONLY, default=False): cv.boolean,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -176,5 +179,6 @@ async def to_code(config):
     await cg.register_component(var, config)
     cg.add(var.set_hub(await cg.get_variable(config[CONF_DARUMA_ID])))
     cg.add(var.set_check_icon(glyph(CHECK_ICON)))
+    cg.add(var.set_icons_only(config[CONF_ICONS_ONLY]))
     for tile in config[CONF_TILES]:
         cg.add(var.add_tile(tile[CONF_ENTITY], tile_label(tile), glyph(tile_icon(tile))))

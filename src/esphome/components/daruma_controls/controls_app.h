@@ -38,6 +38,8 @@ class ControlsApp : public esphome::Component {
   // The theme keys' prefix: the app's id ("controls.on").
   void set_theme_prefix(const std::string &prefix) { this->prefix_ = prefix; }
   void set_check_icon(const std::string &icon) { this->check_icon_ = icon; }
+  // Tiles show the icon alone, smaller, so more fit on a page.
+  void set_icons_only(bool icons_only) { this->icons_only_ = icons_only; }
   void add_tile(const std::string &entity, const std::string &label, const std::string &icon);
 
   void setup() override;
@@ -64,9 +66,11 @@ class ControlsApp : public esphome::Component {
   struct TileLook {
     esphome::Color fill, icon_color, label_color, state_color;
     std::string icon, state;
+    bool available{false};
   };
 
   Grid grid_(const AppView &v) const;
+  static void centre_(Grid &g, int count);
   int pages_(const Grid &g) const;
   void changed_();
   void act_(int index);
@@ -74,6 +78,7 @@ class ControlsApp : public esphome::Component {
   ControlWords words_() const;
   std::string word_(const char *key) const;
   void draw_tile_(AppView &v, const Tile &tile, const Rect &r, bool focused, const ControlWords &w);
+  void draw_icon_only_(AppView &v, const Rect &r, ControlKind kind, const TileLook &look);
   void draw_words_(AppView &v, const Rect &r, const std::string &label, const TileLook &look);
   void draw_dots_(AppView &v, const Grid &g, int pages);
 
@@ -81,6 +86,7 @@ class ControlsApp : public esphome::Component {
   Actor actor_;
   std::string prefix_{"controls"};
   std::string check_icon_;
+  bool icons_only_{false};
   std::vector<Tile> tiles_;
 
   FocusRing focus_;

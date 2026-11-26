@@ -71,11 +71,23 @@ packages:
         - { entity: sensor.office_co2, label: CO2, icon: "mdi:molecule-co2" }
         - { entity: sensor.office_temperature, label: Office, icon: "mdi:thermometer" }
         - { entity: switch.kettle, label: Kettle, icon: "mdi:coffee-maker" }
+  # One room, icons alone.
+  app_room: !include
+    file: ../packages/app_controls.yaml
+    vars:
+      app_id: room
+      app_name: Room
+      icons_only: true
+      tiles:
+        - { entity: light.ceiling, label: Ceiling, icon: "mdi:ceiling-light" }
+        - { entity: light.floor_lamp, label: Floor lamp, icon: "mdi:lamp" }
+        - { entity: fan.ceiling, label: Fan }
+        - { entity: sensor.office_temperature, label: Temperature }
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats, controls]
+  apps: [tasks, calendar, weather, stats, controls, room]
   progress:
     pomodoro: 1
   # A tap on the persona opens the default main menu (Tasks, Calendar,

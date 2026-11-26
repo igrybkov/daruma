@@ -19,11 +19,23 @@ import pytest
 from PIL import Image
 
 from daruma_personas import habitica
-from daruma_personas.habitica import compose, downscale, fixture, sources
+from daruma_personas.habitica import api, compose, downscale, fixture, sources
 from daruma_personas.habitica.compose import BACKGROUND, MOUNT_BODY, MOUNT_HEAD, PET, RIDER, ZZZ, Layer
 from daruma_personas.habitica.look import Hair, Look, from_user
 
 CLEAR = (0, 0, 0, 0)
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """No test here reaches Habitica: the HTTP layer fails, and the look memo starts empty."""
+
+    def refuse(url, headers):
+        raise AssertionError(f"a test asked the network for {url}")
+
+    monkeypatch.setattr(api, "http_get", refuse)
+    monkeypatch.setattr(habitica, "_users", {})
+
 
 FULL_USER = {
     "preferences": {
@@ -631,14 +643,16 @@ def test_look_of_takes_a_pin_or_the_fixture():
 def test_sprite_names_include_the_sleeping_look_once():
     got = habitica.sprite_names(from_user(fixture.USER))
     assert got[:2] == ["background_fixture_meadow", "skin_fixture"]
-    assert "skin_fixture_sleep" in got and "zzz" in got
+    assert "skin_fixture_sleep" in got
+    assert "zzz" not in got  # The persona draws its own.
     assert len(got) == len(set(got))
 
 
 def test_cache_inputs_hash_the_look_and_sprites_not_the_token():
     plain = habitica.cache_inputs("habitica", {}, None)
-    with_token = habitica.cache_inputs("habitica", {"token": "SECRET-TOKEN", "user_id": "SECRET-ID"}, None)
-    assert with_token == plain
+    pinned = {"look": fixture.USER, "token": "SECRET-TOKEN", "user_id": "SECRET-ID"}
+    with_token = habitica.cache_inputs("habitica", pinned, None)
+    assert with_token == plain  # A pinned look wins, and the token is not part of the key.
     assert not any("SECRET" in item for item in with_token)
     assert plain[0] == "look:" + from_user(fixture.USER).canonical()
     skin = hashlib.sha256(fixture.source().fetch("skin_fixture")).hexdigest()
@@ -649,7 +663,7 @@ def test_cache_inputs_hash_the_look_and_sprites_not_the_token():
 
 
 def test_cache_inputs_follow_the_sprite_files(tmp_path):
-    options = {"look": {"preferences": {"skin": "a"}}, "sprites": f"dir:{tmp_path}"}
+    options = {"look": {"preferences": {"skin": "a"}}, "source": f"dir:{tmp_path}"}
     (tmp_path / "skin_a.png").write_bytes(png(RED))
     first = habitica.cache_inputs("habitica", options, None)
     (tmp_path / "skin_a.png").write_bytes(png(BLUE))
@@ -670,6 +684,6 @@ def test_cdn_sprites_go_to_the_data_folder(tmp_path, monkeypatch):
         return None
 
     monkeypatch.setattr(sources, "download", fake)
-    habitica.cache_inputs("habitica", {"sprites": "cdn"}, tmp_path)
+    habitica.cache_inputs("habitica", {"source": "cdn"}, tmp_path)
     assert asked and all(url.startswith(sources.ASSETS_URL) for url in asked)
     assert sources.ASSETS_URL + "skin_fixture.png" in asked

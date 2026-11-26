@@ -132,7 +132,7 @@ class CdnSource:
 
 
 def source_from(spec: str, data_dir: Path | None, fixture: Callable[[], Source]) -> Source:
-    """The source a `sprites:` option names: `fixture`, `cdn` or `dir:<path>`.
+    """The source a `source:` option names: `fixture`, `cdn` or `dir:<path>`.
 
     `cdn` keeps its downloads in `data_dir`/daruma_habitica.
     """
@@ -140,8 +140,8 @@ def source_from(spec: str, data_dir: Path | None, fixture: Callable[[], Source])
         return fixture()
     if spec == "cdn":
         if data_dir is None:
-            raise ValueError("sprites: cdn needs the builder's data folder for its cache")
+            raise ValueError("source: cdn needs the builder's data folder for its cache")
         return CdnSource(Path(data_dir) / CACHE_FOLDER, download)
     if spec.startswith("dir:"):
         return DirSource(Path(spec.removeprefix("dir:")).expanduser())
-    raise ValueError(f"sprites: {spec!r} is not fixture, cdn or dir:<path>")
+    raise ValueError(f"source: {spec!r} is not fixture, cdn or dir:<path>")

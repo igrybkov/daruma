@@ -46,6 +46,7 @@ packages:
           when: { moods: [sleeping] }
   persona_jack_russell: !include ../packages/persona_jack_russell.yaml
   persona_tabby_cat: !include ../packages/persona_tabby_cat.yaml
+  persona_habitica: !include ../packages/persona_habitica.yaml
 
   menu: !include ../packages/menu.yaml
   pomodoro: !include ../packages/pomodoro.yaml

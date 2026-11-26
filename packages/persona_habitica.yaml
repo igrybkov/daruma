@@ -1,0 +1,51 @@
+# Habitica avatar persona: your Habitica avatar, stacked from its sprites
+# the way Habitica does, in front of its Habitica background, at one pixel
+# per art pixel (5x on the BOX-3). The sides of the background go on in
+# plain sky and ground. The avatar breathes, its pet a beat behind; it hops
+# when happy, slumps with a sweat drop when sad, closes its eyes to blink
+# and sleep, reads a book while you focus, and keeps the book through a
+# pat. Adds 'Habitica' to the Persona select.
+#
+# As shipped it shows a made-up fixture avatar drawn in this repository,
+# so the repository's pictures hold no Habitica art. To show your own
+# avatar, give the package your look in a private persona (see
+# docs/habitica-avatar.md): the build reads it from Habitica's API and
+# downloads the sprites on the machine that builds.
+#
+# Credits: the avatar art is Habitica's (habitica.com) and its artists',
+# under CC-BY-NC-SA 3.0 (https://creativecommons.org/licenses/by-nc-sa/3.0/).
+# A firmware built with it is for your own device, not for sale. Habitica
+# does not endorse this project.
+#
+# States find animations by name (petted -> Petted, focus -> Focus); the
+# rest fall back, and the build log lists how
+# (src/esphome/components/daruma/registry.py).
+#
+# Drawn by Python while the firmware compiles (pixel/persona-habitica); edit
+# the art there and compile. Previews: see daruma_pixel.personas.
+
+daruma_sprites:
+  - id: habitica_avatar
+    name: Habitica
+    pixel_art:
+      module: daruma_personas.habitica
+      persona: habitica
+      options:
+        source: fixture
+    # A reaction during a focus session keeps the book.
+    during:
+      focus: { Petted: PettedFocus, Startled: StartledFocus, Celebrate: CelebrateFocus }
+    # Menu and apps: deep purple, on light cards.
+    theme:
+      style: paper
+      frame: "4F2A93"
+      edge: "36206B"
+      panel: "F9F9FB"
+      ink: "2A2535"
+      muted: "6B6578"
+      title: "F9F9FB"
+      accent: "6133B4"
+      dot: "925CF3"
+      dock: "F9F9FB"
+      dock_ink: "2A2535"
+      dock_muted: "6B6578"

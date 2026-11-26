@@ -69,6 +69,7 @@ swiping left or right on the screen.
 | [persona_jack_russell.yaml](persona_jack_russell.yaml) | A pixel-art Jack Russell terrier. |
 | [persona_tabby_cat.yaml](persona_tabby_cat.yaml) | A pixel-art tabby cat. |
 | [persona_the_boss.yaml](persona_the_boss.yaml) | A pixel-art executive at her desk. |
+| [persona_habitica.yaml](persona_habitica.yaml) | Your Habitica avatar, built from Habitica's sprites ([docs](../docs/habitica-avatar.md)). |
 | [persona_eyes.yaml](persona_eyes.yaml) | A pair of eyes drawn from simple shapes. |
 | [persona_images.yaml](persona_images.yaml) | Your own pictures, one PNG for each mood or activity. List it once for each set of pictures. |
 

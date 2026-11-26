@@ -152,10 +152,12 @@ class Avatar:
         return out
 
 
-def compose(look: Look, source: Source) -> Avatar:
-    """The avatar of `look`, from the sprites in `source`."""
+def compose(look: Look, source: Source, skip: frozenset[str] = frozenset()) -> Avatar:
+    """The avatar of `look`, from the sprites in `source`, without the sprites in `skip`."""
     avatar = Avatar(groups={name: Image.new("RGBA", ART, (0, 0, 0, 0)) for name in GROUPS})
     for layer in plan(look):
+        if layer.sprite in skip:
+            continue
         sprite = load(source, layer.sprite)
         if sprite is None:
             log.warning("habitica: no sprite %s; the avatar is drawn without it", layer.sprite)

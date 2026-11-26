@@ -81,7 +81,7 @@ dev = [
     { include-group = "coverage" },
 ]
 # The one place that names the ESPHome version the builds use.
-esphome = ["esphome==2026.11.0"]
+esphome = ["esphome==2026.11.1"]
 
 [tool.uv]
 # The root has a [project] for its version only. Don't build or install it.

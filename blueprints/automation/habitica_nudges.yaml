@@ -1,0 +1,298 @@
+blueprint:
+  name: "Daruma: Habitica nudges"
+  domain: automation
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/automation/habitica_nudges.yaml
+  description: >-
+    A Daruma device suggests a Habitica move when it clearly helps: a class
+    skill in the evening while dailies are open, a potion or Healing Light
+    at low HP, Revive at 0 HP, a skill when your mana is full, and
+    Allocate when you have points to spend. With no skill ready in the
+    evening, it says how many dailies are left.
+
+
+    Each nudge is a card with one button. The button casts the skill or
+    presses the Habitica button in Home Assistant. Each nudge shows at most
+    once a day, within its time window. None shows before you start your
+    day in Habitica, or while you rest in the inn. Cards wait while a focus
+    block runs or Do not disturb is on.
+
+
+    Checked every 10 minutes. Counting your open dailies reads the Habitica
+    integration's cache: no request to Habitica.
+
+
+    Needs the Habitica integration, the device's prompts package, and an
+    input_text helper (any name, max length 255) where the automation keeps
+    which nudges showed today.
+  input:
+    habitica:
+      name: Habitica account
+      selector:
+        config_entry:
+          integration: habitica
+    habitica_device:
+      name: Habitica device
+      description: The Habitica device in Home Assistant.
+      selector:
+        device:
+          integration: habitica
+    device:
+      name: Daruma
+      description: The Daruma device. Only its answers count.
+      selector:
+        device:
+          integration: esphome
+    node_name:
+      name: Device node name
+      description: >-
+        The ESPHome node name with "-" as "_". Its actions are named after it
+        (esphome.daruma_prompt_show).
+      default: daruma
+      selector:
+        text: {}
+    memory:
+      name: Nudge memory
+      description: An input_text helper (max length 255). The automation writes to it.
+      selector:
+        entity:
+          domain: input_text
+    evening:
+      name: Evening starts
+      description: Evening nudges show from this time until midnight.
+      default: "21:00:00"
+      selector:
+        time: {}
+    day_start:
+      name: Day starts
+      description: The other nudges show from this time.
+      default: "08:00:00"
+      selector:
+        time: {}
+    day_end:
+      name: Day ends
+      default: "23:00:00"
+      selector:
+        time: {}
+    low_hp:
+      name: Low HP
+      description: HP under this offers a potion, or Healing Light for a healer.
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 49
+    evening_skill:
+      name: "Evening: a class skill"
+      description: >-
+        Rogue: Stealth. Mage: Chilling Frost, when dailies with streaks are
+        open. Warrior: Defensive Stance. Healer: Protective Aura.
+      default: true
+      selector:
+        boolean: {}
+    dailies_left:
+      name: "Evening: dailies left"
+      description: When no class skill is ready.
+      default: true
+      selector:
+        boolean: {}
+    heal:
+      name: "Low HP: Healing Light"
+      default: true
+      selector:
+        boolean: {}
+    potion:
+      name: "Low HP: a health potion"
+      default: true
+      selector:
+        boolean: {}
+    revive:
+      name: "0 HP: Revive"
+      default: true
+      selector:
+        boolean: {}
+    full_mana:
+      name: "Full mana: a skill"
+      default: true
+      selector:
+        boolean: {}
+    allocate:
+      name: "Points to spend: Allocate"
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+max_exceeded: silent
+
+variables:
+  node: !input node_name
+  device_id: !input device
+  habitica_device: !input habitica_device
+  memory: !input memory
+  low_hp: !input low_hp
+  evening: !input evening
+  day_start: !input day_start
+  day_end: !input day_end
+  enabled:
+    evening_skill: !input evening_skill
+    dailies_left: !input dailies_left
+    heal: !input heal
+    potion: !input potion
+    revive: !input revive
+    full_mana: !input full_mana
+    allocate: !input allocate
+  # The buttons the nudges press, by the end of their entity id.
+  buttons:
+    start_day: start_my_day
+    potion: buy_a_health_potion
+    revive: revive_from_death
+    allocate: allocate_all_stat_points
+    stealth: stealth
+    frost: chilling_frost
+    defensive_stance: defensive_stance
+    protect_aura: protective_aura
+    heal: healing_light
+    mpheal: ethereal_surge
+    earth: earthquake
+    valorous_presence: valorous_presence
+    intimidate: intimidating_gaze
+    tools_of_trade: tools_of_the_trade
+    brightness: searing_brightness
+    heal_all: blessing
+  # A class's skills for full mana, best first.
+  full_mana_skills:
+    wizard: [mpheal, earth, frost]
+    warrior: [valorous_presence, intimidate, defensive_stance]
+    rogue: [tools_of_trade, stealth]
+    healer: [heal_all, protect_aura, brightness, heal]
+
+triggers:
+  - trigger: time_pattern
+    minutes: /10
+
+actions:
+  - action: habitica.get_tasks
+    data:
+      config_entry: !input habitica
+      type: [daily]
+    response_variable: dailies
+  # What is true now: the hero's numbers, which buttons are available, and
+  # the open due dailies.
+  - variables:
+      facts: >-
+        {%- set ns = namespace(cls='', hp=-1, mp=-1, mp_max=-1, resting=false, ready={}) -%}
+        {%- for e in device_entities(habitica_device) -%}
+          {%- set s = states(e) -%}
+          {%- if e.endswith('_class') -%}{%- set ns.cls = s -%}
+          {%- elif e.startswith('sensor.') and e.endswith('_health') -%}{%- set ns.hp = s | float(-1) -%}
+          {%- elif e.startswith('sensor.') and e.endswith('_max_mana') -%}{%- set ns.mp_max = s | float(-1) -%}
+          {%- elif e.startswith('sensor.') and e.endswith('_mana') -%}{%- set ns.mp = s | float(-1) -%}
+          {%- elif e.startswith('switch.') and e.endswith('_rest_in_the_inn') -%}{%- set ns.resting = s == 'on' -%}
+          {%- elif e.startswith('button.') and s != 'unavailable' -%}
+            {%- for key, end in buttons.items() if e.endswith('_' ~ end) -%}
+              {%- set ns.ready = dict(ns.ready, **{key: e}) -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set raw = (dailies or {}).get('tasks') or [] -%}
+        {%- set tasks = raw.values() | list if raw is mapping else raw -%}
+        {%- set count = namespace(open=0, streaks=0) -%}
+        {%- for d in tasks if d is mapping and d.get('isDue') is sameas true and d.get('completed') is not sameas true -%}
+          {%- set count.open = count.open + 1 -%}
+          {%- set count.streaks = count.streaks + (1 if (d.get('streak') or 0) > 0 else 0) -%}
+        {%- endfor -%}
+        {{ {'class': ns.cls, 'hp': ns.hp, 'mp': ns.mp, 'mp_max': ns.mp_max, 'resting': ns.resting,
+            'ready': ns.ready, 'open_due': count.open, 'open_streaks': count.streaks} }}
+      seen: "{{ states(memory) }}"
+  # The one nudge to show now, or none.
+  - variables:
+      nudge: >-
+        {%- set today = now().date() | string -%}
+        {%- set t = now().strftime('%H:%M:%S') -%}
+        {%- set ns = namespace(done=[]) -%}
+        {%- for part in (seen or '').split(';') if part.endswith('=' ~ today) -%}
+          {%- set ns.done = ns.done + [part.split('=')[0]] -%}
+        {%- endfor -%}
+        {%- set day = day_start <= t < day_end -%}
+        {%- set eve = t >= evening -%}
+        {%- set r = facts.ready -%}
+        {%- set n = facts.open_due -%}
+        {%- set hp = facts.hp -%}
+        {%- set low = 0 <= hp < low_hp | float -%}
+        {%- set eve_skill = {'rogue': 'stealth', 'wizard': 'frost', 'warrior': 'defensive_stance',
+                             'healer': 'protect_aura'}.get(facts.class) -%}
+        {%- set eve_ok = eve_skill in r and (facts.class != 'wizard' or facts.open_streaks > 0) -%}
+        {%- set best = (full_mana_skills.get(facts.class, []) | select('in', r) | list + [none])[0] -%}
+        {%- set names = {'stealth': 'Stealth', 'frost': 'Chilling Frost', 'defensive_stance': 'Defensive Stance',
+                         'protect_aura': 'Protective Aura', 'heal': 'Healing Light', 'mpheal': 'Ethereal Surge',
+                         'earth': 'Earthquake', 'valorous_presence': 'Valorous Presence',
+                         'intimidate': 'Intimidating Gaze', 'tools_of_trade': 'Tools of the Trade',
+                         'brightness': 'Searing Brightness', 'heal_all': 'Blessing'} -%}
+        {%- set bodies = {'stealth': n ~ ' dailies are still open. Hide with Stealth?',
+                          'frost': 'Freeze your streaks for tonight?',
+                          'defensive_stance': "Brace for the night's damage?",
+                          'protect_aura': 'Raise a Protective Aura before the day ends?'} -%}
+        {%- set all = [
+              {'id': 'revive', 'on': hp == 0 and 'revive' in r, 'title': 'You fainted', 'body': 'Revive?',
+               'option': 'Revive', 'press': r.get('revive'), 'style': 'urgent'},
+              {'id': 'heal', 'on': day and low and facts.class == 'healer' and 'heal' in r, 'title': 'Low HP',
+               'body': 'Heal yourself?', 'option': 'Healing Light', 'press': r.get('heal'), 'style': 'info'},
+              {'id': 'potion', 'on': day and low and 'potion' in r, 'title': 'Low HP',
+               'body': 'Buy a health potion for 25 gold?', 'option': 'Buy', 'press': r.get('potion'),
+               'style': 'info'},
+              {'id': 'evening_skill', 'on': eve and n > 0 and eve_ok, 'title': 'Before the day ends',
+               'body': bodies.get(eve_skill, ''), 'option': names.get(eve_skill, ''), 'press': r.get(eve_skill),
+               'style': 'info'},
+              {'id': 'dailies_left', 'on': eve and n > 0 and not eve_ok, 'title': 'Before the day ends',
+               'body': n ~ (' daily is' if n == 1 else ' dailies are') ~ ' left today.', 'option': 'OK',
+               'press': none, 'style': 'info'},
+              {'id': 'allocate', 'on': day and 'allocate' in r, 'title': 'Stat points',
+               'body': 'Allocate your stat points?', 'option': 'Allocate', 'press': r.get('allocate'),
+               'style': 'info'},
+              {'id': 'full_mana', 'on': day and facts.mp_max > 0 and facts.mp >= facts.mp_max and best is not none,
+               'title': 'Your mana is full', 'body': 'Cast ' ~ names.get(best, '') ~ '?',
+               'option': names.get(best, ''), 'press': r.get(best), 'style': 'info'}] -%}
+        {%- set quiet = 'start_day' in r or facts.resting -%}
+        {%- set pick = all | selectattr('on') | rejectattr('id', 'in', ns.done)
+                           | selectattr('id', 'in', enabled | dictsort | selectattr(1) | map(attribute=0) | list)
+                           | list -%}
+        {{ none if quiet or not pick else pick[0] }}
+  - condition: template
+    value_template: "{{ nudge is mapping }}"
+  # Remember it, so it shows once today.
+  - action: input_text.set_value
+    target:
+      entity_id: !input memory
+    data:
+      value: >-
+        {%- set today = now().date() | string -%}
+        {%- set keep = (seen or '').split(';') | select('search', '=' ~ today ~ '$') | list -%}
+        {{ (keep + [nudge.id ~ '=' ~ today]) | join(';') }}
+  - action: "esphome.{{ node }}_prompt_show"
+    data:
+      id: "habitica_{{ nudge.id }}"
+      layout: message
+      title: "{{ nudge.title }}"
+      body: "{{ nudge.body }}"
+      options: "{{ [nudge.option] if nudge.press is none else [nudge.option, 'Not now'] }}"
+      marks: []
+      style: "{{ nudge.style }}"
+      timeout: 300
+      state: ""
+      sound: ""
+      dismissable: true
+  - wait_for_trigger:
+      - trigger: event
+        event_type: esphome.daruma_prompt
+        event_data:
+          device_id: !input device
+    timeout:
+      seconds: 310
+    continue_on_timeout: false
+  - condition: template
+    value_template: >-
+      {{ wait.trigger.event.data.id == 'habitica_' ~ nudge.id
+         and wait.trigger.event.data.choice == nudge.option and nudge.press is not none }}
+  - action: button.press
+    target:
+      entity_id: "{{ nudge.press }}"

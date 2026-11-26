@@ -75,6 +75,7 @@ void HabiticaApp::loop() {
     this->confirm_ = false;
     this->changed_();
   }
+  this->skills_.loop(esphome::millis());
 }
 
 uint32_t HabiticaApp::apply_stats(const HabiticaStats &news) {
@@ -122,6 +123,13 @@ void HabiticaApp::attach_habits(HabitsApp *habits) {
       news.level = r.stats.level;
     }
     this->apply_reply(news, r.drop);
+  });
+  // A task skill aims at a habit.
+  this->skills_.set_tasks([habits]() {
+    std::vector<std::pair<std::string, std::string>> tasks;
+    for (const Habit &h : habits->list().habits())
+      tasks.emplace_back(h.id, h.title);
+    return tasks;
   });
 }
 #endif
@@ -207,9 +215,12 @@ void HabiticaApp::on_open() {
 void HabiticaApp::on_close() {
   this->open_ = false;
   this->confirm_ = false;
+  this->skills_.close();
 }
 
 bool HabiticaApp::back() {
+  if (this->skills_.back())
+    return true;
   if (!this->confirm_)
     return false;
   this->confirm_ = false;
@@ -217,9 +228,12 @@ bool HabiticaApp::back() {
   return true;
 }
 
-// The buttons on show now: the available ones, in the build's order.
+// The buttons on show now: Skills when there is a skills script, then the
+// available HA buttons, in the build's order.
 std::vector<int> HabiticaApp::shown_buttons_() const {
   std::vector<int> shown;
+  if (this->skills_.enabled())
+    shown.push_back(SKILLS);
   for (size_t i = 0; i < this->buttons_.size(); i++) {
     if (this->buttons_[i].available && this->connected_)
       shown.push_back((int) i);
@@ -247,6 +261,10 @@ void HabiticaApp::press_(int button) {
 }
 
 void HabiticaApp::tap_target_(const Target &target) {
+  if (target.button == SKILLS) {
+    this->skills_.open();
+    return;
+  }
   if (target.button < 0) {
     this->back();
     return;
@@ -255,6 +273,8 @@ void HabiticaApp::tap_target_(const Target &target) {
 }
 
 bool HabiticaApp::input(Input input, int x, int y) {
+  if (this->skills_.active())
+    return this->skills_.input(input, x, y);
   this->focus_.set_count((int) this->targets_.size());
   switch (input) {
     case Input::TAP:
@@ -285,6 +305,11 @@ bool HabiticaApp::input(Input input, int x, int y) {
 
 void HabiticaApp::draw(AppView &v) {
   this->targets_.clear();
+  if (this->skills_.active()) {
+    this->skills_.draw(v);
+    this->draw_notice_(v);
+    return;
+  }
   const HabiticaStats &s = this->model_.stats();
   if (s.level < 0 && !habitica_known(s.hp)) {
     const std::string message = this->word_(this->connected_ ? "loading" : "offline");
@@ -304,6 +329,23 @@ void HabiticaApp::draw(AppView &v) {
     this->draw_buttons_(v);
   }
   this->focus_.set_count((int) this->targets_.size());
+  this->draw_notice_(v);
+}
+
+// A cast's words, or why it failed, for a few seconds at the bottom.
+void HabiticaApp::draw_notice_(AppView &v) {
+  const std::string text = this->skills_.notice(esphome::millis());
+  if (text.empty())
+    return;
+  auto &it = v.display;
+  const Theme &t = v.theme;
+  const int w = std::min(v.w - v.px(16), text_width(it, v.small, text) + v.px(20));
+  const Rect r{v.x + (v.w - w) / 2, v.y + v.h - v.px(26), w, v.px(20)};
+  const Color fill_color = t.on(t.panel, t.ink);
+  Utilities::Draw::roundedRectangle(&it, r.x, r.y, r.w, r.h, r.h / 2, fill_color);
+  it.print(r.cx(), r.cy(), v.small, t.on(fill_color, t.panel), TextAlign::CENTER,
+           fit_text(it, v.small, text, r.w - v.px(12)).c_str(), fill_color);
+  UiTree::add("notice", text, r);
 }
 
 // "a · b", or the one that is there.
@@ -385,14 +427,17 @@ void HabiticaApp::draw_buttons_(AppView &v) {
     return;
   const Rect area = this->buttons_area_(v);
   const int gap = v.px(8);
-  const int cols = std::min(2, (int) shown.size());
-  const int rows = ((int) shown.size() + 1) / 2;
+  // Two to a row, three when more than four show.
+  const int per_row = shown.size() > 4 ? 3 : 2;
+  const int cols = std::min(per_row, (int) shown.size());
+  const int rows = ((int) shown.size() + per_row - 1) / per_row;
   const int bh = std::min(v.px(34), (area.h - gap) / 2);
   const Rect grid{area.x, area.y, area.w, rows * bh + (rows - 1) * gap};
   for (size_t i = 0; i < shown.size(); i++) {
     const Rect r = grid.cell((int) i, cols, rows, gap);
     const bool focused = v.focus && (int) i == this->focus_.index();
-    this->draw_button_(v, r, this->word_(this->buttons_[shown[i]].key.c_str()), focused, false);
+    const char *key = shown[i] == SKILLS ? "skills" : this->buttons_[shown[i]].key.c_str();
+    this->draw_button_(v, r, this->word_(key), focused, false);
     this->targets_.push_back(Target{Rect{r.x - v.x, r.y - v.y, r.w, r.h}, shown[i]});
   }
 }

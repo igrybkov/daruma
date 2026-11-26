@@ -25,6 +25,9 @@ explains cards. It also has an import button for each blueprint.
 | [quiz](script/quiz.yaml) | script | A quiz from your own list of questions. Each question has four answers and a 50:50 button that hides two wrong ones, once per game. The device keeps the score. |
 | [task_list](script/task_list.yaml) | script | Not a card. The device's Tasks app can show tasks from a to-do list or from a script. This script reads a list of tasks from a sensor, so the app can show them. |
 | [habitica_focus_habit](automation/habitica_focus_habit.yaml) | automation | Not a card. Each focus block you finish on the device scores a habit in Habitica, for XP and gold. [habitica.md](../docs/habitica.md) has the setup. |
+| [habitica_skills](script/habitica_skills.yaml) | script | Not a card. The Character app lists your class's skills through this script, and casts one on a tap. [habitica.md](../docs/habitica.md#skills) has the setup. |
+| [habitica_nudges](automation/habitica_nudges.yaml) | automation | A card when a Habitica move clearly helps: a class skill in the evening, a potion at low HP, Revive, full mana, points to spend. Its button casts or presses. [habitica.md](../docs/habitica.md#nudges). |
+| [habitica_morning](automation/habitica_morning.yaml) | automation | A list card when you sit down before your Habitica day starts: tick yesterday's dailies, then Start my day. [habitica.md](../docs/habitica.md#morning). |
 | [habitica_habits](script/habitica_habits.yaml) | script | Not a card. The device's Habits app lists your Habitica habits through this script, and scores one when you tap its plus or minus. [habitica.md](../docs/habitica.md) has the setup. |
 
 ## Writing a new blueprint

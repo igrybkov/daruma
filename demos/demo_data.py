@@ -131,6 +131,35 @@ HABITS = [
 # without max HP.
 HERO_STATS = ["health", "mana", "max_mana", "experience", "next_level", "gold", "level"]
 
+# Each class's skills, as the skills script lists them: id, name, MP,
+# level, target (s self, p party, t a task). Habitica's own numbers.
+SKILLS = {
+    "wizard": [
+        ("fireball", "Burst of Flames", 10, 11, "t"),
+        ("mpheal", "Ethereal Surge", 30, 12, "p"),
+        ("earth", "Earthquake", 35, 13, "p"),
+        ("frost", "Chilling Frost", 40, 14, "s"),
+    ],
+    "warrior": [
+        ("smash", "Brutal Smash", 10, 11, "t"),
+        ("defensive_stance", "Defensive Stance", 25, 12, "s"),
+        ("valorous_presence", "Valorous Presence", 20, 13, "p"),
+        ("intimidate", "Intimidating Gaze", 15, 14, "p"),
+    ],
+    "rogue": [
+        ("pickpocket", "Pickpocket", 10, 11, "t"),
+        ("backstab", "Backstab", 15, 12, "t"),
+        ("tools_of_trade", "Tools of the Trade", 25, 13, "p"),
+        ("stealth", "Stealth", 45, 14, "s"),
+    ],
+    "healer": [
+        ("heal", "Healing Light", 15, 11, "s"),
+        ("brightness", "Searing Brightness", 15, 12, "s"),
+        ("protect_aura", "Protective Aura", 30, 13, "p"),
+        ("heal_all", "Blessing", 25, 14, "p"),
+    ],
+}
+
 
 @dataclass
 class DemoHabit:
@@ -183,6 +212,11 @@ class DemoData:
     # What the next score answers, in the device's lines; None for an
     # ordinary reply with the hero's numbers.
     next_score: str | None = None
+    # Casts the Skills list asked for: (skill id, task id or "").
+    casts: list[tuple[str, str]] = field(default_factory=list)
+    # What the next cast answers, in the device's lines; None for an
+    # ordinary reply.
+    next_cast: str | None = None
 
     # HA actions to refuse, as HA does when an entity is gone or a call
     # fails: "calendar.get_events", "todo.get_items".
@@ -191,6 +225,26 @@ class DemoData:
     error: str = "demo: refused"
     # The home's time zone (an IANA name): its days start at local midnight.
     zone: str = "UTC"
+
+    def _hero(self, name: str) -> float:
+        return float(self.entity_value(f"sensor.demo_hero_{name}", None) or 0)
+
+    def skills_reply(self, data: dict[str, str]) -> str:
+        """The skills script, as the device's response template renders it."""
+        if data.get("op") == "cast":
+            return self._cast(data["id"], data.get("task", ""))
+        cls = self.entity_value("sensor.demo_hero_class", None) or ""
+        level, mp = self._hero("level"), self._hero("mana")
+        rows = [f"C\t{cls}"]
+        for sid, name, cost, need, target in SKILLS.get(cls, []):
+            why = f"Needs level {need}" if level < need else (f"Needs {cost} MP" if mp < cost else "")
+            rows.append(f"K\t{sid}\t{cost}\t{need}\t{target}\t{int(not why)}\t{name}\t{why}")
+        return "\n".join(rows)
+
+    def _cast(self, skill: str, task: str) -> str:
+        self.casts.append((skill, task))
+        reply, self.next_cast = self.next_cast, None
+        return "R\t1" if reply is None else reply
 
     def habits_reply(self, data: dict[str, str]) -> str:
         """The habits script, as the device's response template renders it."""
@@ -308,6 +362,8 @@ class DemoData:
             return True, self.calendar(epoch(data["start_date_time"]), epoch(data["end_date_time"]))
         if action in ("todo.get_items", "recorder.get_statistics"):
             return True, self.todo()
+        if action == "script.demo_skills":
+            return True, self.skills_reply(data)
         if action == "script.demo_habits":
             return True, self.habits_reply(data)
         if action == "weather.get_forecasts":

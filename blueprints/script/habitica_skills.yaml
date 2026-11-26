@@ -1,0 +1,162 @@
+blueprint:
+  name: "Daruma: Habitica skills"
+  domain: script
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/script/habitica_skills.yaml
+  description: >-
+    Lists your class's skills for a Daruma device's Character app, and casts
+    one when you tap it. Set the device's `skills` var to this script.
+
+
+    {op: list} returns {class, skills: [{id, name, mp, level, target, ready,
+    why}]}. target is self, party or task. A self or party skill is ready
+    while its button in Home Assistant is available: that is Home
+    Assistant's own rule. A task skill (Burst of Flames, Brutal Smash,
+    Pickpocket, Backstab) has no button. It is ready when your level and
+    mana are enough, from the table below. It costs no request to Habitica.
+
+
+    {op: cast, id, task} presses the skill's button, or casts a task skill
+    on the task with habitica.cast_skill. It returns {ok}, and {stats} when
+    the reply has your numbers. One request to Habitica.
+
+
+    Needs the Habitica integration.
+  input:
+    habitica:
+      name: Habitica account
+      selector:
+        config_entry:
+          integration: habitica
+    device:
+      name: Habitica device
+      description: The Habitica device in Home Assistant. Its buttons and sensors are read.
+      selector:
+        device:
+          integration: habitica
+
+mode: queued
+max: 10
+
+fields:
+  op:
+    name: Operation
+    description: list or cast.
+    required: true
+    selector:
+      select:
+        options: [list, cast]
+  id:
+    name: Skill
+    description: The skill's id from the list (cast only).
+    selector:
+      text: {}
+  task:
+    name: Task
+    description: The task's id, for a task skill (cast only).
+    selector:
+      text: {}
+
+variables:
+  habitica: !input habitica
+  device: !input device
+  # Every class's skills. button: the end of the skill's button entity id
+  # and of its name in HA. cast: the skill for habitica.cast_skill. Levels
+  # and MP are Habitica's content: website/common/script/content/spells.js
+  # in github.com/HabitRPG/habitica (commit 1f3ef95, 2026-08-07).
+  table:
+    - { id: fireball, class: wizard, name: Burst of Flames, mp: 10, level: 11, target: task, cast: fireball }
+    - { id: mpheal, class: wizard, name: Ethereal Surge, mp: 30, level: 12, target: party, button: ethereal_surge }
+    - { id: earth, class: wizard, name: Earthquake, mp: 35, level: 13, target: party, button: earthquake }
+    - { id: frost, class: wizard, name: Chilling Frost, mp: 40, level: 14, target: self, button: chilling_frost }
+    - { id: smash, class: warrior, name: Brutal Smash, mp: 10, level: 11, target: task, cast: smash }
+    - { id: defensive_stance, class: warrior, name: Defensive Stance, mp: 25, level: 12, target: self, button: defensive_stance }
+    - { id: valorous_presence, class: warrior, name: Valorous Presence, mp: 20, level: 13, target: party, button: valorous_presence }
+    - { id: intimidate, class: warrior, name: Intimidating Gaze, mp: 15, level: 14, target: party, button: intimidating_gaze }
+    - { id: pickpocket, class: rogue, name: Pickpocket, mp: 10, level: 11, target: task, cast: pickpocket }
+    - { id: backstab, class: rogue, name: Backstab, mp: 15, level: 12, target: task, cast: backstab }
+    - { id: tools_of_trade, class: rogue, name: Tools of the Trade, mp: 25, level: 13, target: party, button: tools_of_the_trade }
+    - { id: stealth, class: rogue, name: Stealth, mp: 45, level: 14, target: self, button: stealth }
+    - { id: heal, class: healer, name: Healing Light, mp: 15, level: 11, target: self, button: healing_light }
+    - { id: brightness, class: healer, name: Searing Brightness, mp: 15, level: 12, target: self, button: searing_brightness }
+    - { id: protect_aura, class: healer, name: Protective Aura, mp: 30, level: 13, target: party, button: protective_aura }
+    - { id: heal_all, class: healer, name: Blessing, mp: 25, level: 14, target: party, button: blessing }
+
+sequence:
+  # The hero's class, level and mana, and the skills' buttons, from the
+  # device's own entities.
+  - variables:
+      hero: >-
+        {%- set ns = namespace(cls='', level=0, mp=0, buttons={}) -%}
+        {%- for e in device_entities(device) -%}
+          {%- set name = (state_attr(e, 'friendly_name') or '') | lower -%}
+          {%- if e.startswith('sensor.') and e.endswith('_class') -%}
+            {%- set ns.cls = states(e) -%}
+          {%- elif e.startswith('sensor.') and e.endswith('_level') and not e.endswith('_next_level') -%}
+            {%- set ns.level = states(e) | float(0) -%}
+          {%- elif e.startswith('sensor.') and e.endswith('_mana') and not e.endswith('_max_mana') -%}
+            {%- set ns.mp = states(e) | float(0) -%}
+          {%- elif e.startswith('button.') -%}
+            {%- for k in table if k.button is defined -%}
+              {%- if e.endswith('_' ~ k.button) or name.endswith(k.name | lower) -%}
+                {%- set ns.buttons = dict(ns.buttons, **{k.id: e}) -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ {'class': ns.cls, 'level': ns.level, 'mp': ns.mp, 'buttons': ns.buttons} }}
+  - if:
+      - condition: template
+        value_template: "{{ op == 'cast' }}"
+    then:
+      - variables:
+          skill: "{{ (table | selectattr('id', 'eq', id) | list + [{}])[0] }}"
+      - if:
+          - condition: template
+            value_template: "{{ skill.get('cast') is not none }}"
+        then:
+          - action: habitica.cast_skill
+            data:
+              config_entry: !input habitica
+              skill: "{{ skill.cast }}"
+              task: "{{ task }}"
+            response_variable: reply
+          - variables:
+              result: >-
+                {%- set r = reply if reply is mapping else {} -%}
+                {%- set out = {'ok': true} -%}
+                {%- if r.get('lvl') is not none or r.get('mp') is not none -%}
+                  {%- set out = dict(out, stats={'hp': r.get('hp'), 'hp_max': r.get('maxHealth'), 'mp': r.get('mp'),
+                      'mp_max': r.get('maxMP'), 'xp': r.get('exp'), 'xp_next': r.get('toNextLevel'),
+                      'gold': r.get('gp'), 'level': r.get('lvl')}) -%}
+                {%- endif -%}
+                {{ out }}
+          - stop: Cast
+            response_variable: result
+      - condition: template
+        value_template: "{{ skill.get('id') in hero.buttons }}"
+      - action: button.press
+        target:
+          entity_id: "{{ hero.buttons[skill.id] }}"
+      - variables:
+          result: "{{ {'ok': true} }}"
+      - stop: Cast
+        response_variable: result
+  - variables:
+      result: >-
+        {%- set out = namespace(skills=[]) -%}
+        {%- for k in table if k.class == hero.class -%}
+          {%- set short = ('Needs level ' ~ k.level) if hero.level < k.level
+                          else (('Needs ' ~ k.mp ~ ' MP') if hero.mp < k.mp else '') -%}
+          {%- if k.target == 'task' -%}
+            {%- set why = short -%}
+          {%- else -%}
+            {%- set b = hero.buttons.get(k.id) -%}
+            {%- set ready = b is not none and states(b) != 'unavailable' -%}
+            {%- set why = '' if ready else (short or 'Not now') -%}
+          {%- endif -%}
+          {%- set out.skills = out.skills + [{'id': k.id, 'name': k.name, 'mp': k.mp, 'level': k.level,
+              'target': k.target, 'ready': why == '', 'why': why}] -%}
+        {%- endfor -%}
+        {{ {'class': hero.class, 'skills': out.skills} }}
+  - stop: Skills
+    response_variable: result

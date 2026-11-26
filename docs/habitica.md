@@ -213,3 +213,89 @@ Habitica turns down for its rate limit.
 
 Listing the habits reads the integration's cache. It costs no request.
 Your notes and the history of each habit stay in Home Assistant.
+
+## Skills
+
+The Character app lists your class's skills. A tap casts one. It talks to
+one Home Assistant script. The blueprint
+[Daruma: Habitica skills](../blueprints/script/habitica_skills.yaml) makes
+it.
+
+<a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fscript%2Fhabitica_skills.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a>
+
+1. Import the blueprint and make a script from it. Pick your Habitica
+   account and the Habitica device. Name it, for example,
+   `script.habitica_skills`.
+2. Set the `skills` var of `habitica.yaml`:
+
+   ```yaml
+         - path: packages/habitica.yaml
+           vars:
+             user: <user>
+             skills: script.habitica_skills
+   ```
+
+On the device:
+
+- The sheet gets a Skills button. Each row shows the skill's name, its
+  MP and what it does. A skill that is not ready is grey, with the reason:
+  "Needs 30 MP", "Needs level 14", or "Not now" for Home Assistant's own
+  rules (Stealth, Chilling Frost).
+- A self or party skill asks first: "Cast Stealth for 45 MP?". The
+  setting "Ask before a cast" turns the question off.
+- A task skill (Burst of Flames, Brutal Smash, Pickpocket, Backstab) opens
+  a list of your habits to aim at. The Habits app must be in the build.
+- A cast plays `cast` and takes its MP off at once. The next number from
+  Home Assistant replaces the guess. A failed cast gives the MP back.
+
+The levels and MP of the task skills come from Habitica's content. A self
+or party skill is ready while its button in Home Assistant is available.
+
+## Nudges
+
+The blueprint
+[Daruma: Habitica nudges](../blueprints/automation/habitica_nudges.yaml)
+shows a card when a move clearly helps. Its button casts the skill or
+presses the Habitica button.
+
+<a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fhabitica_nudges.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a>
+
+| When | Nudge |
+|---|---|
+| evening, open dailies, Stealth ready (rogue) | "2 dailies are still open. Hide with Stealth?" |
+| evening, open dailies with streaks, Chilling Frost ready (mage) | "Freeze your streaks for tonight?" |
+| evening, open dailies, Defensive Stance ready (warrior) | "Brace for the night's damage?" |
+| evening, open dailies, Protective Aura ready (healer) | "Raise a Protective Aura before the day ends?" |
+| evening, open dailies, no skill ready | "2 dailies are left today." |
+| HP under "Low HP", Healing Light ready (healer) | "Heal yourself?" |
+| HP under "Low HP", a potion available | "Buy a health potion for 25 gold?" |
+| HP 0 | "Revive?", as an urgent card |
+| mana full, a skill ready | "Cast Earthquake?", your class's best one |
+| points to spend | "Allocate your stat points?" |
+
+- Each nudge has its own switch, and shows once a day. An input_text
+  helper (max length 255) remembers which showed today.
+- Evening nudges show from "Evening starts" (21:00) to midnight. The
+  others show between "Day starts" and "Day ends".
+- None shows before you start your day, or while you rest in the inn.
+- The cards wait while a focus block runs or Do not disturb is on. The
+  Revive card is urgent, so it does not wait.
+- Counting your open dailies reads the integration's cache. It costs no
+  request.
+
+## Morning
+
+The blueprint
+[Daruma: Habitica morning](../blueprints/automation/habitica_morning.yaml)
+greets you when you sit down and your Habitica day has not started.
+
+<a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Figrybkov%2Fdaruma%2Fmain%2Fblueprints%2Fautomation%2Fhabitica_morning.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="296"></a>
+
+- It lists yesterday's open dailies. Tap the ones you did; each tap ticks
+  it in Habitica. Then tap Start my day.
+- "At the desk" is any entity that turns "on" or "home": a presence
+  sensor, an input boolean or a person.
+- It shows once a day, while "Start my day" is available in Home
+  Assistant.
+- It needs Home Assistant 2025.4 or newer, which keeps a script's
+  variables across a repeat.

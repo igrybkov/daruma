@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace Daruma {
 
@@ -137,6 +138,107 @@ inline size_t habitica_split(const std::string &text) {
       best = i;
   }
   return best;
+}
+
+// One skill of the hero's class, from the skills script. The reply reaches
+// the device as lines, fields split by tabs (packages/habitica.yaml):
+//
+//   C  <class>
+//   K  <id> <mp> <level> <target> <ready> <name> <why>
+//   R  <ok>                  a cast's answer
+//   S  <hp> <hp_max> <mp> <mp_max> <xp> <xp_next> <gold> <level>
+//
+// target is s (self), p (party) or t (a task). ready is 1 or 0.
+struct HabiticaSkill {
+  std::string id;
+  std::string name;
+  std::string why;  // Why it is not ready: "Needs 30 MP".
+  int mp{0};
+  int level{0};
+  char target{'s'};
+  bool ready{false};
+};
+
+inline std::vector<std::string> habitica_fields(const std::string &line) {
+  std::vector<std::string> out;
+  size_t from = 0;
+  while (true) {
+    const size_t at = line.find('\t', from);
+    out.push_back(line.substr(from, at == std::string::npos ? std::string::npos : at - from));
+    if (at == std::string::npos)
+      return out;
+    from = at + 1;
+  }
+}
+
+inline std::vector<std::string> habitica_lines(const std::string &text) {
+  std::vector<std::string> out;
+  size_t from = 0;
+  while (from < text.size()) {  // pragma: no mutate
+    size_t end = text.find('\n', from);
+    if (end == std::string::npos)
+      end = text.size();
+    out.push_back(text.substr(from, end - from));
+    from = end + 1;
+  }
+  return out;
+}
+
+// An S line into the known fields of `s`.
+inline bool habitica_parse_stats_line(const std::vector<std::string> &f, HabiticaStats &s) {
+  if (f[0] != "S" || f.size() < 9)
+    return false;
+  float *fields[] = {&s.hp, &s.hp_max, &s.mp, &s.mp_max, &s.xp, &s.xp_next, &s.gold};
+  for (int i = 0; i < 7; i++)
+    *fields[i] = habitica_number(f[i + 1]);
+  s.level = (int) habitica_number(f[8]);
+  return true;
+}
+
+// The skills reply: false when it is not one (no C line).
+inline bool habitica_parse_skills(const std::string &text, std::string &cls, std::vector<HabiticaSkill> &skills) {
+  skills.clear();
+  bool found = false;
+  for (const std::string &line : habitica_lines(text)) {
+    const std::vector<std::string> f = habitica_fields(line);
+    if (f[0] == "C" && f.size() >= 2) {
+      cls = habitica_class(f[1]);
+      found = true;
+    } else if (f[0] == "K" && f.size() >= 8 && !f[1].empty()) {
+      HabiticaSkill k;
+      k.id = f[1];
+      k.mp = (int) std::max(0.0f, habitica_number(f[2]));
+      k.level = (int) std::max(0.0f, habitica_number(f[3]));
+      k.target = f[4] == "p" || f[4] == "t" ? f[4][0] : 's';
+      k.ready = f[5] == "1";
+      k.name = f[6];
+      k.why = f[7];
+      skills.push_back(k);
+    }
+  }
+  return found;
+}
+
+// A cast's reply: ok, and its stats when it has them. False when it is not one.
+inline bool habitica_parse_cast(const std::string &text, bool &ok, HabiticaStats &stats) {
+  const std::vector<std::string> lines = habitica_lines(text);
+  if (lines.empty())
+    return false;
+  const std::vector<std::string> f = habitica_fields(lines[0]);
+  if (f[0] != "R" || f.size() < 2)
+    return false;
+  ok = f[1] == "1";
+  stats = HabiticaStats{};
+  // The last line, when it is an S line, holds the stats.
+  habitica_parse_stats_line(habitica_fields(lines.back()), stats);
+  return true;
+}
+
+// MP after a cast of `cost`, as a guess until HA sends the real number.
+inline float habitica_mp_after(float mp, int cost) {
+  if (!habitica_known(mp))
+    return -1;
+  return std::max(0.0f, mp - (float) cost);
 }
 
 class HabiticaModel {

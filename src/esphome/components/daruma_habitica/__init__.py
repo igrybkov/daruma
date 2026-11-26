@@ -15,6 +15,8 @@ from esphome.const import CONF_ID
 from esphome.core import CORE
 
 DEPENDENCIES = ["api", "daruma", "font"]
+# The skills script's replies arrive as JSON.
+AUTO_LOAD = ["json"]
 
 CONF_STATS = "stats"
 CONF_BUTTONS = "buttons"

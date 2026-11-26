@@ -151,3 +151,13 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
   - On the desktop, `script.demo_habits` in `demos/demo_data.py` answers
     in the device's lines. `next_score` sets one reply; `failing` and
     `error` refuse with a message.
+- **Habitica skills** (`skills.h` in `daruma_habitica`). The Character
+  app's Skills list, its question and its task picker. Use guide:
+  [habitica.md](../habitica.md#skills).
+  - The skills script's reply comes as lines too (C, K, R, S), parsed in
+    `habitica.h`. A cast guesses MP at once with `apply_stats`; an error
+    puts the old MP back.
+  - The picker aims at habits only: the Habits app is reachable through
+    `attach_habits`. The Tasks app's lists are not, without coupling.
+  - `react()` replaces a playing reaction, and the bubble does not draw
+    over an app. So the cast's words go in the app's notice line.

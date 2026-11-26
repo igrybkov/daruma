@@ -13,6 +13,7 @@
 #   fainted    activity  while HP is 0                falls back to sad
 #   resting    activity  while you rest in the inn    falls back to sleeping
 #   drop       reaction  habitica_event "drop"        falls back to happy
+#   cast       reaction  a skill cast from the app    falls back to celebrate
 #
 # The first numbers after a boot or a reconnect only fill the sheet. The
 # same numbers twice play once.
@@ -22,6 +23,12 @@
 # Revive and Allocate stat points. Each shows only while its HA button is
 # available. A tap presses the HA button. The potion asks first: it spends
 # 25 gold. The board tile reads "Lv 12 · HP 45".
+#
+# Skills: with `skills` set to a script made from "Daruma: Habitica
+# skills", the sheet gets a Skills button: the class's skills, grey with
+# the reason when not ready. A self or party skill asks first ("Ask before
+# a cast", a setting); a task skill picks a habit from the Habits app. A
+# cast takes its MP off at once, until HA sends the real number.
 #
 # Home Assistant action (esphome.<name>_habitica_event): kind and message.
 #   drop    a reaction, and the message in the bubble ("Found a Wolf egg!")
@@ -73,6 +80,33 @@ defaults:
   text_potion_confirm: "Buy a health potion for 25 gold?"
   text_buy: "Buy"
   text_cancel: "Cancel"
+  # The skills script ("Daruma: Habitica skills"); "" for no Skills.
+  skills: ""
+  text_skills: "Skills"
+  text_mp_cost: "{mp} MP"
+  text_cast: "Cast"
+  text_cast_confirm: "Cast {name} for {mp} MP?"
+  text_cast_done: "{name}!"
+  text_cast_failed: "Couldn't cast"
+  text_no_skills: "No skills yet"
+  text_skills_error: "Can't load the skills"
+  text_no_tasks: "No habits to aim at"
+  text_effect_mpheal: "MP to your party"
+  text_effect_earth: "Party INT up"
+  text_effect_frost: "Keeps your streaks"
+  text_effect_defensive_stance: "CON up, less damage"
+  text_effect_valorous_presence: "Party STR up"
+  text_effect_intimidate: "Party CON up"
+  text_effect_tools_of_trade: "Party PER up"
+  text_effect_stealth: "Dodge missed dailies"
+  text_effect_heal: "Heals you"
+  text_effect_brightness: "Tasks turn bluer"
+  text_effect_protect_aura: "Party CON up"
+  text_effect_heal_all: "Heals your party"
+  text_effect_fireball: "XP and quest damage"
+  text_effect_smash: "A task turns bluer"
+  text_effect_pickpocket: "Gold from a task"
+  text_effect_backstab: "XP and gold from a task"
 
 external_components:
   - source:
@@ -105,6 +139,16 @@ color:
   - id: habitica_color
     hex: "${color}"
 
+switch:
+  # Ask before a self or party skill ("Cast Stealth for 45 MP?").
+  - platform: template
+    id: habitica_ask_cast
+    name: Ask before a cast
+    icon: "mdi:help-circle-outline"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
 api:
   actions:
     - action: habitica_event
@@ -126,6 +170,7 @@ daruma:
         drop: { kind: reaction, fallback: happy, duration: 2500ms }
         fainted: { kind: activity, fallback: sad, quiet: true }
         resting: { kind: activity, fallback: sleeping, quiet: true }
+        cast: { kind: reaction, fallback: celebrate, duration: 2500ms }
       theme:
         colors:
           hp: "F74E52"
@@ -153,9 +198,48 @@ daruma:
           potion_confirm: "${text_potion_confirm}"
           buy: "${text_buy}"
           cancel: "${text_cancel}"
+          skills: "${text_skills}"
+          mp_cost: "${text_mp_cost}"
+          cast: "${text_cast}"
+          cast_confirm: "${text_cast_confirm}"
+          cast_done: "${text_cast_done}"
+          cast_failed: "${text_cast_failed}"
+          no_skills: "${text_no_skills}"
+          skills_error: "${text_skills_error}"
+          no_tasks: "${text_no_tasks}"
+          effect_mpheal: "${text_effect_mpheal}"
+          effect_earth: "${text_effect_earth}"
+          effect_frost: "${text_effect_frost}"
+          effect_defensive_stance: "${text_effect_defensive_stance}"
+          effect_valorous_presence: "${text_effect_valorous_presence}"
+          effect_intimidate: "${text_effect_intimidate}"
+          effect_tools_of_trade: "${text_effect_tools_of_trade}"
+          effect_stealth: "${text_effect_stealth}"
+          effect_heal: "${text_effect_heal}"
+          effect_brightness: "${text_effect_brightness}"
+          effect_protect_aura: "${text_effect_protect_aura}"
+          effect_heal_all: "${text_effect_heal_all}"
+          effect_fireball: "${text_effect_fireball}"
+          effect_smash: "${text_effect_smash}"
+          effect_pickpocket: "${text_effect_pickpocket}"
+          effect_backstab: "${text_effect_backstab}"
       setup: |-
         auto *h = id(habitica_app);
         h->set_presser([](const std::string &entity) { id(habitica_press).execute(entity); });
+        // Skills, through the hub's gate for HA calls with replies (ha_calls.h).
+        if (std::string("${skills}").rfind("script.", 0) == 0) {
+          h->skills().set_fetcher([](int generation) {
+            id(daruma_hub).ha_calls().call("habitica skills", [generation](uint32_t call) {
+              id(habitica_skills_fetch).execute(call, generation);
+            });
+          });
+          h->skills().set_caster([](int seq, const std::string &skill, const std::string &task) {
+            id(daruma_hub).ha_calls().call("habitica cast", [seq, skill, task](uint32_t call) {
+              id(habitica_cast).execute(call, seq, skill, task);
+            });
+          });
+          h->skills().set_ask([]() { return id(habitica_ask_cast).state; });
+        }
 
         Daruma::App app;
         app.id = "character";
@@ -167,10 +251,90 @@ daruma:
         app.input = [h](Daruma::Input input, int x, int y) { return h->input(input, x, y); };
         app.on_open = [h]() { h->on_open(); };
         app.on_close = [h]() { h->on_close(); };
+        // The header says "Skills" while the list is up, or the skill being aimed.
+        app.title = [h]() {
+          const Daruma::Theme &t = id(daruma_hub).theme();
+          if (h->skills().active())
+            return h->skills().title();
+          auto it = t.apps.find("character");
+          return it != t.apps.end() && !it->second.name.empty() ? it->second.name : std::string("${app_name}");
+        };
         app.back = [h]() { return h->back(); };
         hub.add_app(app);
 
 script:
+  # The class's skills. HA renders the script's reply as lines (habitica.h):
+  # C, then a K line per skill. Runs from the hub's gate: `call` goes back
+  # to it with the answer.
+  - id: habitica_skills_fetch
+    mode: queued
+    max_runs: 2
+    parameters:
+      call: int
+      generation: int
+    then:
+      - homeassistant.action:
+          action: !lambda return "${skills}";
+          data:
+            op: list
+          capture_response: true
+          response_template: |-
+            {%- set r = response if response is mapping else {} -%}
+            {%- set ns = namespace(out=['C\t' ~ (r.get('class') or '') | string]) -%}
+            {%- for k in (r.get('skills') or [])[:20] if k is mapping -%}
+            {%- set ns.out = ns.out + [['K', k.get('id') | string, k.get('mp') | int(0), k.get('level') | int(0),
+                ((k.get('target') or 'self') | string)[:1], '1' if k.get('ready') is sameas true else '0',
+                (k.get('name') or '') | string | replace('\t', ' ') | replace('\n', ' '),
+                (k.get('why') or '') | string | replace('\t', ' ') | replace('\n', ' ')] | join('\t')] -%}
+            {%- endfor -%}
+            {{ ns.out | join('\n') }}
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habitica_app).skills().on_list(generation, Daruma::HabiticaApp::reply_text(response));
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habitica_app).skills().on_list_error(generation);
+
+  # One cast. The reply as lines: R, then S when it has stats.
+  - id: habitica_cast
+    mode: queued
+    max_runs: 2
+    parameters:
+      call: int
+      seq: int
+      skill: string
+      task: string
+    then:
+      - homeassistant.action:
+          action: !lambda return "${skills}";
+          data:
+            op: cast
+            id: !lambda return skill;
+            task: !lambda return task;
+          capture_response: true
+          response_template: |-
+            {%- set r = response if response is mapping else {} -%}
+            {%- set ns = namespace(out=['R\t' ~ ('1' if r.get('ok') is sameas true else '0')]) -%}
+            {%- set s = r.get('stats') -%}
+            {%- if s is mapping -%}
+            {%- set st = namespace(v=['S']) -%}
+            {%- for k in ['hp', 'hp_max', 'mp', 'mp_max', 'xp', 'xp_next', 'gold', 'level'] -%}
+            {%- set st.v = st.v + [s.get(k) | float(-1) | round(2)] -%}
+            {%- endfor -%}
+            {%- set ns.out = ns.out + [st.v | join('\t')] -%}
+            {%- endif -%}
+            {{ ns.out | join('\n') }}
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habitica_app).skills().on_cast(seq, Daruma::HabiticaApp::reply_text(response));
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habitica_app).skills().on_cast_error(seq, error);
+
   # A tap on a sheet button: HA's button.press. No reply is wanted, so it
   # skips the hub's gate for HA calls (ha_calls.h).
   - id: habitica_press

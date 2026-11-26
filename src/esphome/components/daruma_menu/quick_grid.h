@@ -34,7 +34,7 @@ inline QuickGrid quick_grid(int width, int count, int min_cell_w, int cell_h, in
   g.cols = std::max(1, inner / std::max(1, min_cell_w));
   g.cell_w = inner / g.cols;
   g.cell_h = cell_h;
-  const int first_page = std::min(std::max(0, count), g.cols * std::max(1, max_rows));
+  const int first_page = std::min(count, g.cols * max_rows);
   g.rows = std::max(1, (first_page + g.cols - 1) / g.cols);
   g.height = pad + g.rows * cell_h + bottom;
   return g;

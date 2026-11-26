@@ -38,7 +38,9 @@
 # Core's module `daruma` offers daruma.pet, daruma.next_persona,
 # daruma.previous_persona and daruma.close_message, and binds screen strokes to
 # daruma.pet, left and right swipes to the personas, and a downward swipe to
-# closing the message, unless the device yaml binds them. Module `voice`
+# closing the message, unless the device yaml binds them. menu.yaml takes
+# the downward swipe for its quick panel, which closes a message first.
+# Module `voice`
 # offers voice.start (push to talk, again to cancel).
 #
 # A ringing timer takes any press, tap or hold on any input and stops. A

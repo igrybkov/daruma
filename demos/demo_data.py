@@ -1,7 +1,8 @@
 """Made-up Home Assistant data for demos and tests.
 
 The desktop build asks "Home Assistant" for calendar events and to-do items
-through the API. The harness answers with these. Nothing here comes from a
+through the API, and subscribes to the states the Controls tiles show. The
+harness answers with these. Nothing here comes from a
 real home: the names are invented, and every day looks the same, so runs
 repeat exactly.
 """
@@ -42,6 +43,22 @@ WEATHER_HOURS = [
 # (days from today, condition, high, low, chance of rain %, wind mph)
 WEATHER_DAYS = [(0, "rainy", 68, 49, 80, 12), (1, "sunny", 71, 50, 0, 6), (2, "partlycloudy", 69, 52, 10, 9)]
 
+# The entities the Controls tiles show: the state and the attributes, as HA
+# keeps them. The fan is unavailable, so a tile shows greyed out.
+CONTROLS = {
+    "light.desk_lamp": {"state": "on", "brightness": "153"},
+    "media_player.office": {"state": "playing", "media_title": "Rain on a Tin Roof"},
+    "scene.movie_night": {"state": "unknown"},
+    "fan.desk": {"state": "unavailable"},
+    "cover.blinds": {"state": "open", "current_position": "40"},
+    "sensor.office_co2": {"state": "640", "unit_of_measurement": "ppm"},
+    "sensor.office_temperature": {"state": "21.5", "unit_of_measurement": "°C"},
+    "switch.kettle": {"state": "off"},
+}
+
+# What a Controls action does to its entity's state.
+FLIPS = {"on": "off", "off": "on", "playing": "paused", "paused": "playing"}
+
 
 @dataclass
 class Task:
@@ -63,6 +80,10 @@ class DemoData:
             Task("t6", "Return library books", done=True),
         ]
     )
+
+    entities: dict[str, dict[str, str]] = field(default_factory=lambda: {k: dict(v) for k, v in CONTROLS.items()})
+    # Controls actions performed: (action, entity).
+    controlled: list[tuple[str, str]] = field(default_factory=list)
 
     # HA actions to refuse, as HA does when an entity is gone or a call
     # fails: "calendar.get_events", "todo.get_items".
@@ -122,6 +143,29 @@ class DemoData:
         today = self._day_of(now)
         return {"d": [[self._at(today + timedelta(days=d)), c, hi, lo, p, w] for d, c, hi, lo, p, w in WEATHER_DAYS]}
 
+    def entity_value(self, entity: str, attribute: str | None) -> str | None:
+        """An entity's state, or one of its attributes; None when HA has none."""
+        values = self.entities.get(entity)
+        if values is None:
+            return None
+        return values.get(attribute or "state")
+
+    def control(self, action: str, entity: str) -> bool:
+        """A Controls tap: changes the entity as HA would. False for an entity HA lacks."""
+        values = self.entities.get(entity)
+        if values is None:
+            return False
+        self.controlled.append((action, entity))
+        domain, verb = action.split(".", 1)
+        if domain == "scene" or domain == "script":
+            values["state"] = "2026-01-01T19:00:00+00:00" if domain == "scene" else "off"
+        elif verb in ("toggle", "media_play_pause"):
+            values["state"] = FLIPS.get(values["state"], values["state"])
+        elif verb in ("open_cover", "close_cover"):
+            values["state"] = "open" if verb == "open_cover" else "closed"
+            values["current_position"] = "100" if verb == "open_cover" else "0"
+        return True
+
     def reply(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:
         """The reply to an HA action: refused when it is failing, else answer()."""
         if action in self.failing:
@@ -141,6 +185,8 @@ class DemoData:
             return True, self.todo()
         if action == "weather.get_forecasts":
             return True, self.weather(data.get("type", "hourly"), now)
+        if data.get("entity_id") in self.entities:
+            return self.control(action, data["entity_id"]), None
         if action == "todo.update_item":
             return self.check(data.get("item", ""), data.get("status") == "completed"), None
         return True, None

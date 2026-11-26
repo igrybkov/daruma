@@ -2,7 +2,7 @@ name: screens
 description: >-
   Stills for the README's screens table: the focus menu, a focus block,
   the Pomodoro page, the app board, Tasks, the Calendar's Agenda and day
-  view, Weather, the voice assistant, and three cards from Home Assistant.
+  view, Weather, Controls, the voice assistant, and three cards from Home Assistant.
   Made-up data. Each snapshot becomes a PNG in docs/demos/screens/.
 personas: [Daruma]
 stills: true
@@ -69,6 +69,13 @@ steps:
   - expect: {visible: {role: app, name: Weather}}
   - wait: 1.5
   - snapshot: weather
+  # Controls is on the board's second page.
+  - tap: {role: button, name: Back}
+  - swipe: {from: [240, 120], to: [80, 120]}
+  - tap: {role: tile, name: Controls}
+  - expect: {visible: {role: control, name: Fan}}
+  - wait: 1.5
+  - snapshot: controls
   - press: {input: home, seconds: 2}
   - wait: 1
   # The voice assistant.

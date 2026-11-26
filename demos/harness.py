@@ -491,6 +491,8 @@ class Device:
         self._entity_by_key: dict[int, Any] = {}
         self._states: dict[str, Any] = {}
         self._services: dict[str, Any] = {}
+        # HA states the device subscribed to: (entity, attribute or None).
+        self._ha_subs: set[tuple[str, str | None]] = set()
         self._answers = 0
         self._calls_seen = 0  # Everything the device sent "HA": actions and events.
         self._status: dict[str, Any] = {}
@@ -600,6 +602,7 @@ class Device:
         self._services = {s.name: s for s in services}
         client.subscribe_states(self._on_state)
         client.subscribe_service_calls(self._on_service_call)
+        client.subscribe_home_assistant_states(self._on_ha_subscription)
 
     # --- Home Assistant's side -------------------------------------------------
 
@@ -612,6 +615,32 @@ class Device:
         if event_type:
             self.events.append(Event(f"entity:{info.name}", {"event_type": event_type}, self.now()))
 
+    def _on_ha_subscription(self, entity: str, attribute: str | None) -> None:
+        # The device wants an HA entity's state, or an attribute, as it changes.
+        self._ha_subs.add((entity, attribute or None))
+        self._send_ha_state(entity, attribute or None)
+
+    def _send_ha_state(self, entity: str, attribute: str | None) -> None:
+        value = self.data.entity_value(entity, attribute)
+        if value is None:
+            return
+        self._client.send_home_assistant_state(entity, attribute, value)
+        self._calls_seen += 1
+
+    def _push_ha_entity(self, entity: str) -> None:
+        for sub_entity, attribute in sorted(self._ha_subs, key=lambda s: (s[0], s[1] or "")):
+            if sub_entity == entity:
+                self._send_ha_state(entity, attribute)
+
+    def ha_state(self, entity: str, state: str | None = None, **attributes: str) -> None:
+        """Change an HA entity the device subscribes to, as HA would, and push it."""
+        values = self.data.entities.setdefault(entity, {})
+        if state is not None:
+            values["state"] = state
+        values.update(attributes)
+        self._push_ha_entity(entity)
+        self._settle()
+
     def _on_service_call(self, call) -> None:
         self._calls_seen += 1
         if call.is_event:
@@ -623,6 +652,9 @@ class Device:
             self.events.append(Event(call.service, data, self.now()))
             return
         ok, response = self.data.reply(call.service, dict(call.data), self.wall_time())
+        entity = call.data.get("entity_id", "")
+        if entity in self.data.entities:
+            self._push_ha_entity(entity)
         if call.call_id:
             body = json.dumps({"response": response}).encode() if call.wants_response and ok else b""
             self._client.send_homeassistant_action_response(

@@ -86,6 +86,7 @@ package too. The last column says which.
 | [app_tasks.yaml](app_tasks.yaml) | An app with today's tasks, from a Home Assistant to-do list. You can check tasks off. List it once for each to-do list. | menu |
 | [app_calendar.yaml](app_calendar.yaml) | An app with your coming calendar events. List it once for each group of calendars. | menu |
 | [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |
+| [app_controls.yaml](app_controls.yaml) | An app with a few Home Assistant entities and their live state. One tap toggles a light, runs a scene or plays music. List it again for another page. | menu |
 
 ## More
 

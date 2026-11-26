@@ -144,3 +144,33 @@ font:
       - "\U000F059D"  # weather-windy
       - "\U000F059E"  # weather-windy-variant
       - "\U000F05D6"  # alert-circle-outline (exceptional)
+      # Controls tiles (app_controls.yaml, daruma_controls/__init__.py ICONS).
+      - "\U000F0D44"  # air-purifier
+      - "\U000F00AC"  # blinds
+      - "\U000F0769"  # ceiling-light
+      - "\U000F012C"  # check
+      - "\U000F109F"  # coffee-maker
+      - "\U000F1846"  # curtains
+      - "\U000F0210"  # fan
+      - "\U000F0241"  # flash
+      - "\U000F06D9"  # garage
+      - "\U000F029A"  # gauge
+      - "\U000F02DC"  # home
+      - "\U000F06B5"  # lamp
+      - "\U000F032A"  # leaf
+      - "\U000F1051"  # led-strip-variant
+      - "\U000F1253"  # lightbulb-group
+      - "\U000F07E4"  # molecule-co2
+      - "\U000F0381"  # movie
+      - "\U000F075A"  # music
+      - "\U000F03D8"  # palette
+      - "\U000F0425"  # power
+      - "\U000F06A5"  # power-plug
+      - "\U000F070D"  # robot-vacuum
+      - "\U000F1727"  # script-text-play
+      - "\U000F04C3"  # speaker
+      - "\U000F0502"  # television
+      - "\U000F050F"  # thermometer
+      - "\U000F0521"  # toggle-switch
+      - "\U000F058E"  # water-percent
+      - "\U000F111C"  # window-shutter

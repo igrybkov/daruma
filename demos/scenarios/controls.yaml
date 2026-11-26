@@ -1,0 +1,25 @@
+name: controls
+description: >-
+  The Controls app in every persona's theme: a lit lamp, music playing, a
+  scene, and a fan Home Assistant reports as unavailable. Made-up entities.
+personas: all
+test_personas: all
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - tap: [160, 100]
+  - tap: {text: More}
+  - expect: {visible: {role: tile, name: Tasks}}
+  # Controls is on the board's second page.
+  - swipe: {from: [240, 120], to: [80, 120]}
+  - tap: {role: tile, name: Controls}
+  - expect: {visible: {role: control, name: Fan}}
+  - wait: 1.5
+  - snapshot: grid
+  - tap: {role: control, name: Desk lamp}
+  - expect: {visible: {role: control, name: Desk lamp}}
+  - wait: 1
+  - press: {input: home, seconds: 2}
+  - wait: 1

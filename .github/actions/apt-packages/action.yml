@@ -32,7 +32,7 @@ runs:
         sudo chmod 755 /usr/local/bin/apt-fast
     # A hit unpacks the files of every package and skips dpkg. That is
     # most of the time an install takes, and it needs no apt mirror.
-    - uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
+    - uses: awalsh128/cache-apt-pkgs-action@009d70260b0f2e115cfa77447f8bd04c8e797064 # v2.0.0
       with:
         packages: libsdl2-dev ffmpeg
         version: ${{ env.APT_CACHE_VERSION }}

@@ -42,6 +42,13 @@ daruma_quiet:
   end_time: quiet_end
   dim_after_number: dim_after
 
+# Do not disturb on the Settings page (app_settings.yaml).
+daruma:
+  modules:
+    - name: dnd
+      settings:
+        - { id: dnd, label: Do not disturb, icon: "\U000F0376", switch: dnd_switch }  # minus-circle
+
 switch:
   - platform: template
     name: Do not disturb

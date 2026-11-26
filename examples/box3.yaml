@@ -38,6 +38,8 @@
 #                          entity (a tap on the temperature badge opens it)
 #   app_controls.yaml      Controls app: HA lights, scenes, players, covers
 #                          and sensors with their live state (vars: tiles)
+#   app_settings.yaml      Settings app: the device's switches (Sounds, Do not
+#                          disturb, ...) on its screen; modules add rows
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
 #   quiet.yaml             quiet hours, Do not disturb, dimming when idle
 #
@@ -122,6 +124,7 @@ packages:
       - path: packages/app_weather.yaml
         vars:
           entity: ${weather_entity}
+      - packages/app_settings.yaml
       - packages/prompts.yaml
       - packages/quiet.yaml
 
@@ -138,7 +141,9 @@ api:
 
 daruma:
   # The app board, in this order. Each app gets an "App: <Name>" switch.
-  apps: [tasks, calendar, weather, stats]
+  apps: [tasks, calendar, weather, stats, settings]
+  # The Settings page: these rows first, then the rest the modules offer.
+  settings: [sounds, dnd, mute]
   # What grows the plant (or the bonsai), and how much each counts.
   progress:
     pomodoro: 1

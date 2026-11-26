@@ -444,6 +444,25 @@ class AppsProgressThemeParams(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, r"Two modules offer the app 'tasks' \(tasks and tasks_family\)"):
             registry.order_apps([], MODULES + clash)
 
+    def test_settings_order(self):
+        modules = [
+            ModuleSpec("daruma", settings=["sounds", "jokes"]),
+            ModuleSpec("quiet", settings=["dnd"]),
+        ]
+        # Without a list: every row, in module order.
+        self.assertEqual(registry.order_settings([], modules), ["sounds", "jokes", "dnd"])
+        # The device's list first, then the rest.
+        self.assertEqual(registry.order_settings(["dnd"], modules), ["dnd", "sounds", "jokes"])
+        with self.assertRaisesRegex(RegistryError, "no included module offers a setting 'mute'"):
+            registry.order_settings(["mute"], modules)
+        with self.assertRaisesRegex(RegistryError, "listed twice"):
+            registry.order_settings(["dnd", "dnd"], modules)
+        clash = modules + [ModuleSpec("voice", settings=["sounds"])]
+        with self.assertRaisesRegex(RegistryError, r"setting 'sounds' \(daruma and voice\)"):
+            registry.order_settings([], clash)
+        with self.assertRaisesRegex(RegistryError, "Setting 'Bad'"):
+            registry.order_settings([], [ModuleSpec("x", settings=["Bad"])])
+
     def test_progress_sources(self):
         self.assertEqual(registry.check_progress({}, MODULES), ["pomodoro"])
         modules = MODULES + [ModuleSpec("tasks", progress=["tasks"])]

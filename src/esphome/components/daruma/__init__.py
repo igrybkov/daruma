@@ -26,6 +26,9 @@
           menus:                   # default menus; the device's menus: win per name
             pomodoro: [pomodoro]
           areas: [plaque]          # tap areas its setup draws (hub.add_tap_area)
+          settings:                # rows on the Settings page (app_settings.yaml), each over a switch
+            - { id: sounds, label: Sounds, icon: "\U000f057e", switch: sounds_enabled }
+            # held: a lambda; true shows the row as held off (Sounds during Do not disturb)
           targets:                 # default: what a tap on an area does; the device's targets: win
             plaque: { app: stats } # or { menu: pomodoro }, { action: pomodoro.toggle }, none
           setup: !lambda |-        # (Daruma::Hub &hub): apps, layers, menu items, ...
@@ -54,6 +57,7 @@
         top.double: { action: menu.open, menu: quick }   # opens a named menu
       expose_bindings: true        # one select per binding above, in HA
       apps: [calendar, tasks, stats]   # board order; every app gets an "App: <Name>" switch
+      settings: [dnd, sounds]      # Settings page order; rows it leaves out go last
       menus:                       # named menus of dock buttons (registry.resolve_menus)
         main: [tasks, calendar, weather]    # a tap on the persona opens main (default: Tasks, Calendar, More)
         quick: [pomodoro.stop, stats, more, { label: Lights, icon: "\U000f0335", event: desk_lights }]
@@ -178,6 +182,8 @@ CONF_EVENT_ID = "event_id"
 CONF_PERSONAS = "personas"
 CONF_SWITCH = "switch"
 CONF_LIVELINESS_NUMBER = "liveliness_number"
+CONF_SETTINGS = "settings"
+CONF_HELD = "held"
 CONF_MIN_GAP_NUMBER = "min_gap_number"
 
 # C++ classes live in the global Daruma namespace.
@@ -276,6 +282,18 @@ BUTTON_SCHEMA = cv.Schema(
 )
 
 
+SETTING_SCHEMA = cv.Schema(
+    {
+        cv.Required(CONF_ID): _name,
+        cv.Required(CONF_LABEL): cv.string_strict,
+        cv.Required(CONF_ICON): cv.string_strict,
+        cv.Required(CONF_SWITCH): cv.use_id(ha_switch.Switch),
+        # True while something else keeps the switch's effect off.
+        cv.Optional(CONF_HELD): cv.returning_lambda,
+    }
+)
+
+
 def _menu_item(value):
     """A name (module, app, action, menu or `more`), or an event button."""
     if isinstance(value, dict):
@@ -343,6 +361,7 @@ MODULE_SCHEMA = cv.Schema(
         cv.Optional(CONF_MENU, default=False): cv.boolean,
         cv.Optional(CONF_BUTTONS, default={}): cv.Schema({cv.string_strict: BUTTON_SCHEMA}),
         cv.Optional(CONF_MENUS, default={}): MENUS_SCHEMA,
+        cv.Optional(CONF_SETTINGS, default=[]): cv.ensure_list(SETTING_SCHEMA),
         cv.Optional(CONF_SETUP): cv.lambda_,
     }
 )
@@ -542,6 +561,8 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_BINDINGS, default={}): cv.Schema({cv.string_strict: _binding}),
             cv.Optional(CONF_EXPOSE_BINDINGS, default=False): cv.boolean,
             cv.Optional(CONF_APPS, default=[]): cv.ensure_list(_name),
+            # The Settings page order, by setting id.
+            cv.Optional(CONF_SETTINGS, default=[]): cv.ensure_list(_name),
             # Named menus of dock buttons; `main` is what a tap on the persona opens.
             cv.Optional(CONF_MENUS, default={}): MENUS_SCHEMA,
             cv.Optional(CONF_PROGRESS, default={}): cv.Schema({_name: cv.float_range(min=0.0, max=100.0)}),
@@ -590,6 +611,7 @@ def _module_from_yaml(conf) -> registry.ModuleSpec:
         areas=list(conf[CONF_AREAS]),
         targets=dict(conf[CONF_TARGETS]),
         aliases=dict(conf[CONF_THEME][CONF_ALIASES]),
+        settings=[s[CONF_ID] for s in conf[CONF_SETTINGS]],
     )
 
 
@@ -710,6 +732,7 @@ def _final_validate(config):
         _, log = registry.order_apps(config[CONF_APPS], modules)
         for line in log:
             _LOGGER.info(line)
+        registry.order_settings(config[CONF_SETTINGS], modules)
         registry.check_progress(config[CONF_PROGRESS], modules)
         _random_events_final(config, full, states)
     except RegistryError as err:
@@ -841,8 +864,32 @@ async def to_code(config):
         sw = await ha_switch.new_switch(conf, var, app)
         await cg.register_component(sw, conf)
 
+    await _settings_to_code(var, config, modules)
     await _inputs_to_code(var, config, modules, menus)
     await _random_events_to_code(var, config, states)
+
+
+async def _settings_to_code(var, config, modules):
+    """Settings rows in page order. Each reads and sets its switch, and a
+    change of the switch (from HA too) redraws the page."""
+    rows = {s[CONF_ID]: s for conf in config[CONF_MODULES] for s in conf[CONF_SETTINGS]}
+    for setting in registry.order_settings(config[CONF_SETTINGS], modules):
+        row = rows[setting]
+        sw = await cg.get_variable(row[CONF_SWITCH])
+        held = cg.RawExpression("nullptr")
+        if CONF_HELD in row:
+            held = await cg.process_lambda(row[CONF_HELD], [], return_type=cg.bool_)
+        cg.add(
+            var.add_setting(
+                setting,
+                row[CONF_LABEL],
+                row[CONF_ICON],
+                cg.RawExpression(f"[]() {{ return {sw}->state; }}"),
+                cg.RawExpression(f"[](bool on) {{ if (on) {{ {sw}->turn_on(); }} else {{ {sw}->turn_off(); }} }}"),
+                held,
+            )
+        )
+        cg.add(sw.add_on_state_callback(cg.RawExpression(f"[](bool) {{ {var}->request_redraw(); }}")))
 
 
 async def _inputs_to_code(var, config, modules, menus):

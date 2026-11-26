@@ -80,6 +80,15 @@ contribute:
   page.
 - **Settings**: device settings in HA, such as the focus length and the
   daily goal.
+- **Settings rows**: a switch on the device's Settings page. A module
+  lists `settings: [{id, label, icon, switch, held}]`. The build adds
+  them to the hub (`Hub::settings()`) in page order: the device's
+  `settings:` list, then module order. `held` is an optional lambda; true
+  shows the row as "Held". The app (`daruma_settings`) only draws and
+  flips them, and a switch change from HA redraws the page. The build
+  fails on two modules with one setting id, and on a name in `settings:`
+  that no module offers. A C++ `DARUMA_MODULE` can't offer rows: a row
+  needs a switch id, so it lives in a package.
 - **Looks per persona**: theme keys under the module's name, such as
   `pomodoro.ring` or `pomodoro.done_word`. A persona may set them, and a
   default covers any it leaves out. The build checks the keys the same way

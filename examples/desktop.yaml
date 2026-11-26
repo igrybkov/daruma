@@ -83,11 +83,13 @@ packages:
         - { entity: light.floor_lamp, label: Floor lamp, icon: "mdi:lamp" }
         - { entity: fan.ceiling, label: Fan }
         - { entity: sensor.office_temperature, label: Temperature }
+  app_settings: !include ../packages/app_settings.yaml
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats, controls, room]
+  apps: [tasks, calendar, weather, stats, controls, room, settings]
+  settings: [sounds, dnd, mute]
   progress:
     pomodoro: 1
   # A tap on the persona opens the default main menu (Tasks, Calendar,

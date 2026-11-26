@@ -554,9 +554,15 @@ Built in:
 | Calendar | [app_calendar.yaml](../packages/app_calendar.yaml) | the Agenda of your coming events, and a day view |
 | Weather | [app_weather.yaml](../packages/app_weather.yaml) | now, today's high and low, rain, wind, the next hours |
 | Controls | [app_controls.yaml](../packages/app_controls.yaml) | a few HA entities with their live state; a tap toggles or runs one |
+| Settings | [app_settings.yaml](../packages/app_settings.yaml) | the device's switches; tap a row to flip it |
 
 - **Order.** `daruma: apps: [tasks, calendar, weather, stats]` sets the
   order on the app board.
+- **Settings rows.** Each package adds its own: core adds Sounds, Jokes
+  and Temperature, `quiet.yaml` adds Do not disturb, the voice adds Mic
+  mute. `daruma: settings: [sounds, dnd]` puts rows first. A package adds
+  a row over any switch with `settings:` in its module (see
+  [app_settings.yaml](../packages/app_settings.yaml)).
 - **On and off.** Each app gets an "App: Name" switch in Home Assistant.
   An app that is off leaves the board and stops fetching.
 - **Controls.** List the tiles in the package's `tiles` var. A tile is an

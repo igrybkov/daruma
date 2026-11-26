@@ -195,7 +195,7 @@ class DemoData:
     def habits_reply(self, data: dict[str, str]) -> str:
         """The habits script, as the device's response template renders it."""
         if data.get("op") == "score":
-            return self._score(data.get("id", ""), data.get("direction", "up"))
+            return self._score(data["id"], data.get("direction", "up"))
         rows = [f"L\t{len(self.habits)}"]
         rows += [h.line() for h in self.habits]
         return "\n".join(rows)

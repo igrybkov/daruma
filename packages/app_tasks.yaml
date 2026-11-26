@@ -45,6 +45,10 @@
 # Devices > ESPHome > your device > Configure). Without it the app shows
 # "No answer from Home Assistant".
 #
+# due_today_only (vars): a to-do list shows only the open items due today
+# or before, and done items. Habitica's dailies list needs it: it also
+# holds the dailies not due today. See docs/habitica.md.
+#
 # HA trims a to-do list before it is sent (response_template below): at
 # most `max_items` tasks, titles cut to `title_chars`. A script trims its
 # own list (the blueprint has the same two inputs), and the device keeps
@@ -64,6 +68,10 @@ defaults:
   refresh: 5min
   # Mood change per task checked off.
   happiness: "5"
+  # To-do list only: hide open items with no due date or one after today.
+  # For a list that holds items for later days, such as Habitica's
+  # dailies: the open count then says what is left today.
+  due_today_only: "false"
 
 external_components:
   - source:
@@ -190,9 +198,16 @@ script:
                 capture_response: true
                 response_template: |-
                   {%- set items = (response.values() | list | first)['items'] -%}
-                  {%- set open = items | selectattr('status', 'eq', 'needs_action') | list -%}
-                  {%- set done = items | selectattr('status', 'eq', 'completed') | list -%}
                   {%- set today = now().date() | string -%}
+                  {%- set ns_open = namespace(keep=[]) -%}
+                  {%- for i in items if i.status == 'needs_action' -%}
+                  {%- set due = (i.get('due') or '') | string -%}
+                  {%- if not ${due_today_only} or (due and due[:10] <= today) -%}
+                  {%- set ns_open.keep = ns_open.keep + [i] -%}
+                  {%- endif -%}
+                  {%- endfor -%}
+                  {%- set open = ns_open.keep -%}
+                  {%- set done = items | selectattr('status', 'eq', 'completed') | list -%}
                   {%- set ns = namespace(t=[]) -%}
                   {%- for i in (open + done)[:${max_items}] -%}
                   {%- set due = (i.get('due') or '') | string -%}

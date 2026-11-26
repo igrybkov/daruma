@@ -208,6 +208,7 @@ Everything is a part you can swap, change or add to. The manual,
 | [Signals](docs/customize.md#signals-progress-wellbeing-sky-goal) | grow the plant from anything Home Assistant knows |
 | [Modules](docs/customize.md#your-own-module) | new states, actions and buttons in a few lines of YAML |
 | [Prompts](docs/prompts.md) and [blueprints](#home-assistant-talks-to-it) | cards and questions from Home Assistant, ready to import |
+| [Habitica](docs/habitica.md) | dailies and to-dos on the device; each focus block earns XP |
 | [Screens and boards](docs/customize.md#other-screens-and-boards) | wide, square, black and white, buttons only |
 | [Your own repository](docs/private-packages.md) | keep personas and apps in a repository of your own, private or public |
 

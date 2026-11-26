@@ -1,0 +1,84 @@
+blueprint:
+  name: "Daruma: focus scores a Habitica habit"
+  domain: automation
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/automation/habitica_focus_habit.yaml
+  description: >-
+    Each focus block you finish on a Daruma device scores a habit in
+    Habitica: XP and gold for the work you did.
+
+
+    A finished block sends one of three events: "focus_done" below the
+    day's goal, "goal_reached" for the block that meets it, and "bonus"
+    past it. Pick all three to score every block. Pick only "goal_reached"
+    to score once a day.
+
+
+    Needs the Habitica integration. The habit must exist in Habitica; name
+    it by its title, its alias or its task ID.
+  input:
+    pomodoro_event:
+      name: Pomodoro event
+      description: The device's "Pomodoro event" entity.
+      selector:
+        entity:
+          filter:
+            - domain: event
+              integration: esphome
+    habitica:
+      name: Habitica account
+      selector:
+        config_entry:
+          integration: habitica
+    habit:
+      name: Habit
+      description: The habit's title, alias or task ID.
+      selector:
+        text: {}
+    direction:
+      name: Direction
+      default: up
+      selector:
+        select:
+          options:
+            - label: Up (+)
+              value: up
+            - label: Down (-)
+              value: down
+    events:
+      name: Score on
+      default: [focus_done, goal_reached, bonus]
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Block done, below the goal
+              value: focus_done
+            - label: The block that meets the goal
+              value: goal_reached
+            - label: Block done, past the goal
+              value: bonus
+
+mode: queued
+max: 5
+
+variables:
+  events: !input events
+
+triggers:
+  - trigger: state
+    entity_id: !input pomodoro_event
+
+conditions:
+  # A state change from "unavailable" is HA restoring the entity, not a new event.
+  - condition: template
+    value_template: >-
+      {{ trigger.from_state is not none and trigger.from_state.state != 'unavailable'
+         and trigger.to_state is not none
+         and trigger.to_state.attributes.get('event_type') in events }}
+
+actions:
+  - action: habitica.score_habit
+    data:
+      config_entry: !input habitica
+      task: !input habit
+      direction: !input direction

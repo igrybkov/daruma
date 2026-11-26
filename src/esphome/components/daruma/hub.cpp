@@ -828,7 +828,7 @@ static bool to_input(Gesture gesture, Input *out) {
 
 void Hub::emit_(int input, Gesture gesture, int x, int y) {
   const InputSlot &slot = this->inputs_[input];
-  ESP_LOGD(TAG, "Gesture: %s.%s", slot.name.c_str(), gesture_name(gesture));
+  ESP_LOGD(TAG, "Gesture: %s.%s at %d,%d", slot.name.c_str(), gesture_name(gesture), x, y);
   const GestureEvent event{slot.name, gesture, slot.touch, x, y};
   this->poke();
   for (auto &filter : this->filters_) {
@@ -913,7 +913,12 @@ void Hub::touch_end() {
   const TouchTrack &t = this->touch_.track();
   // A touch that moved was cancelled; up() then fires nothing.
   const Gesture press = this->inputs_[this->touch_input_].press.up(now, this->bound_mask_(this->touch_input_));
-  const Gesture g = this->touch_.moved() ? gesture : press;
+  Gesture g = this->touch_.moved() ? gesture : press;
+  // A swipe from the top with nothing bound to it (an open app, or no
+  // binding) is a swipe down like any other.
+  if (g == Gesture::SWIPE_FROM_TOP &&
+      (this->bound_mask_(this->touch_input_) & gesture_bit(Gesture::SWIPE_FROM_TOP)) == 0)
+    g = Gesture::SWIPE_DOWN;
   if (g != Gesture::NONE)
     this->emit_(this->touch_input_, g, t.x0, t.y0);
 }

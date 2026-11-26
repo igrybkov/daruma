@@ -3,9 +3,10 @@
 Buttons come from the hub's named menus (`daruma: menus:`), apps from
 Hub::add_app; the
 current persona's theme sets the look (daruma/theme.py). As a module it
-offers menu.open, menu.app (`menu.app:<id>` opens one app), menu.back and
-menu.close, and binds a tap and an upward
-swipe on the screen to menu.open unless the device yaml binds them.
+offers menu.open, menu.app (`menu.app:<id>` opens one app), menu.quick (the
+quick panel of Settings rows), menu.back and menu.close. It binds a tap and an
+upward swipe on the screen to menu.open, and a swipe down from the top edge
+to menu.quick, unless the device yaml binds them.
 """
 
 import esphome.codegen as cg
@@ -27,8 +28,8 @@ MenuController = daruma_ns.class_("MenuController", cg.Component)
 
 DARUMA_MODULE = ModuleSpec(
     name="menu",
-    actions=["menu.open", "menu.app", "menu.back", "menu.close"],
-    bindings={"screen.tap": "menu.open", "screen.swipe_up": "menu.open"},
+    actions=["menu.open", "menu.app", "menu.quick", "menu.back", "menu.close"],
+    bindings={"screen.tap": "menu.open", "screen.swipe_up": "menu.open", "screen.swipe_from_top": "menu.quick"},
 )
 
 CONFIG_SCHEMA = cv.Schema(

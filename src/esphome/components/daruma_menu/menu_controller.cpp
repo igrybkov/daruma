@@ -30,6 +30,7 @@ void MenuController::setup(Hub &hub) {
   hub.add_arg_action("menu.open", [this](const std::string &menu) { this->open_menu(menu); });
   hub.add_action("menu.app", [this]() { this->open_app(""); });
   hub.add_arg_action("menu.app", [this](const std::string &app) { this->open_app(app); });
+  hub.add_action("menu.quick", [this]() { this->open_quick(); });
   hub.add_action("menu.back", [this]() { this->back(); });
   hub.add_action("menu.close", [this]() { this->close(); });
 }
@@ -91,7 +92,7 @@ void MenuController::loop() {
 }
 
 void MenuController::touch_() {
-  const bool dock = this->level_ == Level::DOCK;
+  const bool dock = this->level_ == Level::DOCK || this->level_ == Level::QUICK;
   this->until_ = esphome::millis() + (dock ? this->dock_timeout_ms_ : this->app_timeout_ms_);
   this->hub_->request_redraw();
 }
@@ -200,6 +201,9 @@ void MenuController::back() {
         this->close();
       }
       break;
+    case Level::QUICK:
+      this->close();
+      break;
     case Level::CLOSED:
       break;
   }
@@ -232,6 +236,8 @@ bool MenuController::on_input_(Input input, int x, int y) {
       return this->on_board_input_(input, x, y);
     case Level::APP:
       return this->on_app_input_(input, x, y);
+    case Level::QUICK:
+      return this->on_quick_input_(input, x, y);
     case Level::CLOSED:
       break;
   }
@@ -672,6 +678,10 @@ bool MenuController::draw_(Display &display) {
       }
       break;
     }
+    case Level::QUICK:
+      this->hub_->draw_persona(display);
+      this->draw_quick_(display, theme);
+      break;
     case Level::CLOSED:
       return false;
   }

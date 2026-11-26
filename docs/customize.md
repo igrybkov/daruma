@@ -614,6 +614,14 @@ or Pause), an action, another menu, `more` (the app board), or a button
 that fires the Home Assistant event `esphome.daruma_menu` with your
 `event`. Automations in Home Assistant can do anything with that event.
 
+**Quick panel.** A swipe down from the top edge of the screen opens a
+panel there. It shows every Settings row as a round tile: Sounds, Do
+not disturb, Mic mute, Jokes, Temperature. A tap flips one and the panel
+stays open. A swipe up, a tap under the panel or back closes it. The
+tiles follow the `daruma: settings:` order. A swipe down that starts
+lower on the screen still closes a message, as a tap does. Bind
+`menu.quick` to a button on a board without touch.
+
 ## Buttons and gestures: bindings
 
 The board names its inputs. On the BOX-3: `home` (the red circle), `top`
@@ -631,14 +639,15 @@ daruma:
 ```
 
 Gestures: `press`, `double`, `hold` for buttons; `tap`, `double`, `hold`,
-`long_hold`, `swipe_left`, `swipe_right`, `swipe_up`, `swipe_down` and
-`stroke` for touch. `when: idle` runs it only on the persona's own screen.
+`long_hold`, `swipe_left`, `swipe_right`, `swipe_up`, `swipe_down`,
+`swipe_from_top` (a swipe down that starts at the top edge) and `stroke`
+for touch. `when: idle` runs it only on the persona's own screen.
 A press fires at once unless a double or a hold is bound to the same
 input, so nothing waits that need not.
 
 Actions in the box3 build include `daruma.pet`, `daruma.next_persona`,
 `daruma.previous_persona`, `daruma.close_message`, `voice.start`,
-`menu.open`, `menu.app:<id>`, `pomodoro.toggle`, `pomodoro.start`,
+`menu.open`, `menu.app:<id>`, `menu.quick`, `pomodoro.toggle`, `pomodoro.start`,
 `pomodoro.stop`, `pomodoro.skip`, `pomodoro.break`,
 `pomodoro.long_break` and `pomodoro.custom`. A binding to an action that no
 included module offers fails the build.

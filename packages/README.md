@@ -79,7 +79,7 @@ package too. The last column says which.
 
 | Package | What it adds | Also needs |
 |---|---|---|
-| [menu.yaml](menu.yaml) | A menu that opens when you tap the screen. Without it, a tap pets the character. | |
+| [menu.yaml](menu.yaml) | A menu that opens when you tap the screen, and a quick panel of switches (Sounds, Do not disturb, Mic mute) when you swipe down from the top edge. Without it, a tap pets the character. | |
 | [pomodoro.yaml](pomodoro.yaml) | A focus timer ([pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique)). You set a daily goal in sessions, and the screen shows a tomato for each one. | |
 | [prompts.yaml](prompts.yaml) | Cards: full-screen messages from Home Assistant, with buttons to answer. See [prompts.md](../docs/prompts.md). | |
 | [quiet.yaml](quiet.yaml) | Quiet hours, Do not disturb and dimming when idle. See [customize.md](../docs/customize.md#quiet-hours-and-do-not-disturb). | |

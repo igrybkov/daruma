@@ -314,9 +314,9 @@ class Quiet(unittest.TestCase):
 
 
 class Inputs(unittest.TestCase):
-    def test_swipe_stands_for_four_directions(self):
+    def test_swipe_stands_for_every_direction(self):
         gestures = registry.expand_gestures(registry.TOUCH, ["swipe", "tap", "swipe_left"])
-        self.assertEqual(gestures, ["swipe_left", "swipe_right", "swipe_up", "swipe_down", "tap"])
+        self.assertEqual(gestures, ["swipe_left", "swipe_right", "swipe_up", "swipe_down", "swipe_from_top", "tap"])
 
     def test_trigger_with_a_second_dot(self):
         with self.assertRaisesRegex(RegistryError, "input 'home' has no gesture 'press.x'"):

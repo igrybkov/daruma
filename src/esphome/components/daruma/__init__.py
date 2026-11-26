@@ -789,6 +789,7 @@ _GESTURES = {
     "swipe_up": "SWIPE_UP",
     "swipe_down": "SWIPE_DOWN",
     "stroke": "STROKE",
+    "swipe_from_top": "SWIPE_FROM_TOP",
 }
 
 

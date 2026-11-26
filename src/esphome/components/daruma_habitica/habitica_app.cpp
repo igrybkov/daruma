@@ -197,7 +197,9 @@ void HabiticaApp::press_(int button) {
   if (b.key == POTION && !this->confirm_) {
     this->confirm_ = true;
     this->confirm_until_ms_ = esphome::millis() + CONFIRM_MS;
-    this->focus_.reset();
+    // The focus starts on Cancel, so a second SELECT spends nothing.
+    this->focus_.set_count(2);
+    this->focus_.set(1);
     this->changed_();
     return;
   }

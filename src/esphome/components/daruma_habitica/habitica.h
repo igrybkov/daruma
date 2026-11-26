@@ -5,7 +5,7 @@
 // (tests/test_habitica_stats.cpp).
 //
 // Numbers come from Home Assistant one entity at a time (the stat sensors)
-// or as a set (a score reply, later). Each goes through apply(): the model
+// or as a set (a score reply). Each goes through apply(): the model
 // compares it with the last number it knows and returns what to play.
 // A field it does not know yet never plays anything, so the first values
 // after a boot or a reconnect only fill the sheet. The same numbers

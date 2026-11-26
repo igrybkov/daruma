@@ -417,7 +417,9 @@ void HabiticaApp::draw_bar_(AppView &v, int row, const char *label, float value,
 Rect HabiticaApp::buttons_area_(const AppView &v) const {
   const int pad = v.px(12);
   const int top = v.y + v.px(104);
-  return Rect{v.x + pad, top, v.w - 2 * pad, v.y + v.h - v.px(4) - top};
+  // The notice line keeps its strip at the bottom while it shows.
+  const int strip = this->skills_.notice(esphome::millis()).empty() ? 0 : v.px(22);
+  return Rect{v.x + pad, top, v.w - 2 * pad, v.y + v.h - v.px(4) - top - strip};
 }
 
 // The HA buttons that are available, two to a row.

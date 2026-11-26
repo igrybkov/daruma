@@ -200,7 +200,9 @@ void HabitsApp::draw(AppView &v) {
     this->draw_notice_(v);
     return;
   }
-  const Rect area{v.x + pad, top, v.w - 2 * pad, v.y + v.h - pad - top};
+  // The notice line keeps its strip at the bottom while it shows.
+  const int strip = this->notice_text_(esphome::millis()).empty() ? 0 : v.px(22);
+  const Rect area{v.x + pad, top, v.w - 2 * pad, v.y + v.h - pad - top - strip};
   const int row_h = v.px(46);
   this->rows_ = std::max(1, area.h / row_h);
   const int total = (int) habits.size();

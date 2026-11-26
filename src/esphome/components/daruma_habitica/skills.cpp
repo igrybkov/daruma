@@ -262,7 +262,9 @@ void HabiticaSkills::draw_list_(AppView &v) {
     return;
   }
   const int pad = v.px(8);
-  const Rect area{v.x + pad, v.y + pad, v.w - 2 * pad - v.px(8), v.h - 2 * pad};
+  // The notice line keeps its strip at the bottom while it shows.
+  const int strip = this->notice(esphome::millis()).empty() ? 0 : v.px(22);
+  const Rect area{v.x + pad, v.y + pad, v.w - 2 * pad - v.px(8), v.h - 2 * pad - strip};
   const int row_h = v.px(42);
   this->rows_ = std::max(1, area.h / row_h);
   const int total = (int) this->skills_.size();
@@ -338,7 +340,9 @@ void HabiticaSkills::draw_pick_(AppView &v) {
     return;
   }
   const int pad = v.px(8);
-  const Rect area{v.x + pad, v.y + pad, v.w - 2 * pad - v.px(8), v.h - 2 * pad};
+  // The notice line keeps its strip at the bottom while it shows.
+  const int strip = this->notice(esphome::millis()).empty() ? 0 : v.px(22);
+  const Rect area{v.x + pad, v.y + pad, v.w - 2 * pad - v.px(8), v.h - 2 * pad - strip};
   const int row_h = v.px(36);
   this->rows_ = std::max(1, area.h / row_h);
   const int total = (int) this->picks_.size();

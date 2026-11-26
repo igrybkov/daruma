@@ -19,6 +19,10 @@
 # the bar sets the brightness or the speed there (a fan snaps to its
 # speeds); a tap on the top row toggles it. Back returns to the tiles.
 #
+# A long press on a media player opens its panel: the title and artist,
+# previous, play/pause and next, and a volume bar. Previous, next and the
+# volume show only when HA says the player supports them.
+#
 # A tile greys out while its entity is unavailable, and while HA is away.
 # More tiles than fit go on more pages: swipe left or right, or NEXT and
 # PREV on a board without touch.
@@ -148,7 +152,7 @@ script:
           data:
             entity_id: !lambda return entity;
 
-  # A light's brightness or a fan's speed, from the level panel.
+  # A light's brightness, a fan's speed or a player's volume, from a panel.
   - id: ${app_id}_level
     mode: queued
     parameters:
@@ -165,8 +169,18 @@ script:
                   entity_id: !lambda return entity;
                   percentage: !lambda return std::to_string(level);
           else:
-            - homeassistant.action:
-                action: light.turn_on
-                data:
-                  entity_id: !lambda return entity;
-                  brightness_pct: !lambda return std::to_string(level);
+            - if:
+                condition:
+                  lambda: 'return entity.rfind("media_player.", 0) == 0;'
+                then:
+                  - homeassistant.action:
+                      action: media_player.volume_set
+                      data:
+                        entity_id: !lambda return entity;
+                        volume_level: !lambda 'return esphome::str_sprintf("%.2f", level / 100.0);'
+                else:
+                  - homeassistant.action:
+                      action: light.turn_on
+                      data:
+                        entity_id: !lambda return entity;
+                        brightness_pct: !lambda return std::to_string(level);

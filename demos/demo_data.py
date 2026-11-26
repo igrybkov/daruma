@@ -47,7 +47,14 @@ WEATHER_DAYS = [(0, "rainy", 68, 49, 80, 12), (1, "sunny", 71, 50, 0, 6), (2, "p
 # keeps them. The fan is unavailable, so a tile shows greyed out.
 CONTROLS = {
     "light.desk_lamp": {"state": "on", "brightness": "153"},
-    "media_player.office": {"state": "playing", "media_title": "Rain on a Tin Roof"},
+    "media_player.office": {
+        "state": "playing",
+        "media_title": "Rain on a Tin Roof",
+        "media_artist": "Quiet Harbour",
+        "volume_level": "0.35",
+        # Pause, volume, previous, next and play.
+        "supported_features": "16437",
+    },
     "scene.movie_night": {"state": "unknown"},
     "fan.desk": {"state": "unavailable"},
     "cover.blinds": {"state": "open", "current_position": "40"},
@@ -59,8 +66,27 @@ CONTROLS = {
     "fan.ceiling": {"state": "on", "percentage": "67", "percentage_step": "33.333333333333336"},
 }
 
+# The tracks the demo player skips through.
+TRACKS = ["Rain on a Tin Roof", "Lanterns at Dusk", "Paper Boats"]
+
 # What a Controls action does to its entity's state.
 FLIPS = {"on": "off", "off": "on", "playing": "paused", "paused": "playing"}
+
+
+def _set_level_or_track(action: str, values: dict[str, str], data: dict[str, str]) -> None:
+    """A level from a Controls panel, or a player's next or previous track."""
+    if action == "light.turn_on":
+        values["state"] = "on"
+        values["brightness"] = str(round(int(data["brightness_pct"]) * 255 / 100))
+    elif action == "fan.set_percentage":
+        values["percentage"] = data["percentage"]
+        values["state"] = "off" if data["percentage"] == "0" else "on"
+    elif action == "media_player.volume_set":
+        values["volume_level"] = data["volume_level"]
+    elif action in ("media_player.media_next_track", "media_player.media_previous_track"):
+        at = TRACKS.index(values["media_title"]) if values["media_title"] in TRACKS else 0
+        step = 1 if action == "media_player.media_next_track" else -1
+        values["media_title"] = TRACKS[(at + step) % len(TRACKS)]
 
 
 @dataclass
@@ -168,12 +194,8 @@ class DemoData:
         elif verb in ("open_cover", "close_cover"):
             values["state"] = "open" if verb == "open_cover" else "closed"
             values["current_position"] = "100" if verb == "open_cover" else "0"
-        elif action == "light.turn_on":
-            values["state"] = "on"
-            values["brightness"] = str(round(int(data["brightness_pct"]) * 255 / 100))
-        elif action == "fan.set_percentage":
-            values["percentage"] = data["percentage"]
-            values["state"] = "off" if data["percentage"] == "0" else "on"
+        else:
+            _set_level_or_track(action, values, data or {})
         return True
 
     def reply(self, action: str, data: dict[str, str], now: int = 0) -> tuple[bool, dict | None]:

@@ -52,13 +52,25 @@ void ControlsApp::setup() {
       this->tiles_[i].state.extra = std::string(s.c_str(), s.size());
       this->changed_();
     });
-    if (control_domain(entity) != "fan")
-      continue;
-    api->subscribe_home_assistant_state(entity, std::string("percentage_step"), [this, i](esphome::StringRef s) {
-      this->tiles_[i].state.step = std::string(s.c_str(), s.size());
-    });
+    const std::string domain = control_domain(entity);
+    if (domain == "fan")
+      this->follow_(i, "percentage_step", &TileState::step);
+    if (domain == "media_player") {
+      this->follow_(i, "media_artist", &TileState::artist);
+      this->follow_(i, "volume_level", &TileState::volume);
+      this->follow_(i, "supported_features", &TileState::features);
+    }
   }
   ESP_LOGD(TAG, "%u tiles", (unsigned) this->tiles_.size());
+}
+
+// One more attribute of tile i, into one field of its state.
+void ControlsApp::follow_(size_t i, const char *attribute, std::string TileState::*field) {
+  esphome::api::global_api_server->subscribe_home_assistant_state(
+      this->tiles_[i].entity, std::string(attribute), [this, i, field](esphome::StringRef s) {
+        this->tiles_[i].state.*field = std::string(s.c_str(), s.size());
+        this->changed_();
+      });
 }
 
 void ControlsApp::loop() {
@@ -110,7 +122,7 @@ void ControlsApp::open_panel_(int index) {
   if (index < 0 || index >= (int) this->tiles_.size())
     return;
   const Tile &t = this->tiles_[index];
-  if (!control_has_level(t.entity) || !control_available(t.state) || !this->leveler_)
+  if (!control_has_panel(t.entity) || !control_available(t.state) || !this->leveler_)
     return;
   this->panel_index_ = index;
   this->pending_level_ = -1;
@@ -131,8 +143,16 @@ void ControlsApp::set_level_(int level) {
 bool ControlsApp::panel_input_(Input input, int x, int y) {
   if (input != Input::TAP)
     return input != Input::BACK && input != Input::CLOSE;
-  if (this->bar_.contains(x, y)) {
-    this->set_level_(control_level_at(x - this->bar_.x, this->bar_.w, this->tiles_[this->panel_index_].state));
+  const Tile &tile = this->tiles_[this->panel_index_];
+  for (int b = 0; b < 3; b++) {
+    if (this->buttons_[b].w > 0 && this->buttons_[b].contains(x, y)) {
+      ESP_LOGD(TAG, "%s %s", control_media_action(b), tile.entity.c_str());
+      this->actor_(control_media_action(b), tile.entity);
+      return true;
+    }
+  }
+  if (this->bar_.w > 0 && this->bar_.contains(x, y)) {
+    this->set_level_(control_level_at(x - this->bar_.x, this->bar_.w, tile.state));
   } else if (this->head_.contains(x, y)) {
     this->act_(this->panel_index_);
   }
@@ -379,46 +399,120 @@ void ControlsApp::draw_words_(AppView &v, const Rect &r, const std::string &labe
              fit_text(it, v.small, look.state, room).c_str(), look.fill);
 }
 
-// One light or fan: its icon, label and level on top, and a wide bar under
-// them, filled to the level.
+// The level to show: the one a tap set, until HA's agrees or it times out.
+int ControlsApp::shown_level_(int level) {
+  if (this->pending_level_ >= 0 && level != this->pending_level_)
+    return this->pending_level_;
+  this->pending_level_ = -1;
+  return level;
+}
+
+// A panel for one light, fan or player. Every part sets where taps land.
 void ControlsApp::draw_panel_(AppView &v, const Tile &tile) {
+  this->bar_ = Rect{};
+  for (Rect &b : this->buttons_)
+    b = Rect{};
+  if (tile.kind == ControlKind::MEDIA) {
+    this->draw_media_panel_(v, tile);
+    return;
+  }
+  // A light or a fan: the level, and a wide bar under it.
+  const int level = this->shown_level_(control_level(tile.state));
+  const std::string pct = std::to_string(level) + "%";
+  this->draw_head_(v, tile, pct, level > 0);
+  const int bar_y = v.px(60);
+  this->draw_bar_(v, tile, Rect{v.px(16), bar_y, v.w - v.px(32), std::min(v.px(72), v.h - v.px(16) - bar_y)}, level);
+}
+
+// A player: the title and artist, its buttons, and the volume.
+void ControlsApp::draw_media_panel_(AppView &v, const Tile &tile) {
+  auto &it = v.display;
+  const Theme &t = v.theme;
+  const TileState &s = tile.state;
+  const int volume = control_volume(s);
+  const bool has_volume = volume >= 0 && control_supports(s, MEDIA_VOLUME_SET);
+  const int level = this->shown_level_(std::max(0, volume));
+  this->draw_head_(v, tile, has_volume ? std::to_string(level) + "%" : "", s.state == "playing");
+
+  const int pad = v.px(16);
+  const std::string title = s.state == "playing" || s.state == "paused" ? s.extra : std::string();
+  const std::string line = title.empty() ? control_text(tile.kind, s, this->words_()) : title;
+  it.print(v.x + pad, v.y + v.px(58), v.text, t.on(t.panel, t.ink), TextAlign::CENTER_LEFT,
+           fit_text(it, v.text, line, v.w - 2 * pad).c_str(), t.panel);
+  UiTree::add("text", line, Rect{v.x + pad, v.y + v.px(48), v.w - 2 * pad, v.px(20)}, false, s.artist);
+  if (!title.empty() && !s.artist.empty())
+    it.print(v.x + pad, v.y + v.px(78), v.small, t.on(t.panel, t.muted), TextAlign::CENTER_LEFT,
+             fit_text(it, v.small, s.artist, v.w - 2 * pad).c_str(), t.panel);
+
+  this->draw_buttons_(v, s, v.px(112));
+  if (has_volume) {
+    const int bar_y = v.px(140);
+    this->draw_bar_(v, tile, Rect{pad, bar_y, v.w - 2 * pad, std::min(v.px(26), v.h - v.px(8) - bar_y)}, level);
+  }
+}
+
+// Previous, play or pause, and next, centered on `cy` (app-area). Previous
+// and next show only when the player can do them.
+void ControlsApp::draw_buttons_(AppView &v, const TileState &s, int cy) {
+  auto &it = v.display;
+  const Theme &t = v.theme;
+  const Color lit = t.on(t.panel, t.color(this->prefix_ + ".on"));
+  const bool playing = s.state == "playing";
+  static const char *const ICONS[] = {"\U000F04AE", nullptr, "\U000F04AD"};  // skip-previous, skip-next
+  static const char *const NAMES[] = {"Previous", nullptr, "Next"};
+  const bool shown[] = {control_supports(s, MEDIA_PREVIOUS), true, control_supports(s, MEDIA_NEXT)};
+  const int r = v.px(22);
+  for (int b = 0; b < 3; b++) {
+    if (!shown[b])
+      continue;
+    const int cx = v.w / 2 + (b - 1) * v.px(70);
+    this->buttons_[b] = Rect{cx - r, cy - r, 2 * r, 2 * r};
+    const Color fill = b == 1 ? lit : t.fit(t.edge);
+    v.display.filled_circle(v.x + cx, v.y + cy, r, fill);
+    const char *icon = b == 1 ? (playing ? "\U000F03E4" : "\U000F040A") : ICONS[b];  // pause, play
+    it.print(v.x + cx, v.y + cy, v.icons, t.on(fill, b == 1 ? t.panel : t.ink), TextAlign::CENTER, icon, fill);
+    const char *name = b == 1 ? (playing ? "Pause" : "Play") : NAMES[b];
+    UiTree::add("button", name, Rect{v.x + cx - r, v.y + cy - r, 2 * r, 2 * r});
+  }
+}
+
+// The top row: the icon (lit while on), the label, and `right` at the end.
+// A tap on it toggles the entity.
+void ControlsApp::draw_head_(AppView &v, const Tile &tile, const std::string &right, bool on) {
   auto &it = v.display;
   const Theme &t = v.theme;
   const int pad = v.px(16);
-  const Color lit = t.on(t.panel, t.color(this->prefix_ + ".on"));
-  int level = control_level(tile.state);
-  if (this->pending_level_ >= 0 && level != this->pending_level_) {
-    level = this->pending_level_;
-  } else {
-    this->pending_level_ = -1;
-  }
-  const bool on = level > 0;
-
   const int top = v.y + v.px(30);
-  const std::string pct = std::to_string(level) + "%";
-  const int pct_w = text_width(it, v.text, pct);
+  const Color lit = t.on(t.panel, t.color(this->prefix_ + ".on"));
+  const int right_w = right.empty() ? 0 : text_width(it, v.text, right) + v.px(8);
   it.print(v.x + pad + v.px(14), top, v.icons, on ? lit : t.on(t.panel, t.muted), TextAlign::CENTER, tile.icon.c_str(),
            t.panel);
   const int lx = v.x + pad + v.px(36);
   it.print(lx, top, v.text, t.on(t.panel, t.ink), TextAlign::CENTER_LEFT,
-           fit_text(it, v.text, tile.label, v.x + v.w - pad - pct_w - v.px(8) - lx).c_str(), t.panel);
-  it.print(v.x + v.w - pad, top, v.text, t.on(t.panel, t.ink), TextAlign::CENTER_RIGHT, pct.c_str(), t.panel);
-  this->head_ = Rect{pad, top - v.y - v.px(18), v.w - 2 * pad, v.px(36)};
+           fit_text(it, v.text, tile.label, v.x + v.w - pad - right_w - lx).c_str(), t.panel);
+  if (!right.empty())
+    it.print(v.x + v.w - pad, top, v.text, t.on(t.panel, t.ink), TextAlign::CENTER_RIGHT, right.c_str(), t.panel);
+  this->head_ = Rect{pad, v.px(12), v.w - 2 * pad, v.px(36)};
+  UiTree::add("button", tile.label, Rect{v.x + this->head_.x, v.y + this->head_.y, this->head_.w, this->head_.h});
+}
 
-  const int bar_y = v.y + v.px(60);
-  const Rect bar{v.x + pad, bar_y, v.w - 2 * pad, std::min(v.px(72), v.y + v.h - pad - bar_y)};
-  const int radius = v.px(12);
+// The level bar at `r` (app-area), filled to `level`. A fan with set
+// speeds gets a notch between each two.
+void ControlsApp::draw_bar_(AppView &v, const Tile &tile, const Rect &r, int level) {
+  auto &it = v.display;
+  const Theme &t = v.theme;
+  const Rect bar{v.x + r.x, v.y + r.y, r.w, r.h};
+  const int radius = std::min(v.px(12), bar.h / 2);
   Utilities::Draw::roundedRectangle(&it, bar.x, bar.y, bar.w, bar.h, radius, t.fit(t.edge));
   const int filled = bar.w * level / 100;
   if (filled > 0)
-    Utilities::Draw::roundedRectangle(&it, bar.x, bar.y, std::max(filled, 2 * radius), bar.h, radius, lit);
-  // A fan with set speeds: a notch between each two.
+    Utilities::Draw::roundedRectangle(&it, bar.x, bar.y, std::max(filled, 2 * radius), bar.h, radius,
+                                      t.on(t.panel, t.color(this->prefix_ + ".on")));
   const double step = control_step(tile.state);
   for (double at = step; step > 1.0 && at < 99.5; at += step)
     it.vertical_line(bar.x + (int) (bar.w * at / 100), bar.y + v.px(10), bar.h - v.px(20), t.panel);
-  this->bar_ = Rect{bar.x - v.x, bar.y - v.y, bar.w, bar.h};
-  UiTree::add("button", tile.label, Rect{v.x + this->head_.x, v.y + this->head_.y, this->head_.w, this->head_.h});
-  UiTree::add("slider", tile.label, bar, false, pct);
+  this->bar_ = r;
+  UiTree::add("slider", tile.label, bar, false, std::to_string(level) + "%");
 }
 
 void ControlsApp::draw_dots_(AppView &v, const Grid &g, int pages) {

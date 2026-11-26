@@ -87,7 +87,13 @@ class ControlsApp : public esphome::Component {
   bool panel_input_(Input input, int x, int y);
   void open_panel_(int index);
   void set_level_(int level);
+  void follow_(size_t i, const char *attribute, std::string TileState::*field);
+  int shown_level_(int level);
   void draw_panel_(AppView &v, const Tile &tile);
+  void draw_media_panel_(AppView &v, const Tile &tile);
+  void draw_buttons_(AppView &v, const TileState &s, int cy);
+  void draw_head_(AppView &v, const Tile &tile, const std::string &right, bool on);
+  void draw_bar_(AppView &v, const Tile &tile, const Rect &r, int level);
   void draw_icon_only_(AppView &v, const Rect &r, ControlKind kind, const TileLook &look);
   void draw_words_(AppView &v, const Rect &r, const std::string &label, const TileLook &look);
   void draw_dots_(AppView &v, const Grid &g, int pages);
@@ -113,6 +119,7 @@ class ControlsApp : public esphome::Component {
   // app-area coordinates), and the level a tap set until HA confirms it.
   int panel_index_{-1};
   Rect bar_, head_;
+  Rect buttons_[3];  // A player's previous, play/pause and next; empty when not shown.
   int pending_level_{-1};
   uint32_t pending_until_ms_{0};
 };

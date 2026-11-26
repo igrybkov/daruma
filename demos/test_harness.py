@@ -79,7 +79,13 @@ def test_controls_entities_start_as_the_demos_show_them():
         (
             "media_player.media_play_pause",
             "media_player.office",
-            {"state": "paused", "media_title": "Rain on a Tin Roof"},
+            {
+                "state": "paused",
+                "media_title": "Rain on a Tin Roof",
+                "media_artist": "Quiet Harbour",
+                "volume_level": "0.35",
+                "supported_features": "16437",
+            },
         ),
         ("scene.turn_on", "scene.movie_night", {"state": "2026-01-01T19:00:00+00:00"}),
         ("cover.close_cover", "cover.blinds", {"state": "closed", "current_position": "0"}),
@@ -105,6 +111,27 @@ def test_a_level_sets_brightness_and_speed():
     assert data.entities["fan.ceiling"]["state"] == "on"
     data.control("fan.set_percentage", "fan.ceiling", {"percentage": "0"})
     assert data.entities["fan.ceiling"]["state"] == "off"
+
+
+def test_the_player_skips_tracks_and_sets_its_volume():
+    data = DemoData()
+    player = data.entities["media_player.office"]
+    data.control("media_player.media_next_track", "media_player.office")
+    assert player["media_title"] == "Lanterns at Dusk"
+    data.control("media_player.media_next_track", "media_player.office")
+    assert player["media_title"] == "Paper Boats"
+    data.control("media_player.media_previous_track", "media_player.office")
+    assert player["media_title"] == "Lanterns at Dusk"
+    # Previous from the first track wraps around to the last.
+    player["media_title"] = "Rain on a Tin Roof"
+    data.control("media_player.media_previous_track", "media_player.office")
+    assert player["media_title"] == "Paper Boats"
+    player["media_title"] = "Something else"
+    data.control("media_player.media_next_track", "media_player.office")
+    assert player["media_title"] == "Lanterns at Dusk"
+    data.control("media_player.volume_set", "media_player.office", {"volume_level": "0.75"})
+    assert player["volume_level"] == "0.75"
+    assert player["state"] == "playing"
 
 
 def test_opening_a_cover_and_running_a_script():

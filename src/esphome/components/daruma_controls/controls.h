@@ -62,6 +62,16 @@ struct TileState {
   std::string extra;  // The attribute: brightness, percentage, title, position or unit.
   int scale{0};       // What `extra` counts to as a level: 255 for a light, 100 for a fan, else 0.
   std::string step;   // A fan's percentage_step: 33.3 for three speeds.
+  // A media player's artist, volume_level (0 to 1) and supported_features.
+  std::string artist, volume, features;
+};
+
+// HA's media player features (MediaPlayerEntityFeature) the panel uses.
+enum MediaFeature : unsigned long {
+  MEDIA_PAUSE = 1,
+  MEDIA_VOLUME_SET = 4,
+  MEDIA_PREVIOUS = 16,
+  MEDIA_NEXT = 32,
 };
 
 // The full scale of an entity's level: a light's brightness goes to 255, a
@@ -152,8 +162,33 @@ inline std::string control_toggle_text(const TileState &s, const ControlWords &w
   return pct < 0 ? w.on : w.on + " · " + std::to_string(pct) + "%";
 }
 
-// A light or a fan: a long press opens its level.
-inline bool control_has_level(const std::string &entity) { return control_scale(entity) != 0; }
+// A light, a fan or a media player: a long press opens its panel.
+inline bool control_has_panel(const std::string &entity) {
+  return control_scale(entity) != 0 || control_domain(entity) == "media_player";
+}
+
+// The player supports `feature`. False until HA says.
+inline bool control_supports(const TileState &s, MediaFeature feature) {
+  char *end = nullptr;
+  const unsigned long bits = std::strtoul(s.features.c_str(), &end, 10);
+  return !s.features.empty() && *end == '\0' && (bits & feature) != 0;
+}
+
+// A player's volume in percent, or -1 without one.
+inline int control_volume(const TileState &s) {
+  char *end = nullptr;
+  const double v = std::strtod(s.volume.c_str(), &end);
+  if (s.volume.empty() || *end != '\0' || !std::isfinite(v))
+    return -1;
+  return (int) std::lround(std::max(0.0, std::min(1.0, v)) * 100.0);
+}
+
+// The previous, play/pause and next actions of a player.
+inline const char *control_media_action(int button) {
+  static const char *const ACTIONS[] = {"media_player.media_previous_track", "media_player.media_play_pause",
+                                        "media_player.media_next_track"};
+  return button >= 0 && button < 3 ? ACTIONS[button] : "";
+}
 
 // The level the bar shows: 0 while off, 100 while on without a level.
 inline int control_level(const TileState &s) {

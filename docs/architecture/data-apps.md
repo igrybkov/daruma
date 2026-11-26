@@ -95,6 +95,9 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
     domain, an icon from `ICONS`, and that icon in the icon font.
     `menu.yaml` lists every icon in `ICONS`;
     `tests/test_controls_config.py` checks it.
+  - A long press opens a panel for a light, fan or media player
+    (`draw_panel_`): a level bar, or a player's buttons and volume. A
+    player's `supported_features` decides which buttons show.
   - On the desktop, the runner plays HA for the tiles: `CONTROLS` in
     `demos/demo_data.py` holds the states, and a tap changes them.
     `device.ha_state()` changes one from a test.

@@ -122,7 +122,8 @@ font:
       - "\U000F03E4"  # pause
       - "\U000F040A"  # play (Resume)
       - "\U000F04DB"  # stop
-      - "\U000F04AD"  # skip-next (Skip)
+      - "\U000F04AD"  # skip-next (Skip; the Controls player panel's Next)
+      - "\U000F04AE"  # skip-previous (the Controls player panel)
       - "\U000F0128"  # chart-bar (Stats)
       - "\U000F0756"  # format-list-checks (Tasks)
       - "\U000F00ED"  # calendar (Calendar)

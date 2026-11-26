@@ -193,10 +193,11 @@ static void levels() {
   CHECK(control_scale("switch.kettle") == 0);
   CHECK(control_fresh("light.desk").scale == 255);
   CHECK(!control_fresh("light.desk").known);
-  CHECK(control_has_level("light.desk"));
-  CHECK(control_has_level("fan.office"));
-  CHECK(!control_has_level("switch.kettle"));
-  CHECK(!control_has_level("cover.blinds"));
+  CHECK(control_has_panel("light.desk"));
+  CHECK(control_has_panel("fan.office"));
+  CHECK(control_has_panel("media_player.office"));
+  CHECK(!control_has_panel("switch.kettle"));
+  CHECK(!control_has_panel("cover.blinds"));
 
   // Percent from HA's attribute.
   CHECK(control_percent(light("on", "153")) == 60);
@@ -259,8 +260,55 @@ static void levels() {
   CHECK(control_level_at(115, 300, fan("on", "", "25")) == 50);
 }
 
+static void media() {
+  TileState s = state("playing", "Rain on a Tin Roof");
+  // Unknown until HA says.
+  CHECK(!control_supports(s, MEDIA_NEXT));
+  CHECK(control_volume(s) == -1);
+  s.features = "16437";  // Pause, volume, previous, next, play.
+  CHECK(control_supports(s, MEDIA_PAUSE));
+  CHECK(control_supports(s, MEDIA_VOLUME_SET));
+  CHECK(control_supports(s, MEDIA_PREVIOUS));
+  CHECK(control_supports(s, MEDIA_NEXT));
+  s.features = "16385";  // Pause and play only: a speaker that can't skip.
+  CHECK(control_supports(s, MEDIA_PAUSE));
+  CHECK(!control_supports(s, MEDIA_NEXT));
+  CHECK(!control_supports(s, MEDIA_VOLUME_SET));
+  s.features = "1";  // Pause alone.
+  CHECK(control_supports(s, MEDIA_PAUSE));
+  CHECK(!control_supports(s, MEDIA_PREVIOUS));
+  s.features = "None";
+  CHECK(!control_supports(s, MEDIA_PAUSE));
+  s.features = "5x";
+  CHECK(!control_supports(s, MEDIA_PAUSE));
+
+  s.volume = "0.35";
+  CHECK(control_volume(s) == 35);
+  s.volume = "0.355";
+  CHECK(control_volume(s) == 36);
+  s.volume = "0.9949";
+  CHECK(control_volume(s) == 99);
+  s.volume = "1";
+  CHECK(control_volume(s) == 100);
+  s.volume = "1.5";
+  CHECK(control_volume(s) == 100);
+  s.volume = "-0.2";
+  CHECK(control_volume(s) == 0);
+  s.volume = "None";
+  CHECK(control_volume(s) == -1);
+  s.volume = "nan";
+  CHECK(control_volume(s) == -1);
+
+  CHECK_EQ(control_media_action(0), "media_player.media_previous_track");
+  CHECK_EQ(control_media_action(1), "media_player.media_play_pause");
+  CHECK_EQ(control_media_action(2), "media_player.media_next_track");
+  CHECK_EQ(control_media_action(3), "");
+  CHECK_EQ(control_media_action(-1), "");
+}
+
 int main() {
   kinds();
+  media();
   levels();
   availability();
   numbers();

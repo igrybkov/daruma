@@ -100,3 +100,39 @@ def test_long_press_sets_a_level(device):
     # A tap on the top row toggles it.
     device.get_by_role("button", "Floor lamp").tap()
     expect(bar).to_have_value("0%")
+
+
+def test_player_panel(device):
+    _open_controls(device)
+    x, y = device.get_by_role("control", "Music").wait_for().center
+    device.hold(x, y, 2.0)
+    expect(device.get_by_role("text", "Rain on a Tin Roof")).to_have_value("Quiet Harbour")
+    volume = device.get_by_role("slider", "Music")
+    expect(volume).to_have_value("35%")
+    expect(device).to_match_screenshot("music")
+    # Next and previous skip tracks.
+    device.get_by_role("button", "Next").tap()
+    expect(device.get_by_role("text", "Lanterns at Dusk")).to_be_visible()
+    device.get_by_role("button", "Previous").tap()
+    expect(device.get_by_role("text", "Rain on a Tin Roof")).to_be_visible()
+    # Pause, and play again.
+    device.get_by_role("button", "Pause").tap()
+    expect(device.get_by_role("button", "Play")).to_be_visible()
+    device.get_by_role("button", "Play").tap()
+    expect(device.get_by_role("button", "Pause")).to_be_visible()
+    # A tap on the bar sets the volume.
+    bx, by, bw, bh = volume.bounding_box()
+    device.tap(bx + bw * 3 // 4, by + bh // 2)
+    expect(volume).to_have_value("75%")
+    assert device.data.entities["media_player.office"]["volume_level"] == "0.75"
+
+
+def test_player_without_skip_or_volume(device):
+    _open_controls(device)
+    device.ha_state("media_player.office", supported_features="16385")  # Pause and play.
+    x, y = device.get_by_role("control", "Music").wait_for().center
+    device.hold(x, y, 2.0)
+    expect(device.get_by_role("button", "Pause")).to_be_visible()
+    expect(device.get_by_role("button", "Next")).to_be_hidden()
+    expect(device.get_by_role("button", "Previous")).to_be_hidden()
+    expect(device.get_by_role("slider", "Music")).to_be_hidden()

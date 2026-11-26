@@ -864,7 +864,8 @@ async def to_code(config):
         sw = await ha_switch.new_switch(conf, var, app)
         await cg.register_component(sw, conf)
 
-    await _settings_to_code(var, config, modules)
+    # The screen tests build a device and see its rows; host tests reach to_code no further.
+    await _settings_to_code(var, config, modules)  # pragma: no mutate
     await _inputs_to_code(var, config, modules, menus)
     await _random_events_to_code(var, config, states)
 

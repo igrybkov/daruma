@@ -29,6 +29,8 @@ static void layout() {
   const SettingsRows tiny = settings_rows(30, 5, 40);
   CHECK(tiny.rows == 1);
   CHECK(tiny.row_h == 20);
+  // Rows of at least one pixel: ten of them in ten pixels.
+  CHECK(settings_rows(10, 0, 1).rows == 10);
   // Nothing at all: one empty row, no division by zero.
   const SettingsRows none = settings_rows(0, 5, 0);
   CHECK(none.rows == 1);
@@ -48,8 +50,18 @@ static void taps() {
   // Past the last setting: nothing.
   CHECK(settings_row_at(100, r, 0, 2) == -1);
   CHECK(settings_row_at(50, r, 0, 2) == 1);
+  // Before the first draw: all zero, and no row anywhere.
   SettingsRows flat;
-  CHECK(settings_row_at(10, flat, 0, 6) == -1);  // Before the first draw.
+  CHECK(flat.top == 0);
+  CHECK(flat.row_h == 0);
+  CHECK(flat.rows == 0);
+  CHECK(settings_row_at(10, flat, 0, 6) == -1);
+  // Rows of no height: no row, whatever the count says.
+  const SettingsRows zero{0, 0, 3};
+  CHECK(settings_row_at(10, zero, 0, 6) == -1);
+  // Rows one pixel high: each pixel its own row.
+  const SettingsRows thin{0, 1, 10};
+  CHECK(settings_row_at(3, thin, 0, 6) == 3);
 }
 
 static void scrolling() {

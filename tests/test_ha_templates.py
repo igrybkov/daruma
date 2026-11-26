@@ -5,6 +5,7 @@ runs these templates. These tests render them from the package and the
 blueprint files, with a fixed `now()`.
 """
 
+import ast
 import datetime
 import json
 import re
@@ -178,3 +179,222 @@ def test_focus_blueprint_events_match_the_pomodoro_package():
     pomodoro = _load(ROOT / "packages" / "pomodoro.yaml")
     event = next(e for e in pomodoro["event"] if e.get("id") == "pomo_event")
     assert set(ALL_ENDS) <= set(event["event_types"])
+
+
+# --- Habits: the device's reply templates -------------------------------------
+
+HABITS = _load(ROOT / "packages" / "app_habits.yaml")
+
+
+def _habits_template(script_id: str) -> str:
+    script = next(s for s in HABITS["script"] if s["id"] == script_id)
+    action = script["then"][0]["homeassistant.action"]
+    return _substitute(action["response_template"], HABITS["defaults"])
+
+
+def _render_habits(script_id: str, response) -> list[list[str]]:
+    out = _env(datetime.datetime.now()).from_string(_habits_template(script_id)).render(response=response)
+    return [line.split("\t") for line in out.split("\n")]
+
+
+CONTRACT_LIST = {
+    "habits": [
+        {
+            "id": "h1",
+            "title": "Drink water",
+            "up": True,
+            "down": False,
+            "value": 4.567,
+            "count_up": 3,
+            "count_down": 0,
+            "period": "daily",
+        },
+        {
+            "id": "h2",
+            "title": "Snack\tlate\nat night",
+            "up": True,
+            "down": True,
+            "value": -12,
+            "count_up": 1,
+            "count_down": 2,
+            "period": "weekly",
+        },
+        {"id": "h3", "title": "x" * 60, "up": False, "down": True, "period": "monthly"},
+        "not a habit",
+    ],
+    "stats": {"hp": 42.5, "hp_max": 50, "mp": None, "level": 12},
+}
+
+
+def test_habits_list_becomes_lines():
+    lines = _render_habits("habits_fetch", CONTRACT_LIST)
+    assert lines[0] == ["L", "4"]
+    assert lines[1] == ["H", "h1", "1", "0", "4.57", "3", "0", "d", "Drink water"]
+    # Tabs and new lines in a title become spaces.
+    assert lines[2] == ["H", "h2", "1", "1", "-12.0", "1", "2", "w", "Snack late at night"]
+    # Missing numbers are 0; a long title is cut.
+    assert lines[3][:8] == ["H", "h3", "0", "1", "0", "0", "0", "m"]
+    assert lines[3][8] == "x" * 39 + "…"
+    # Stats: what is missing is -1.
+    assert lines[4] == ["S", "42.5", "50.0", "-1", "-1", "-1", "-1", "-1", "12.0"]
+    assert len(lines) == 5
+
+
+def test_habits_list_without_habits_or_stats():
+    assert _render_habits("habits_fetch", {}) == [["L", "0"]]
+    assert _render_habits("habits_fetch", None) == [["L", "0"]]
+    habit = {"id": 7, "title": "T", "up": True}
+    assert _render_habits("habits_fetch", {"habits": [habit]})[1] == ["H", "7", "1", "0", "0", "0", "0", "d", "T"]
+
+
+def test_habits_list_keeps_max_items():
+    many = {"habits": [{"id": f"h{i}", "title": "T", "up": True} for i in range(30)]}
+    lines = _render_habits("habits_fetch", many)
+    assert lines[0] == ["L", HABITS["defaults"]["max_items"]]
+    assert len(lines) == 1 + int(HABITS["defaults"]["max_items"])
+
+
+def test_habits_score_reply_becomes_lines():
+    stats = {"hp": 40, "hp_max": 50, "mp": 21, "mp_max": 45, "xp": 400, "xp_next": 520, "gold": 95.5, "level": 13}
+    reply = {"ok": True, "delta": 0.9876, "quest": 3.25, "drop": "You found a Wolf Egg!", "stats": stats}
+    lines = _render_habits("habits_score", reply)
+    assert lines[0] == ["R", "1", "0.988", "3.25", "You found a Wolf Egg!"]
+    assert lines[1] == ["S", "40.0", "50.0", "21.0", "45.0", "400.0", "520.0", "95.5", "13.0"]
+
+
+def test_habits_score_needs_ok_true():
+    assert _render_habits("habits_score", {"ok": True}) == [["R", "1", "0", "0", ""]]
+    assert _render_habits("habits_score", {"ok": "yes"})[0][1] == "0"
+    assert _render_habits("habits_score", {}) == [["R", "0", "0", "0", ""]]
+    assert _render_habits("habits_score", "oops") == [["R", "0", "0", "0", ""]]
+
+
+# --- Blueprint: Habitica habits -------------------------------------------------
+
+HABITS_BP = _load(ROOT / "blueprints" / "script" / "habitica_habits.yaml")
+
+
+def _bp_render(template: str, **values):
+    # HA turns a rendered dict back into one, as literal_eval does.
+    return ast.literal_eval(_env(datetime.datetime.now()).from_string(template).render(**values))
+
+
+def _bp_list(reply, max_items=20, title_chars=40) -> dict:
+    template = HABITS_BP["sequence"][2]["variables"]["result"]
+    return _bp_render(template, reply=reply, max_items=max_items, title_chars=title_chars)
+
+
+def _bp_score(reply) -> dict:
+    return _bp_render(HABITS_BP["sequence"][0]["then"][1]["variables"]["result"], reply=reply)
+
+
+# get_tasks returns full records; these carry fields that must not leave HA.
+GET_TASKS = {
+    "tasks": [
+        {
+            "id": "a1",
+            "type": "habit",
+            "text": "Drink water",
+            "notes": "secret notes",
+            "up": True,
+            "down": False,
+            "value": 4.5,
+            "counterUp": 3,
+            "counterDown": 0,
+            "frequency": "daily",
+            "history": [{"value": 1}],
+            "priority": 1,
+        },
+        {
+            "id": "b2",
+            "type": "habit",
+            "text": "Snack",
+            "up": True,
+            "down": True,
+            "value": -12.0,
+            "counterUp": 1,
+            "counterDown": 2,
+            "frequency": "weekly",
+        },
+        {"id": "c3", "type": "daily", "text": "Not a habit"},
+    ]
+}
+
+
+def test_blueprint_lists_habits_in_the_contract():
+    r = _bp_list(GET_TASKS)
+    assert r == {
+        "habits": [
+            {
+                "id": "a1",
+                "title": "Drink water",
+                "up": True,
+                "down": False,
+                "value": 4.5,
+                "count_up": 3,
+                "count_down": 0,
+                "period": "daily",
+            },
+            {
+                "id": "b2",
+                "title": "Snack",
+                "up": True,
+                "down": True,
+                "value": -12.0,
+                "count_up": 1,
+                "count_down": 2,
+                "period": "weekly",
+            },
+        ]
+    }
+    # Notes and history never leave HA.
+    assert "secret" not in str(r) and "history" not in str(r)
+
+
+def test_blueprint_list_takes_a_mapping_too_and_cuts():
+    by_id = {"tasks": {t["id"]: t for t in GET_TASKS["tasks"]}}
+    assert [h["id"] for h in _bp_list(by_id)["habits"]] == ["a1", "b2"]
+    r = _bp_list(GET_TASKS, max_items=1, title_chars=10)
+    assert [h["id"] for h in r["habits"]] == ["a1"]
+    assert r["habits"][0]["title"] == "Drink wat…"
+    assert _bp_list({}) == {"habits": []}
+    assert _bp_list(None) == {"habits": []}
+
+
+def test_blueprint_score_projects_the_reply():
+    tmp = {"drop": {"dialog": "You found a Wolf Egg!", "key": "Wolf"}, "quest": {"progressDelta": 3.5}}
+    reply = {
+        "hp": 40.2,
+        "mp": 21,
+        "exp": 400,
+        "gp": 95.5,
+        "lvl": 13,
+        "toNextLevel": 520,
+        "maxHealth": 50,
+        "maxMP": 45,
+        "delta": 0.98,
+        "_tmp": tmp,
+    }
+    stats = {"hp": 40.2, "hp_max": 50, "mp": 21, "mp_max": 45, "xp": 400, "xp_next": 520, "gold": 95.5, "level": 13}
+    assert _bp_score(reply) == {
+        "ok": True,
+        "stats": stats,
+        "delta": 0.98,
+        "drop": "You found a Wolf Egg!",
+        "quest": 3.5,
+    }
+    # The same under "tmp", and a reply with neither.
+    reply["tmp"] = reply.pop("_tmp")
+    assert _bp_score(reply)["drop"] == "You found a Wolf Egg!"
+    bare = _bp_score({"lvl": 2})
+    assert bare["ok"] is True and bare["drop"] == "" and bare["quest"] == 0 and bare["delta"] == 0
+    assert bare["stats"]["level"] == 2 and bare["stats"]["hp"] is None
+
+
+def test_blueprint_scores_with_the_device_fields():
+    score = HABITS_BP["sequence"][0]["then"][0]
+    assert score["action"] == "habitica.score_habit"
+    assert score["data"]["task"] == "{{ id }}" and score["data"]["direction"] == "{{ direction }}"
+    assert set(HABITS_BP["fields"]) == {"op", "id", "direction"}
+    get = HABITS_BP["sequence"][1]
+    assert get["action"] == "habitica.get_tasks" and get["data"]["type"] == ["habit"]

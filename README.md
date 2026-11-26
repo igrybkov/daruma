@@ -74,8 +74,8 @@ Each part is a package. Include it to turn it on. Leave it out to drop it.
 | **A question from Home Assistant** | **The doorbell** | **A quiz** |
 | ![Settings: Sounds, Do not disturb, Mic mute and Jokes, each with a switch](docs/demos/screens/daruma-settings.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) | ![The quick panel: Sounds, Do not disturb, Mic mute, Jokes and Temperature as round tiles over the persona](docs/demos/screens/daruma-quick.png) |
 | **Settings** | **Voice assistant** | **Quick panel: swipe down from the top** |
-| ![Character: a Habitica hero's level, class, gold, and HP, XP and MP bars, with Buy potion and Allocate buttons](docs/demos/screens/daruma-character.png) | | |
-| **Habitica: Character** | | |
+| ![Character: a Habitica hero's level, class, gold, and HP, XP and MP bars, with Buy potion and Allocate buttons](docs/demos/screens/daruma-character.png) | ![Habits: the hero's stats row, then habits with a value bar, counts and plus and minus buttons](docs/demos/screens/daruma-habits.png) | |
+| **Habitica: Character** | **Habits** | |
 
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 

@@ -127,3 +127,27 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
     entities (prefix `demo_hero`), and a press lands in `data.controlled`.
   - Trap: an ESPHome action variable may not be named `text` (a component
     name). `habitica_event` takes `kind` and `message`.
+- **Habits** (`app_habits.yaml`, component `daruma_habits`). Habits with
+  plus and minus from one HA script, by a generic contract (the
+  package header has it). Use guide: [habitica.md](../habitica.md#habits).
+  - The list and the scores are plain C++ (`src/esphome/components/daruma_habits/habits.h`,
+    tested in `tests/test_habits.cpp`): generation numbers, the queue with
+    one score in flight, both caps, the bump and its revert.
+  - HA renders the script's JSON into tab-separated lines (L, H, R, S)
+    in the response templates. So the parser is plain C++, with no JSON.
+    `tests/test_ha_templates.py` renders the templates with Jinja2.
+  - Both calls go through the hub's gate. A background refresh waits
+    while scores are on the way. A fresh list keeps the bumps HA has not
+    answered.
+  - Other modules hook in when the app is in the build: the component
+    defines `USE_DARUMA_HABITS`. The habitica module's `to_code` finds
+    `daruma_habits` in the config and calls `attach_habits()`. That sets
+    the stats row (`set_header`) and hears replies (`add_on_reply`).
+    Habits builds and works without habitica.
+  - A reaction replaces the one playing. So the drop of a reply waits
+    for the level up's duration (`HabiticaApp::apply_reply`).
+  - The speech bubble does not draw over an open app. The app shows a
+    drop's words in its own notice line.
+  - On the desktop, `script.demo_habits` in `demos/demo_data.py` answers
+    in the device's lines. `next_score` sets one reply; `failing` and
+    `error` refuse with a message.

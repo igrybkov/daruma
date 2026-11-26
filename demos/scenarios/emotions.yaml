@@ -92,3 +92,12 @@ steps:
     steps:
       - show: drop
       - wait: 3
+  # Habits (app_habits.yaml): a habit scored up, and down.
+  - caption: "A habit: plus"
+    steps:
+      - show: habit_up
+      - wait: 2
+  - caption: "A habit: minus"
+    steps:
+      - show: habit_down
+      - wait: 2

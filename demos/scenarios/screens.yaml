@@ -2,7 +2,7 @@ name: screens
 description: >-
   Stills for the README's screens table: the focus menu, a focus block,
   the Pomodoro page, the app board, Tasks, the Calendar's Agenda and day
-  view, Weather, Controls, Settings, Character, the voice assistant, and three cards from Home Assistant.
+  view, Weather, Controls, Settings, Character, Habits, the voice assistant, and three cards from Home Assistant.
   Made-up data. Each snapshot becomes a PNG in docs/demos/screens/.
 personas: [Daruma]
 stills: true
@@ -88,6 +88,13 @@ steps:
   - expect: {visible: {role: meter, name: HP}}
   - wait: 1.5
   - snapshot: character
+  # Habits (app_habits.yaml), on the next page.
+  - tap: {role: button, name: Back}
+  - swipe: {from: [240, 120], to: [80, 120]}
+  - tap: {role: tile, name: Habits}
+  - expect: {visible: {role: row, name: Drink water}}
+  - wait: 1.5
+  - snapshot: habits
   - press: {input: home, seconds: 2}
   - wait: 1
   # The quick panel: a swipe down from the top edge.

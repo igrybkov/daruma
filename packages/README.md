@@ -88,6 +88,7 @@ package too. The last column says which.
 | [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |
 | [app_controls.yaml](app_controls.yaml) | An app with a few Home Assistant entities and their live state. One tap toggles a light, runs a scene or plays music. List it again for another page. | menu |
 | [app_settings.yaml](app_settings.yaml) | A page of the device's switches: Sounds, Do not disturb, the mic and more. Other packages can add rows. | menu |
+| [app_habits.yaml](app_habits.yaml) | An app with habits you score with a plus or a minus, from a Home Assistant script. See [habitica.md](../docs/habitica.md#habits). | menu |
 | [habitica.yaml](habitica.yaml) | Your Habitica hero: the Character app with HP, XP and MP, and reactions when the numbers change. See [habitica.md](../docs/habitica.md). | menu |
 
 ## More

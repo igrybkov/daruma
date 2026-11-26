@@ -77,19 +77,54 @@ void HabiticaApp::loop() {
   }
 }
 
-void HabiticaApp::apply_stats(const HabiticaStats &news) {
+uint32_t HabiticaApp::apply_stats(const HabiticaStats &news) {
   const HabiticaReactions r = this->model_.apply(news);
+  uint32_t played = 0;
   if (r.level_up) {
     ESP_LOGI(TAG, "Level up: %d", this->model_.stats().level);
     this->hub_->react(StateId::LEVEL_UP);
+    played = state_info(StateId::LEVEL_UP).duration_ms;
   } else if (r.hurt) {
     this->hub_->react(StateId::HURT);
+    played = state_info(StateId::HURT).duration_ms;
   }
   if (r.activity_changed)
     this->hold_(r.activity);
   this->save_();
   this->changed_();
+  return played;
 }
+
+void HabiticaApp::apply_reply(const HabiticaStats &news, const std::string &drop) {
+  const uint32_t wait = this->apply_stats(news);
+  if (drop.empty())
+    return;
+  if (wait == 0) {
+    this->event("drop", drop);
+    return;
+  }
+  this->set_timeout("habitica_drop", wait, [this, drop]() { this->event("drop", drop); });
+}
+
+#ifdef USE_DARUMA_HABITS
+void HabiticaApp::attach_habits(HabitsApp *habits) {
+  habits->set_header([this](AppView &v, const Rect &row) { this->draw_header(v, row); });
+  habits->add_on_reply([this](const HabitReply &r) {
+    HabiticaStats news;
+    if (r.has_stats) {
+      news.hp = r.stats.hp;
+      news.hp_max = r.stats.hp_max;
+      news.mp = r.stats.mp;
+      news.mp_max = r.stats.mp_max;
+      news.xp = r.stats.xp;
+      news.xp_next = r.stats.xp_next;
+      news.gold = r.stats.gold;
+      news.level = r.stats.level;
+    }
+    this->apply_reply(news, r.drop);
+  });
+}
+#endif
 
 void HabiticaApp::hold_(HabiticaActivity activity) {
   if (activity == HabiticaActivity::FAINTED) {
@@ -414,6 +449,41 @@ void HabiticaApp::draw_button_(AppView &v, const Rect &r, const std::string &lab
   it.print(r.cx(), r.cy(), v.small, t.on(fill_color, primary ? t.panel : t.ink), TextAlign::CENTER,
            fit_text(it, v.small, label, r.w - v.px(8)).c_str(), fill_color);
   UiTree::add("button", label, r, focused);
+}
+
+// "Lv 12", three thin bars, the gold: a row for another app's header.
+void HabiticaApp::draw_header(AppView &v, const Rect &row) {
+  auto &it = v.display;
+  const Theme &t = v.theme;
+  const HabiticaStats &s = this->model_.stats();
+  const int cy = row.cy();
+  const std::string level = s.level >= 0 ? fill(this->word_("level"), "level", std::to_string(s.level)) : "";
+  const int level_w = level.empty() ? 0 : text_width(it, v.small, level) + v.px(8);
+  it.print(row.x, cy, v.small, t.on(t.panel, t.ink), TextAlign::CENTER_LEFT, level.c_str(), t.panel);
+  const std::string gold = habitica_known(s.gold) ? habitica_shown(s.gold) : "";
+  const int coin = v.px(4);
+  int gold_w = 0;
+  if (!gold.empty()) {
+    const int text_w = text_width(it, v.small, gold);
+    it.print(row.right(), cy, v.small, t.on(t.panel, t.ink), TextAlign::CENTER_RIGHT, gold.c_str(), t.panel);
+    it.filled_circle(row.right() - text_w - v.px(3) - coin, cy, coin, t.on(t.panel, t.color(PREFIX + "gold")));
+    gold_w = text_w + v.px(10) + 2 * coin;
+  }
+  // HP, XP and MP in that order, so gray and mono screens tell them apart.
+  const float values[][2] = {{s.hp, s.hp_max}, {s.xp, s.xp_next}, {s.mp, s.mp_max}};
+  const char *const colors[] = {"hp", "xp", "mp"};
+  const int gap = v.px(6);
+  const Rect bars{row.x + level_w, cy - v.px(3), row.w - level_w - gold_w, v.px(6)};
+  for (int i = 0; i < 3; i++) {
+    const Rect b = bars.cell(i, 3, 1, gap);
+    Utilities::Draw::roundedRectangle(&it, b.x, b.y, b.w, b.h, b.h / 2, t.on(t.panel, t.muted));
+    Utilities::Draw::roundedRectangle(&it, b.x + 1, b.y + 1, b.w - 2, b.h - 2, b.h / 2 - 1, t.panel);
+    const int filled = habitica_fill(values[i][0], values[i][1], b.w - 2);
+    if (filled > 0)
+      Utilities::Draw::roundedRectangle(&it, b.x + 1, b.y + 1, std::max(filled, b.h - 2), b.h - 2, b.h / 2 - 1,
+                                        t.on(t.panel, t.color(PREFIX + colors[i])));
+  }
+  UiTree::add("text", level, row, false, gold);
 }
 
 }  // namespace Daruma

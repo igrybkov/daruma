@@ -86,6 +86,37 @@ class ToCode(unittest.TestCase):
         )
 
 
+class HabitsLink(unittest.TestCase):
+    """With the Habits app in the build, the app gets the stats row and its replies."""
+
+    CONF = {
+        "id": "habitica_app",
+        "daruma_id": "hub",
+        "hp_max": 50.0,
+        "hurt_threshold": 1.0,
+        "message_seconds": 6,
+        "stats": {},
+        "buttons": {},
+    }
+
+    def run_with(self, config):
+        real = habitica.CORE.config
+        habitica.CORE.config = config
+        try:
+            return run_to_code(self.CONF)
+        finally:
+            habitica.CORE.config = real
+
+    def test_attaches_the_habits_app(self):
+        fake = self.run_with({"daruma_habits": {"id": "habits_app"}})
+        self.assertEqual(fake.added[-1], ("attach_habits", ("var:habits_app",)))
+
+    def test_nothing_without_it(self):
+        for config in (None, {}, {"daruma_habits": None}):
+            fake = self.run_with(config)
+            self.assertNotIn("attach_habits", [name for name, _ in fake.added])
+
+
 class Schema(unittest.TestCase):
     def config(self, **over):
         conf = {

@@ -1,0 +1,123 @@
+blueprint:
+  name: "Daruma: Habitica habits"
+  domain: script
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/script/habitica_habits.yaml
+  description: >-
+    Lists your Habitica habits for a Daruma device's Habits app, and scores
+    one when you tap its plus or minus. Set the app's "Habits entity" to
+    this script.
+
+
+    {op: list} returns {habits: [{id, title, up, down, value, count_up,
+    count_down, period}]}. It reads the Habitica integration's cache, so it
+    costs no request to Habitica. Notes and history stay in Home Assistant.
+
+
+    {op: score, id, direction} scores the habit up or down: one request to
+    Habitica. It returns {ok, stats, delta, drop, quest}: your new numbers,
+    the habit's value change, the text of an item you found, and the quest
+    progress.
+
+
+    Needs the Habitica integration.
+  input:
+    habitica:
+      name: Habitica account
+      selector:
+        config_entry:
+          integration: habitica
+    max_items:
+      name: Max habits
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 50
+          mode: box
+    title_chars:
+      name: Max title length
+      default: 40
+      selector:
+        number:
+          min: 10
+          max: 200
+          mode: box
+
+mode: queued
+max: 10
+
+fields:
+  op:
+    name: Operation
+    description: list or score.
+    required: true
+    selector:
+      select:
+        options: [list, score]
+  id:
+    name: Habit
+    description: The habit's task ID (score only).
+    selector:
+      text: {}
+  direction:
+    name: Direction
+    description: up or down (score only).
+    selector:
+      select:
+        options: [up, down]
+
+variables:
+  habitica: !input habitica
+  max_items: !input max_items
+  title_chars: !input title_chars
+
+sequence:
+  - if:
+      - condition: template
+        value_template: "{{ op == 'score' }}"
+    then:
+      - action: habitica.score_habit
+        data:
+          config_entry: !input habitica
+          task: "{{ id }}"
+          direction: "{{ direction }}"
+        response_variable: reply
+      - variables:
+          result: >-
+            {%- set r = reply if reply is mapping else {} -%}
+            {%- set tmp = r.get('tmp') or r.get('_tmp') or {} -%}
+            {%- set drop = tmp.get('drop') or {} -%}
+            {%- set quest = tmp.get('quest') or {} -%}
+            {{ {'ok': true,
+                'stats': {'hp': r.get('hp'), 'hp_max': r.get('maxHealth'), 'mp': r.get('mp'),
+                          'mp_max': r.get('maxMP'), 'xp': r.get('exp'), 'xp_next': r.get('toNextLevel'),
+                          'gold': r.get('gp'), 'level': r.get('lvl')},
+                'delta': r.get('delta') or 0,
+                'drop': (drop.get('dialog') or '') | string,
+                'quest': quest.get('progressDelta') or 0} }}
+      - stop: Scored
+        response_variable: result
+  - action: habitica.get_tasks
+    data:
+      config_entry: !input habitica
+      type: [habit]
+    response_variable: reply
+  - variables:
+      result: >-
+        {%- set raw = (reply or {}).get('tasks') or [] -%}
+        {%- set tasks = raw.values() | list if raw is mapping else raw -%}
+        {%- set ns = namespace(habits=[]) -%}
+        {%- for t in tasks if t is mapping and t.get('type', 'habit') == 'habit' -%}
+          {%- set ns.habits = ns.habits + [{
+                'id': t.get('id') | string,
+                'title': (t.get('text') or '') | string | truncate(title_chars | int, true, '…', 0),
+                'up': t.get('up') is sameas true,
+                'down': t.get('down') is sameas true,
+                'value': t.get('value') or 0,
+                'count_up': t.get('counterUp') or 0,
+                'count_down': t.get('counterDown') or 0,
+                'period': t.get('frequency') or 'daily'}] -%}
+        {%- endfor -%}
+        {{ {'habits': ns.habits[:max_items | int]} }}
+  - stop: Habits
+    response_variable: result

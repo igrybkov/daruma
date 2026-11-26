@@ -40,6 +40,8 @@
 #                          and sensors with their live state (vars: tiles)
 #   app_settings.yaml      Settings app: the device's switches (Sounds, Do not
 #                          disturb, ...) on its screen; modules add rows
+#   app_habits.yaml        Habits app: habits with plus and minus from an
+#                          HA script (vars: entity; see docs/habitica.md)
 #   habitica.yaml          Character app and reactions from a Habitica hero's
 #                          stats (vars: user; see docs/habitica.md)
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back

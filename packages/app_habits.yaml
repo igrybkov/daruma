@@ -1,0 +1,263 @@
+# Habits app for Daruma: habits with plus and minus. Needs core.yaml and
+# menu.yaml.
+#
+# Each row: a value bar in Habitica's value colors, the title, the counts
+# of its period ("+3 -1 today", "+5 this week"), and a plus and a minus
+# for the sides the habit has. A tap scores one. The count moves at once,
+# and moves back when HA says no or does not answer in 10 s. A tap plays
+# habit_up (falls back to happy) or habit_down (falls back to sad).
+# Swipe up or down for more rows. Without touch: NEXT and PREV move over
+# the rows, SELECT scores up, two quick SELECTs score down. A habit with one
+# side scores that side at once.
+#
+# Board tile: today's net score of the daily habits, "+4 today".
+#
+# Each tap is one score, sent one at a time. Two caps keep the account's
+# request budget: past `max_waiting` taps waiting, or `per_minute` scores
+# in a minute, a tap is dropped with the notice "Habitica is busy". So is
+# a score that HA turns down for a rate limit.
+#
+# With habitica.yaml in the build, the app shows the hero's stats in a row
+# on top, and a score's reply plays level_up and drop at once.
+#
+# Source: the "Habits entity" setting in HA, a script that follows this
+# contract. The blueprint "Daruma: Habitica habits"
+# (blueprints/script/habitica_habits.yaml) makes one for Habitica.
+#
+#   {op: list}                   returns {habits: [{id, title, up, down,
+#                                value, count_up, count_down, period}],
+#                                stats: {...}}; stats is optional
+#   {op: score, id, direction}   direction up or down; returns {ok, stats,
+#                                delta, drop, quest}; only ok is required
+#
+# period is daily, weekly or monthly. stats holds hp, hp_max, mp, mp_max,
+# xp, xp_next, gold and level. drop is the text of an item found.
+#
+# Needs "Allow the device to perform Home Assistant actions" on in the
+# ESPHome integration's options in HA.
+#
+# Words: the text_* values below are the English defaults of the theme
+# words habits.<name>. Colors: habits.worst, .worse, .bad, .neutral,
+# .good, .better and .best, the value bands from below -20 to 10 and up.
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - path: packages/app_habits.yaml
+#           vars: { entity: script.habitica_habits }
+
+defaults:
+  app_name: Habits
+  entity: script.habits
+  color: "2FA37A"
+  # Taps that may wait for HA; the next is dropped.
+  max_waiting: "5"
+  # Scores the device sends in a minute at most.
+  per_minute: "12"
+  # Habits kept, and their titles cut to this length by HA.
+  max_items: "20"
+  title_chars: "40"
+  # How often the tile is fetched while the app is closed.
+  refresh: 5min
+  text_loading: "Loading…"
+  text_error: "Can't load the habits"
+  text_empty: "No habits"
+  text_no_source: "Set the Habits entity to a script"
+  text_busy: "Habitica is busy"
+  text_failed: "Couldn't score"
+  text_status: "{net} today"
+  text_today: "today"
+  text_week: "this week"
+  text_month: "this month"
+
+external_components:
+  - source:
+      type: local
+      path: ../src/esphome/components
+    components: [daruma_habits]
+
+daruma_habits:
+  id: habits_app
+  max_waiting: ${max_waiting}
+  per_minute: ${per_minute}
+  max_items: ${max_items}
+  timeout: 10s
+
+color:
+  - id: habits_color
+    hex: "${color}"
+
+text:
+  - platform: template
+    id: habits_entity
+    name: Habits entity
+    icon: "mdi:plus-minus-variant"
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ${entity}
+    max_length: 120
+    on_value:
+      - lambda: id(habits_app).set_source(x);
+
+esphome:
+  on_boot:
+    # The source, and the first fetch for the tile once HA is there.
+    - priority: -100
+      then:
+        - lambda: id(habits_app).set_source(id(habits_entity).state);
+        - wait_until:
+            condition:
+              api.connected:
+        - lambda: id(habits_app).refresh_idle();
+
+interval:
+  - interval: ${refresh}
+    then:
+      - lambda: id(habits_app).refresh_idle();
+
+daruma:
+  modules:
+    - name: habits
+      apps:
+        - id: habits
+          name: ${app_name}
+      states:
+        habit_up: { kind: reaction, fallback: happy, duration: 1500ms }
+        habit_down: { kind: reaction, fallback: sad, duration: 1500ms }
+      theme:
+        colors:
+          worst: "C92B2B"
+          worse: "F74E52"
+          bad: "FA8537"
+          neutral: "FFA623"
+          good: "24CC8F"
+          better: "3BCAD7"
+          best: "50B5E9"
+        words:
+          loading: "${text_loading}"
+          error: "${text_error}"
+          empty: "${text_empty}"
+          no_source: "${text_no_source}"
+          busy: "${text_busy}"
+          failed: "${text_failed}"
+          status: "${text_status}"
+          today: "${text_today}"
+          week: "${text_week}"
+          month: "${text_month}"
+      setup: |-
+        auto *h = id(habits_app);
+        // Through the hub's gate for HA calls with replies (ha_calls.h).
+        h->list().set_fetcher([](int generation) {
+          id(daruma_hub).ha_calls().call("habits list", [generation](uint32_t call) {
+            id(habits_fetch).execute(call, generation);
+          });
+        });
+        h->list().set_scorer([](int seq, const std::string &habit, bool up) {
+          id(daruma_hub).ha_calls().call("habits score", [seq, habit, up](uint32_t call) {
+            id(habits_score).execute(call, seq, habit, up);
+          });
+        });
+
+        Daruma::App app;
+        app.id = "habits";
+        app.name = "${app_name}";
+        app.icon = "\U000F14C9";  // plus-minus-variant
+        app.color = id(habits_color);
+        app.status = [h]() { return h->status(); };
+        app.draw = [h](Daruma::AppView &v) { h->draw(v); };
+        app.input = [h](Daruma::Input input, int x, int y) { return h->input(input, x, y); };
+        app.on_open = [h]() { h->on_open(); };
+        app.on_close = [h]() { h->on_close(); };
+        app.on_enable = [h](bool on) { h->set_enabled(on); };
+        hub.add_app(app);
+
+script:
+  # The list. HA renders the script's reply as lines (habits.h): L, then an
+  # H line per habit, then S when it has stats. Runs from the hub's gate:
+  # `call` goes back to it with the answer.
+  - id: habits_fetch
+    mode: queued
+    max_runs: 2
+    parameters:
+      call: int
+      generation: int  # Handed back, so a reply for an old source is dropped.
+    then:
+      - homeassistant.action:
+          action: !lambda return id(habits_app).list().source();
+          data:
+            op: list
+          capture_response: true
+          response_template: |-
+            {%- set r = response if response is mapping else {} -%}
+            {%- set hs = (r.get('habits') or [])[:${max_items}] -%}
+            {%- set ns = namespace(out=['L\t' ~ (hs | count)]) -%}
+            {%- for h in hs if h is mapping -%}
+            {%- set ns.out = ns.out + [['H', h.get('id') | string,
+                '1' if h.get('up') else '0', '1' if h.get('down') else '0',
+                h.get('value') | float(0) | round(2), h.get('count_up') | int(0), h.get('count_down') | int(0),
+                ((h.get('period') or 'daily') | string)[:1],
+                (h.get('title') or '') | string | replace('\t', ' ') | replace('\n', ' ') | truncate(${title_chars}, true, '…', 0)]
+                | join('\t')] -%}
+            {%- endfor -%}
+            {%- set s = r.get('stats') -%}
+            {%- if s is mapping -%}
+            {%- set st = namespace(v=['S']) -%}
+            {%- for k in ['hp', 'hp_max', 'mp', 'mp_max', 'xp', 'xp_next', 'gold', 'level'] -%}
+            {%- set st.v = st.v + [s.get(k) | float(-1) | round(2)] -%}
+            {%- endfor -%}
+            {%- set ns.out = ns.out + [st.v | join('\t')] -%}
+            {%- endif -%}
+            {{ ns.out | join('\n') }}
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habits_app).on_list(generation, response);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habits_app).on_list_error(generation);
+
+  # One score. The reply as lines: R, then S when it has stats.
+  - id: habits_score
+    mode: queued
+    max_runs: 2
+    parameters:
+      call: int
+      seq: int
+      habit: string
+      up: bool
+    then:
+      - homeassistant.action:
+          action: !lambda return id(habits_app).list().source();
+          data:
+            op: score
+            id: !lambda return habit;
+            direction: !lambda 'return up ? "up" : "down";'
+          capture_response: true
+          response_template: |-
+            {%- set r = response if response is mapping else {} -%}
+            {%- set ns = namespace(out=[['R', '1' if r.get('ok') is sameas true else '0',
+                r.get('delta') | float(0) | round(3), r.get('quest') | float(0) | round(2),
+                (r.get('drop') or '') | string | replace('\t', ' ') | replace('\n', ' ') | truncate(80, true, '…', 0)]
+                | join('\t')]) -%}
+            {%- set s = r.get('stats') -%}
+            {%- if s is mapping -%}
+            {%- set st = namespace(v=['S']) -%}
+            {%- for k in ['hp', 'hp_max', 'mp', 'mp_max', 'xp', 'xp_next', 'gold', 'level'] -%}
+            {%- set st.v = st.v + [s.get(k) | float(-1) | round(2)] -%}
+            {%- endfor -%}
+            {%- set ns.out = ns.out + [st.v | join('\t')] -%}
+            {%- endif -%}
+            {{ ns.out | join('\n') }}
+          on_success:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habits_app).on_score(seq, response);
+          on_error:
+            - lambda: |-
+                id(daruma_hub).ha_calls().done(call);
+                id(habits_app).on_score_error(seq, error);

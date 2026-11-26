@@ -12,6 +12,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components.daruma import CONF_DARUMA_ID, Hub, daruma_ns
 from esphome.const import CONF_ID
+from esphome.core import CORE
 
 DEPENDENCIES = ["api", "daruma", "font"]
 
@@ -61,3 +62,7 @@ async def to_code(config):
     for key in BUTTONS:
         if key in config[CONF_BUTTONS]:
             cg.add(var.add_button(key, config[CONF_BUTTONS][key]))
+    # The Habits app, when the build has it: the stats row, and its replies.
+    habits = (CORE.config or {}).get("daruma_habits")
+    if habits:
+        cg.add(var.attach_habits(await cg.get_variable(habits[CONF_ID])))

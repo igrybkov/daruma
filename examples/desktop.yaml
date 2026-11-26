@@ -87,12 +87,15 @@ packages:
   habitica: !include
     file: ../packages/habitica.yaml
     vars: { user: demo_hero }
+  app_habits: !include
+    file: ../packages/app_habits.yaml
+    vars: { entity: script.demo_habits }
   app_settings: !include ../packages/app_settings.yaml
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats, controls, room, settings, character]
+  apps: [tasks, calendar, weather, stats, controls, room, settings, character, habits]
   settings: [sounds, dnd, mute]
   progress:
     pomodoro: 1

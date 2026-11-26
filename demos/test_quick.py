@@ -1,5 +1,5 @@
-"""Screen tests of the quick panel: a swipe down shows the Settings rows as
-tiles, a tap flips one, and a swipe up closes it."""
+"""Screen tests of the quick panel: a swipe down from the top edge shows the
+Settings rows as tiles, a tap flips one, and a swipe up closes it."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ from harness import expect
 
 
 def _swipe_down(device):
+    """From the top edge, as the panel wants."""
     w, h = device.screen_size()
-    device.swipe(w // 2, h // 6, w // 2, h * 2 // 3)
+    device.swipe(w // 2, 4, w // 2, h * 2 // 3)
 
 
 def test_tiles_follow_their_switches(device):
@@ -46,14 +47,28 @@ def test_a_tap_under_the_panel_closes_it(device):
     expect(device.get_by_text("More")).to_be_hidden()
 
 
-def test_a_swipe_down_closes_a_message_first(device):
+def test_a_swipe_down_from_the_middle_opens_nothing(device):
+    device.advance(2)
+    w, h = device.screen_size()
+    device.swipe(w // 2, h // 3, w // 2, h - 20)
+    expect(device.get_by_role("panel", "Quick settings")).to_be_hidden()
+
+
+def test_a_tap_closes_a_message(device):
     device.advance(2)
     device.show_message("Lunch is ready")
-    expect(device.get_by_text("Lunch is ready")).to_be_visible()
-    _swipe_down(device)
-    expect(device.get_by_text("Lunch is ready")).to_be_hidden()
-    expect(device.get_by_role("panel", "Quick settings")).to_be_hidden()
-    # With the message gone, the next swipe opens the panel.
+    bubble = device.get_by_text("Lunch is ready")
+    expect(bubble).to_be_visible()
+    w, h = device.screen_size()
+    device.tap(w // 2, h // 3)
+    expect(bubble).to_be_hidden()
+    # That tap only closed the message: no menu opened.
+    expect(device.get_by_text("More")).to_be_hidden()
+
+
+def test_the_panel_opens_over_a_message(device):
+    device.advance(2)
+    device.show_message("Lunch is ready")
     _swipe_down(device)
     expect(device.get_by_role("panel", "Quick settings")).to_be_visible()
 

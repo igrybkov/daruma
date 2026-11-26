@@ -42,9 +42,14 @@ device yaml picks one. Today's defaults:
   focus binds `home.press: { action: pomodoro.toggle, when: idle }`;
 - screen.stroke: daruma.pet;
 - screen.swipe_left and screen.swipe_right: change the persona;
-- screen.swipe_down: menu.quick, the quick panel (menu). A message bubble
-  on screen closes instead. Without menu.yaml, the core's
-  daruma.close_message.
+- screen.swipe_down: close the message;
+- screen.swipe_from_top: menu.quick, the quick panel (menu).
+
+`swipe_from_top` is a swipe down that starts in the top 40 px
+(`SwipeTuning::top_edge`). The touch screen is read on a poll, so a quick
+flick from the bezel is first seen some 30 px down. A board's `swipe` includes it. When nothing is
+bound to it right now (an open app, or no menu.yaml), it fires as
+`swipe_down`, so a list still scrolls from the top.
 
 A module default whose action belongs to a module the build lacks (the
 pomodoro's menu without menu.yaml) is skipped, and the build log says so.

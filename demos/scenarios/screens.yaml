@@ -84,6 +84,13 @@ steps:
   - snapshot: settings
   - press: {input: home, seconds: 2}
   - wait: 1
+  # The quick panel: a swipe down from the top edge.
+  - swipe: {from: [160, 4], to: [160, 160]}
+  - expect: {visible: {role: panel, name: Quick settings}}
+  - wait: 1.5
+  - snapshot: quick
+  - swipe: {from: [160, 160], to: [160, 40]}
+  - wait: 1
   # The voice assistant.
   - voice: {phase: thinking, text: "Will it rain tomorrow?"}
   - wait: 1.5

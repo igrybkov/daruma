@@ -190,6 +190,17 @@ static void touch_taps_swipes_and_strokes() {
   t.start(3000, 160, 60);
   slide(t, 160, 60, 165, 160, 8);
   CHECK(t.end(3200) == Gesture::SWIPE_DOWN);
+  // Down from the top edge: from the top. Just under the edge: down.
+  t.start(3300, 160, 39);
+  slide(t, 160, 39, 160, 140, 8);
+  CHECK(t.end(3500) == Gesture::SWIPE_FROM_TOP);
+  t.start(3600, 160, 40);
+  slide(t, 160, 40, 160, 140, 8);
+  CHECK(t.end(3800) == Gesture::SWIPE_DOWN);
+  // Sideways along the top edge: still sideways.
+  t.start(3850, 50, 10);
+  slide(t, 50, 10, 200, 12, 8);
+  CHECK(t.end(3990) == Gesture::SWIPE_RIGHT);
   // Too slow: a drag, no swipe.
   t.start(4000, 160, 60);
   slide(t, 160, 60, 160, 160, 20);

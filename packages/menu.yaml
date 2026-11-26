@@ -32,16 +32,15 @@
 # board's `close` input (holding the red circle) closes it. A voice wake,
 # or idle time (10 s on the dock, 60 s elsewhere) closes it too.
 #
-# Quick panel: a swipe down on the persona opens a panel from the top with
-# every Settings row as a round tile (Sounds, Do not disturb, Mic mute,
-# ...). A tap flips one. A swipe up, a tap under it or back closes it. A
-# message bubble on screen closes first instead.
+# Quick panel: a swipe down from the top edge opens a panel from the top
+# with every Settings row as a round tile (Sounds, Do not disturb, Mic
+# mute, ...). A tap flips one. A swipe up, a tap under it or back closes it.
 #
 # Actions: menu.open (main, or `menu: <name>` in a binding), menu.quick,
 # menu.back, menu.close. HA action: esphome.<device>_menu_open(name).
 # Default bindings: a tap and an upward swipe on the device's screen open
-# main, a downward swipe opens the quick panel (without this package, a tap
-# pets the device and a swipe down closes a message).
+# main, a swipe down from the top edge (screen.swipe_from_top) opens the
+# quick panel (without this package, a tap pets the device).
 #
 # Boards without touch (board_box3_buttons.yaml) move a focus ring with
 # their `next` and `prev` inputs and open with `select`; bind menu.open to

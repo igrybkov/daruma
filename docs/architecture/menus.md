@@ -77,14 +77,13 @@ one is wrong:
 - Back: an app opened from a dock button returns to that dock, and a
   nested menu to the one that opened it.
 - The menu title is the pomodoro's "N of goal today" on every menu.
-- **The quick panel** (`menu.quick`, on a swipe down) is a menu level
+- **The quick panel** (`menu.quick`, on a swipe down from the top edge) is a menu level
   that hangs from the top over the persona. It shows `Hub::settings()`
   as round tiles, no named menu. A tap flips a tile and keeps the panel
   open. The grid, the label room and the label wrap are plain C++
   (`quick_grid.h`, host-tested in `tests/test_quick_grid.cpp`). Two rows
   at most; more tiles page sideways. It uses the dock's colors and
-  timeout. With a message on screen, `menu.quick` closes the message and
-  opens nothing.
+  timeout.
 - `menu.open` with a menu runs as `menu.open:<name>`, an action with an
   argument (`Device::add_arg_action`). HA opens one with
   `esphome.<device>_menu_open(name)`.

@@ -20,10 +20,6 @@ using esphome::display::TextAlign;
 static const int QUICK_ROWS = 2;  // Rows on a page; more tiles page sideways.
 
 void MenuController::open_quick() {
-  if (!this->hub_->message().empty()) {
-    this->hub_->clear_message();
-    return;
-  }
   if (this->quick_count_() == 0) {
     ESP_LOGW("daruma_menu", "No settings for the quick panel");
     return;

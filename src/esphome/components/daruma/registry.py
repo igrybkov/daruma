@@ -353,10 +353,22 @@ def resolve_random_events(char: Persona, states: list[State]) -> list[str]:
 BUTTON = "button"
 TOUCH = "touch"
 # Gestures each kind of input can offer. `swipe` in a board's list stands for
-# all four directions.
+# all four directions and swipe_from_top (a swipe down that starts at the
+# top edge; unbound, it counts as swipe_down).
 GESTURES = {
     BUTTON: ("press", "double", "hold"),
-    TOUCH: ("tap", "double", "hold", "long_hold", "swipe_left", "swipe_right", "swipe_up", "swipe_down", "stroke"),
+    TOUCH: (
+        "tap",
+        "double",
+        "hold",
+        "long_hold",
+        "swipe_left",
+        "swipe_right",
+        "swipe_up",
+        "swipe_down",
+        "swipe_from_top",
+        "stroke",
+    ),
 }
 NAVIGATION = ("back", "close", "next", "prev", "select")
 
@@ -372,7 +384,7 @@ def expand_gestures(kind: str, gestures: list[str]) -> list[str]:
     out = []
     for g in gestures:
         if g == "swipe" and kind == TOUCH:
-            out += ["swipe_left", "swipe_right", "swipe_up", "swipe_down"]
+            out += ["swipe_left", "swipe_right", "swipe_up", "swipe_down", "swipe_from_top"]
         elif g in GESTURES[kind]:
             out.append(g)
         else:

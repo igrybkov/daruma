@@ -37,14 +37,16 @@ enum class Gesture : uint8_t {
   SWIPE_UP,
   SWIPE_DOWN,
   STROKE,
+  SWIPE_FROM_TOP,  // A swipe down that starts at the top edge.
   NONE,
 };
 
 inline constexpr uint16_t gesture_bit(Gesture g) { return (uint16_t) (1u << static_cast<uint8_t>(g)); }
 
 inline const char *gesture_name(Gesture g) {
-  static const char *const NAMES[] = {"press",       "double",   "hold",       "long_hold", "tap", "swipe_left",
-                                      "swipe_right", "swipe_up", "swipe_down", "stroke",    "none"};
+  static const char *const NAMES[] = {"press",      "double",     "hold",           "long_hold",
+                                      "tap",        "swipe_left", "swipe_right",    "swipe_up",
+                                      "swipe_down", "stroke",     "swipe_from_top", "none"};
   return NAMES[static_cast<uint8_t>(g)];
 }
 
@@ -150,6 +152,7 @@ struct SwipeTuning {
   uint32_t swipe_max_ms{700};  // slower than this: a drag, ignored
   int stroke_step{25};         // back-and-forth leg length
   int stroke_turns{2};         // direction changes for a stroke
+  int top_edge{40};            // a swipe down that starts above this: from the top
 };
 
 // One finger on a touch screen, from touch-down to lift-off, in screen
@@ -208,8 +211,15 @@ class TouchTracker {
     return true;
   }
 
-  // Lift-off: the swipe or stroke the touch made, or NONE.
+  // Lift-off: the swipe or stroke the touch made, or NONE. A swipe down
+  // that started at the top edge comes from the top.
   Gesture end(uint32_t now) {
+    const Gesture g = this->lift_(now);
+    return g == Gesture::SWIPE_DOWN && this->track_.y0 < this->tuning_.top_edge ? Gesture::SWIPE_FROM_TOP : g;
+  }
+
+  // end() without the top edge.
+  Gesture lift_(uint32_t now) {
     if (!this->down_)
       return Gesture::NONE;
     this->down_ = false;

@@ -54,8 +54,7 @@ class MenuController : public esphome::Component, public Module {
   // the badge): back closes it. An unknown or switched-off app logs and
   // does nothing. "" opens the app board.
   void open_app(const std::string &id);
-  // Opens the quick panel. A message bubble on screen closes instead, so a
-  // swipe down still clears it. With no settings it does nothing.
+  // Opens the quick panel. With no settings it does nothing.
   void open_quick();
 
  protected:

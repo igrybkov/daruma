@@ -189,6 +189,16 @@ daruma:
       # The temperature badge. A module may lead a tap on it somewhere (the
       # Weather app does); without a target, a tap there is a tap on the persona.
       areas: [badge]
+      # Rows on the Settings page (app_settings.yaml). Sounds shows "Held"
+      # while Do not disturb keeps it off.
+      settings:
+        - id: sounds
+          label: Sounds
+          icon: "\U000F057E"  # volume-high
+          switch: sounds_enabled
+          held: !lambda return id(daruma_hub).sounds_held();
+        - { id: jokes, label: Jokes, icon: "\U000F01F5", switch: jokes_enabled }  # emoticon-happy-outline
+        - { id: temperature_badge, label: Temperature, icon: "\U000F050F", switch: temp_badge }  # thermometer
       setup: |-
         hub.set_happiness_meter(id(happiness_meter));
         hub.set_sound_player([](const std::string &sound) { id(play_sound).execute(sound); });

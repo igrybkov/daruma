@@ -288,6 +288,11 @@ script:
             - lambda: id(desktop).sound(id(daruma_hub), sound);
 
 daruma:
+  # The Mute switch on the Settings page, as core_voice.yaml offers it on the BOX-3.
+  modules:
+    - name: voice
+      settings:
+        - { id: mute, label: Mic mute, icon: "\U000F036D", switch: mute }  # microphone-off
   display: desktop_lcd
   display_profile:
     colors: full

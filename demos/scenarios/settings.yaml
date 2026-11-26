@@ -1,0 +1,25 @@
+name: settings
+description: >-
+  The Settings page in every persona's theme: Sounds, Do not disturb, the
+  mic, jokes and the temperature badge, with Do not disturb on.
+# A test only: golden pictures in every persona's theme, and no GIF.
+personas: []
+test_personas: all
+setup:
+  - set: {Outside temperature: 64}
+  - wait: 1
+steps:
+  - wait: 2
+  - set: {Do not disturb: true}
+  - wait: 1
+  - tap: [160, 100]
+  - tap: {text: More}
+  - expect: {visible: {role: tile, name: Tasks}}
+  # Settings is on the board's second page.
+  - swipe: {from: [240, 120], to: [80, 120]}
+  - tap: {role: tile, name: Settings}
+  - expect: {visible: {role: switch, name: Do not disturb}}
+  - wait: 1.5
+  - snapshot: page
+  - press: {input: home, seconds: 2}
+  - wait: 1

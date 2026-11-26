@@ -20,5 +20,9 @@ yaml sets their first value.
 - The home button action, the jokes switch and the theme options already
   work like this, or will.
 
+Some of these switches are also on the device's own Settings page
+(`app_settings.yaml`). The package that owns a switch adds its row; see
+[Modules](modules.md#what-a-module-may-contribute).
+
 Things that change the build stay in YAML: which modules, which personas,
 fonts and the board.

@@ -133,6 +133,22 @@ struct App {
   bool enabled{true};
 };
 
+// One row of the Settings page: a switch a module offers (`settings:` in its
+// `daruma: modules:` entry). The build adds them in page order.
+struct Setting {
+  std::string id;     // Stable key: "sounds".
+  std::string label;  // "Sounds".
+  std::string icon;   // Material Design Icons glyph.
+  std::function<bool()> on;
+  std::function<void(bool)> set;
+  // True while something else keeps it off (Do not disturb holds Sounds).
+  // Optional.
+  std::function<bool()> held;
+
+  bool is_on() const { return this->on && this->on(); }
+  bool is_held() const { return this->held && this->held(); }
+};
+
 // A gesture on a named input, before bindings see it. Filters (the ringing
 // alarm, a message bubble) may take it first.
 struct GestureEvent {
@@ -213,6 +229,7 @@ class Hub : public esphome::Component {
   }
   // A module turned Sounds off for a while (Do not disturb), not the person.
   void set_sounds_held(bool held) { this->sounds_held_ = held; }
+  bool sounds_held() const { return this->sounds_held_; }
   // The player's guard: may the sound it got now play, with the Sounds
   // switch at `sounds_on`? Valid only during the player call.
   bool sound_allowed(bool sounds_on) const { return sound_passes(sounds_on, this->sounds_held_, this->urgent_sound_); }
@@ -460,6 +477,14 @@ class Hub : public esphome::Component {
   void set_event_sender(std::function<void(const std::string &)> sender) { this->event_sender_ = std::move(sender); }
   std::string menu_title();
 
+  // --- Settings -------------------------------------------------------------------
+  void add_setting(const std::string &id, const std::string &label, const std::string &icon, std::function<bool()> on,
+                   std::function<void(bool)> set, std::function<bool()> held) {
+    this->settings_.push_back(Setting{id, label, icon, std::move(on), std::move(set), std::move(held)});
+  }
+  // Every row, in page order.
+  std::vector<Setting> &settings() { return this->settings_; }
+
   // --- Apps -----------------------------------------------------------------------
   void add_app(App app) { this->apps_.push_back(std::move(app)); }
   // The board order, from the device yaml's apps: list.
@@ -519,6 +544,7 @@ class Hub : public esphome::Component {
   bool hardware_mute_{false};
   bool asleep_{false};
   bool sounds_held_{false};
+  std::vector<Setting> settings_;
   bool urgent_sound_{false};
 
   std::string message_;

@@ -119,6 +119,8 @@ class ModuleSpec:
     targets: dict[str, object] = field(default_factory=dict)
     # Old theme keys that still work: old -> new, both without the module prefix.
     aliases: dict[str, str] = field(default_factory=dict)
+    # Rows it adds to the Settings page: setting ids, in its order.
+    settings: list[str] = field(default_factory=list)
 
 
 def check_name(name: str, what: str) -> str:
@@ -609,6 +611,30 @@ def order_apps(order: list[str], modules: list[ModuleSpec]) -> tuple[list[str], 
     rest = [a for a in offered if a not in order]
     log = [f"apps: '{a}' is not in the apps: list; it goes last" for a in rest]
     return order + rest, log
+
+
+def order_settings(order: list[str], modules: list[ModuleSpec]) -> list[str]:
+    """The Settings page order: the device's `settings:` list, then every row
+    it leaves out, in module order. Unknown or repeated names are an error."""
+    offered, owner = [], {}
+    for module in modules:
+        for setting in module.settings:
+            check_name(setting, "Setting")
+            if setting in owner:
+                raise RegistryError(
+                    f"Two modules offer the setting '{setting}' ({owner[setting]} and {module.name}). "
+                    "Give each its own id"
+                )
+            owner[setting] = module.name
+            offered.append(setting)
+    for setting in order:
+        if setting not in offered:
+            raise RegistryError(
+                f"settings: no included module offers a setting '{setting}' (offered: {', '.join(offered) or 'none'})"
+            )
+    if len(set(order)) != len(order):
+        raise RegistryError("settings: a setting is listed twice")
+    return order + [s for s in offered if s not in order]
 
 
 def check_progress(weights: dict[str, float], modules: list[ModuleSpec]) -> list[str]:

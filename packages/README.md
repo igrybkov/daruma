@@ -87,6 +87,7 @@ package too. The last column says which.
 | [app_calendar.yaml](app_calendar.yaml) | An app with your coming calendar events. List it once for each group of calendars. | menu |
 | [app_weather.yaml](app_weather.yaml) | An app with today's weather. | menu |
 | [app_controls.yaml](app_controls.yaml) | An app with a few Home Assistant entities and their live state. One tap toggles a light, runs a scene or plays music. List it again for another page. | menu |
+| [app_settings.yaml](app_settings.yaml) | A page of the device's switches: Sounds, Do not disturb, the mic and more. Other packages can add rows. | menu |
 
 ## More
 

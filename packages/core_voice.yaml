@@ -34,6 +34,9 @@ daruma:
       actions:
         voice.start:
           - script.execute: daruma_talk
+      # The Mute switch on the Settings page (app_settings.yaml).
+      settings:
+        - { id: mute, label: Mic mute, icon: "\U000F036D", switch: mute }  # microphone-off
       setup: |-
         // A ringing timer takes any press, tap or hold, and stops.
         hub.add_gesture_filter(100, [](const Daruma::GestureEvent &e) {

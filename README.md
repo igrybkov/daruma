@@ -70,8 +70,8 @@ Each part is a package. Include it to turn it on. Leave it out to drop it.
 | **Calendar: the Agenda** | **Calendar: one day** | **Controls** |
 | ![A yes/no question: turn the lights off?](docs/demos/screens/daruma-question.png) | ![A doorbell card: Unlock, Talk, Ignore](docs/demos/screens/daruma-doorbell.png) | ![A quiz question with four answers and a countdown](docs/demos/screens/daruma-quiz.png) |
 | **A question from Home Assistant** | **The doorbell** | **A quiz** |
-|  | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |  |
-|  | **Voice assistant** |  |
+| ![Settings: Sounds, Do not disturb, Mic mute and Jokes, each with a switch](docs/demos/screens/daruma-settings.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |  |
+| **Settings** | **Voice assistant** |  |
 
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 

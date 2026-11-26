@@ -1,0 +1,82 @@
+# Settings app for Daruma: the device's own switches on its screen. Needs
+# core.yaml and menu.yaml (apps live on the menu's app board).
+#
+# One row per setting: an icon, a label and a switch. A tap flips it, and
+# a change from HA shows at once. Boards without touch move a focus with
+# NEXT and PREV and flip the focused row with SELECT. More rows than fit
+# scroll with vertical swipes.
+#
+# The rows come from the modules, so the page grows with the build:
+#
+#   core.yaml        Sounds, Jokes, Temperature badge
+#   quiet.yaml       Do not disturb
+#   core_voice.yaml  Mic mute (on the desktop build too)
+#
+# A row shows "Held" while something else keeps it off: Sounds during Do
+# not disturb. A tap still turns it on.
+#
+# Add a row from any package, over any switch:
+#
+#   daruma:
+#     modules:
+#       - name: my_module
+#         settings:
+#           - { id: night_light, label: Night light, icon: "\U000F0335", switch: night_light }
+#
+# The icon must be in menu.yaml's icon font. The device yaml's
+# `daruma: settings: [dnd, sounds]` puts rows first; the rest follow in
+# module order.
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - packages/app_settings.yaml
+#
+# Words: the text_* values below are the English defaults of the theme
+# words settings.held and settings.empty. Color: settings.on (a switch
+# that is on, and its icon).
+
+defaults:
+  app_name: Settings
+  color: "7A8696"
+  text_held: "Held"
+  text_empty: "No settings"
+
+external_components:
+  - source:
+      type: local
+      path: ../src/esphome/components
+    components: [daruma_settings]
+
+daruma_settings:
+  id: settings_app
+
+color:
+  - id: settings_color
+    hex: "${color}"
+
+daruma:
+  modules:
+    - name: settings
+      apps:
+        - id: settings
+          name: ${app_name}
+      theme:
+        colors:
+          "on": "3DBA6A"
+        words:
+          held: "${text_held}"
+          empty: "${text_empty}"
+      setup: |-
+        auto *s = id(settings_app);
+        Daruma::App app;
+        app.id = "settings";
+        app.name = "${app_name}";
+        app.icon = "\U000F0493";  // cog
+        app.color = id(settings_color);
+        app.draw = [s](Daruma::AppView &v) { s->draw(v); };
+        app.input = [s](Daruma::Input input, int x, int y) { return s->input(input, x, y); };
+        app.on_open = [s]() { s->on_open(); };
+        hub.add_app(app);

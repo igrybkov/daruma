@@ -798,7 +798,8 @@ async def to_code(config):
         for row in _goal_maps(config, names):
             cg.add(var.add_goal_map(row))
 
-    await _look_to_code(config)
+    # A device build reaches to_code; host tests reach _look_to_code itself.
+    await _look_to_code(config)  # pragma: no mutate
     await theme_to_code(var, config)
     await sounds_to_code(var, config)
     hub = await cg.get_variable(config[CONF_DARUMA_ID])

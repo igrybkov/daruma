@@ -1,7 +1,8 @@
 """Made-up Home Assistant data for demos and tests.
 
 The desktop build asks "Home Assistant" for calendar events and to-do items
-through the API, and subscribes to the states the Controls tiles show. The
+through the API, and subscribes to the states the Controls tiles and the
+Habitica module show. The
 harness answers with these. Nothing here comes from a
 real home: the names are invented, and every day looks the same, so runs
 repeat exactly.
@@ -66,6 +67,26 @@ CONTROLS = {
     "fan.ceiling": {"state": "on", "percentage": "67", "percentage_step": "33.333333333333336"},
 }
 
+# A made-up Habitica hero, as the integration's entities show it (prefix
+# `demo_hero`, the desktop build's `user`). The day has started and HP is
+# up, so Start my day and Revive are unavailable. A button never pressed
+# is "unknown"; one pressed holds the time it was.
+HABITICA = {
+    "sensor.demo_hero_health": {"state": "41.5"},
+    "sensor.demo_hero_experience": {"state": "380"},
+    "sensor.demo_hero_next_level": {"state": "520"},
+    "sensor.demo_hero_mana": {"state": "22.4"},
+    "sensor.demo_hero_max_mana": {"state": "45"},
+    "sensor.demo_hero_level": {"state": "12"},
+    "sensor.demo_hero_class": {"state": "healer"},
+    "sensor.demo_hero_gold": {"state": "93.71"},
+    "switch.demo_hero_rest_in_the_inn": {"state": "off"},
+    "button.demo_hero_buy_a_health_potion": {"state": "unknown"},
+    "button.demo_hero_start_my_day": {"state": "unavailable"},
+    "button.demo_hero_revive_from_death": {"state": "unavailable"},
+    "button.demo_hero_allocate_all_stat_points": {"state": "2026-01-05T08:12:00+00:00"},
+}
+
 # The tracks the demo player skips through.
 TRACKS = ["Rain on a Tin Roof", "Lanterns at Dusk", "Paper Boats"]
 
@@ -110,8 +131,10 @@ class DemoData:
         ]
     )
 
-    entities: dict[str, dict[str, str]] = field(default_factory=lambda: {k: dict(v) for k, v in CONTROLS.items()})
-    # Controls actions performed: (action, entity).
+    entities: dict[str, dict[str, str]] = field(
+        default_factory=lambda: {k: dict(v) for k, v in (CONTROLS | HABITICA).items()}
+    )
+    # Controls actions and Habitica button presses performed: (action, entity).
     controlled: list[tuple[str, str]] = field(default_factory=list)
 
     # HA actions to refuse, as HA does when an entity is gone or a call

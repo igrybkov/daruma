@@ -101,3 +101,29 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
   - On the desktop, the runner plays HA for the tiles: `CONTROLS` in
     `demos/demo_data.py` holds the states, and a tap changes them.
     `device.ha_state()` changes one from a test.
+- **Habitica** (`habitica.yaml`, component `daruma_habitica`). The
+  Character app, and reactions from a hero's stats. Use guide:
+  [habitica.md](../habitica.md).
+  - Stats come from HA subscriptions, as for Controls: one per entity.
+    The package builds the ids from its `user` var. The component takes
+    full ids, by field name (`follow("health", ...)`).
+  - Every number goes through `HabiticaApp::apply_stats()`. A score
+    reply can call it with a whole set; unknown fields are -1.
+  - The model is plain C++ (`src/esphome/components/daruma_habitica/habitica.h`,
+    tested in `tests/test_habitica_stats.cpp`). It compares each field
+    with the last value HA sent. A field it did not know plays nothing.
+    So the first values after a boot or a reconnect play nothing, and a
+    reply plus the same sensor push play once.
+  - On a disconnect the model forgets what HA sent, and keeps what it
+    shows. The numbers shown are saved across reboots, for the sheet only.
+  - Reactions play on a change. The activity (`fainted`, then `resting`)
+    follows the numbers shown, with the owner "habitica". It is set only
+    when it changes, so a push does not replay its sound.
+  - A sheet button is an HA `button.press` with no reply, outside the
+    hub's gate. It shows while its button entity is not "unavailable". A
+    button never pressed is "unknown", and is available.
+  - The potion asks first, in the app. The prompts module is not needed.
+  - On the desktop, `HABITICA` in `demos/demo_data.py` plays the
+    entities (prefix `demo_hero`), and a press lands in `data.controlled`.
+  - Trap: an ESPHome action variable may not be named `text` (a component
+    name). `habitica_event` takes `kind` and `message`.

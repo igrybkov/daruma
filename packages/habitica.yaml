@@ -1,0 +1,184 @@
+# Habitica module for Daruma: your hero's stats on the device, reactions
+# to them, and the Character app. Needs core.yaml and menu.yaml, and the
+# Habitica integration in Home Assistant. See docs/habitica.md.
+#
+# The stats come from the integration's entities, as HA state
+# subscriptions: no polling, no automation. `user` is their prefix, the
+# part HA put before `_health` in `sensor.<user>_health`.
+#
+# The persona reacts to the numbers:
+#
+#   level_up   reaction  the level goes up            falls back to celebrate
+#   hurt       reaction  HP drops by hurt_threshold   falls back to scared
+#   fainted    activity  while HP is 0                falls back to sad
+#   resting    activity  while you rest in the inn    falls back to sleeping
+#   drop       reaction  habitica_event "drop"        falls back to happy
+#
+# The first numbers after a boot or a reconnect only fill the sheet. The
+# same numbers twice play once.
+#
+# The Character app: HP, XP and MP bars with numbers, the level, the class
+# and the gold. Under them, the buttons Buy a health potion, Start my day,
+# Revive and Allocate stat points. Each shows only while its HA button is
+# available. A tap presses the HA button. The potion asks first: it spends
+# 25 gold. The board tile reads "Lv 12 · HP 45".
+#
+# Home Assistant action (esphome.<name>_habitica_event): kind and message.
+#   drop    a reaction, and the message in the bubble ("Found a Wolf egg!")
+#   quest   the message in the bubble ("Quest: 3 damage to the boss")
+# Both fields are required; send "" for no message.
+#
+# Needs "Allow the device to perform Home Assistant actions" on in the
+# ESPHome integration's options in HA, for the buttons.
+#
+# Words: the text_* values below are the English defaults of the theme
+# words habitica.<name>. Colors: habitica.hp, .xp, .mp and .gold.
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - path: packages/habitica.yaml
+#           vars: { user: <user> }
+
+defaults:
+  # The Habitica entities' prefix in HA.
+  user: habitica_user
+  app_name: Character
+  color: "925CF3"
+  # Habitica's max HP. HA has no sensor for it.
+  hp_max: "50"
+  # HP lost in one change that plays `hurt`.
+  hurt_threshold: "1"
+  # How long a drop's or a quest's words stay in the bubble.
+  event_seconds: "6"
+  text_loading: "Waiting for Habitica…"
+  text_offline: "Can't reach Home Assistant"
+  text_status: "Lv {level} · HP {hp}"
+  text_level: "Lv {level}"
+  text_gold: "{gold} gold"
+  text_hp: "HP"
+  text_xp: "XP"
+  text_mp: "MP"
+  text_warrior: "Warrior"
+  text_rogue: "Rogue"
+  text_wizard: "Mage"
+  text_healer: "Healer"
+  text_in_inn: "In the inn"
+  text_potion: "Buy potion"
+  text_start_day: "Start my day"
+  text_revive: "Revive"
+  text_allocate: "Allocate"
+  text_potion_confirm: "Buy a health potion for 25 gold?"
+  text_buy: "Buy"
+  text_cancel: "Cancel"
+
+external_components:
+  - source:
+      type: local
+      path: ../src/esphome/components
+    components: [daruma_habitica]
+
+daruma_habitica:
+  id: habitica_app
+  hp_max: ${hp_max}
+  hurt_threshold: ${hurt_threshold}
+  message_seconds: ${event_seconds}
+  stats:
+    health: sensor.${user}_health
+    experience: sensor.${user}_experience
+    next_level: sensor.${user}_next_level
+    mana: sensor.${user}_mana
+    max_mana: sensor.${user}_max_mana
+    level: sensor.${user}_level
+    class: sensor.${user}_class
+    gold: sensor.${user}_gold
+    inn: switch.${user}_rest_in_the_inn
+  buttons:
+    potion: button.${user}_buy_a_health_potion
+    start_day: button.${user}_start_my_day
+    revive: button.${user}_revive_from_death
+    allocate: button.${user}_allocate_all_stat_points
+
+color:
+  - id: habitica_color
+    hex: "${color}"
+
+api:
+  actions:
+    - action: habitica_event
+      variables:
+        kind: string
+        message: string
+      then:
+        - lambda: id(habitica_app).event(kind, message);
+
+daruma:
+  modules:
+    - name: habitica
+      apps:
+        - id: character
+          name: ${app_name}
+      states:
+        level_up: { kind: reaction, fallback: celebrate, duration: 3s }
+        hurt: { kind: reaction, fallback: scared, duration: 2s }
+        drop: { kind: reaction, fallback: happy, duration: 2500ms }
+        fainted: { kind: activity, fallback: sad, quiet: true }
+        resting: { kind: activity, fallback: sleeping, quiet: true }
+      theme:
+        colors:
+          hp: "F74E52"
+          xp: "FFA623"
+          mp: "50B5E9"
+          gold: "FFBE5D"
+        words:
+          loading: "${text_loading}"
+          offline: "${text_offline}"
+          status: "${text_status}"
+          level: "${text_level}"
+          gold: "${text_gold}"
+          hp: "${text_hp}"
+          xp: "${text_xp}"
+          mp: "${text_mp}"
+          warrior: "${text_warrior}"
+          rogue: "${text_rogue}"
+          wizard: "${text_wizard}"
+          healer: "${text_healer}"
+          in_inn: "${text_in_inn}"
+          potion: "${text_potion}"
+          start_day: "${text_start_day}"
+          revive: "${text_revive}"
+          allocate: "${text_allocate}"
+          potion_confirm: "${text_potion_confirm}"
+          buy: "${text_buy}"
+          cancel: "${text_cancel}"
+      setup: |-
+        auto *h = id(habitica_app);
+        h->set_presser([](const std::string &entity) { id(habitica_press).execute(entity); });
+
+        Daruma::App app;
+        app.id = "character";
+        app.name = "${app_name}";
+        app.icon = "\U000F0787";  // sword-cross
+        app.color = id(habitica_color);
+        app.status = [h]() { return h->status(); };
+        app.draw = [h](Daruma::AppView &v) { h->draw(v); };
+        app.input = [h](Daruma::Input input, int x, int y) { return h->input(input, x, y); };
+        app.on_open = [h]() { h->on_open(); };
+        app.on_close = [h]() { h->on_close(); };
+        app.back = [h]() { return h->back(); };
+        hub.add_app(app);
+
+script:
+  # A tap on a sheet button: HA's button.press. No reply is wanted, so it
+  # skips the hub's gate for HA calls (ha_calls.h).
+  - id: habitica_press
+    mode: queued
+    parameters:
+      entity: string
+    then:
+      - homeassistant.action:
+          action: button.press
+          data:
+            entity_id: !lambda return entity;

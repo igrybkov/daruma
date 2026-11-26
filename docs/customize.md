@@ -555,6 +555,7 @@ Built in:
 | Weather | [app_weather.yaml](../packages/app_weather.yaml) | now, today's high and low, rain, wind, the next hours |
 | Controls | [app_controls.yaml](../packages/app_controls.yaml) | a few HA entities with their live state; a tap toggles or runs one |
 | Settings | [app_settings.yaml](../packages/app_settings.yaml) | the device's switches; tap a row to flip it |
+| Character | [habitica.yaml](../packages/habitica.yaml) | a Habitica hero: HP, XP and MP bars, level, class, gold, and its HA buttons ([habitica.md](habitica.md)) |
 
 - **Order.** `daruma: apps: [tasks, calendar, weather, stats]` sets the
   order on the app board.

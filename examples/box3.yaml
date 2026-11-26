@@ -40,6 +40,8 @@
 #                          and sensors with their live state (vars: tiles)
 #   app_settings.yaml      Settings app: the device's switches (Sounds, Do not
 #                          disturb, ...) on its screen; modules add rows
+#   habitica.yaml          Character app and reactions from a Habitica hero's
+#                          stats (vars: user; see docs/habitica.md)
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
 #   quiet.yaml             quiet hours, Do not disturb, dimming when idle
 #

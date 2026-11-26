@@ -86,7 +86,7 @@ packages:
   # A made-up Habitica hero; the demo runner plays its entities.
   habitica: !include
     file: ../packages/habitica.yaml
-    vars: { user: demo_hero }
+    vars: { user: demo_hero, skills: script.demo_skills }
   app_habits: !include
     file: ../packages/app_habits.yaml
     vars: { entity: script.demo_habits, text_busy: "Habitica is busy" }

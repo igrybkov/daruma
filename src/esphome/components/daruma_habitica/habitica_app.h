@@ -16,10 +16,12 @@
 
 #include "esphome/components/daruma/focus.h"
 #include "esphome/components/daruma/hub.h"
+#include "esphome/components/json/json_util.h"
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/preferences.h"
 #include "habitica.h"
+#include "skills.h"
 
 #ifdef USE_DARUMA_HABITS
 #include "esphome/components/daruma_habits/habits_app.h"
@@ -33,6 +35,14 @@ class HabiticaApp : public esphome::Component {
   using Presser = std::function<void(const std::string &entity)>;
 
   void set_hub(Hub *hub) { this->hub_ = hub; }
+  Hub *hub() const { return this->hub_; }
+  // The rendered text HA sends under "response".
+  static std::string reply_text(ArduinoJson::JsonObjectConst reply) {
+    const char *text = reply["response"].as<const char *>();
+    return text != nullptr ? text : "";
+  }
+  // The Skills list, when the build names a skills script.
+  HabiticaSkills &skills() { return this->skills_; }
   void set_presser(Presser presser) { this->presser_ = std::move(presser); }
   void set_hp_max(float hp) { this->hp_max_ = hp; }
   void set_hurt_threshold(float hp) { this->model_.set_hurt_threshold(hp); }
@@ -82,7 +92,7 @@ class HabiticaApp : public esphome::Component {
   // What a tap on the sheet's buttons area may hit, in screen coordinates.
   struct Target {
     Rect rect;
-    int button{-1};  // Index in buttons_; -1 for the confirm's Cancel.
+    int button{-1};  // Index in buttons_; -1 for the confirm's Cancel; SKILLS.
   };
   struct Saved {
     float hp, hp_max, mp, mp_max, xp, xp_next, gold;
@@ -103,6 +113,7 @@ class HabiticaApp : public esphome::Component {
   void draw_bar_(AppView &v, int row, const char *label, float value, float max, const char *color);
   void draw_buttons_(AppView &v);
   void draw_confirm_(AppView &v);
+  void draw_notice_(AppView &v);
   void draw_button_(AppView &v, const Rect &r, const std::string &label, bool focused, bool primary);
   Rect buttons_area_(const AppView &v) const;
 
@@ -121,6 +132,8 @@ class HabiticaApp : public esphome::Component {
   uint32_t confirm_until_ms_{0};
   FocusRing focus_;
   std::vector<Target> targets_;
+  HabiticaSkills skills_{this};
+  static constexpr int SKILLS = -2;  // The sheet's Skills button.
 };
 
 }  // namespace Daruma

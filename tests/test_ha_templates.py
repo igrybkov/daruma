@@ -398,3 +398,347 @@ def test_blueprint_scores_with_the_device_fields():
     assert set(HABITS_BP["fields"]) == {"op", "id", "direction"}
     get = HABITS_BP["sequence"][1]
     assert get["action"] == "habitica.get_tasks" and get["data"]["type"] == ["habit"]
+
+
+# --- A fake HA for the Habitica blueprints -----------------------------------
+
+
+class FakeHA:
+    """States, names and the Habitica device's entities, as HA's template
+    functions see them."""
+
+    def __init__(self, states: dict[str, str], names: dict[str, str] | None = None):
+        self.states = states
+        self.names = names or {}
+
+    def env(self, now: datetime.datetime) -> jinja2.Environment:
+        env = _env(now)
+        env.globals["states"] = lambda e: self.states.get(e, "unknown")
+        env.globals["state_attr"] = lambda e, a: self.names.get(e) if a == "friendly_name" else None
+        env.globals["device_entities"] = lambda _device: list(self.states)
+        env.globals["as_local"] = lambda t: t
+        env.tests["match"] = lambda v, p: re.match(p, v) is not None
+        env.tests["search"] = lambda v, p: re.search(p, v) is not None
+        return env
+
+    def render(self, template: str, now: datetime.datetime | None = None, **values):
+        now = now or datetime.datetime.combine(TODAY, datetime.time(12, 0))
+        out = self.env(now).from_string(template).render(**values)
+        return ast.literal_eval(out) if out.strip() not in ("", "None") else None
+
+
+def _hero(cls: str, level: int, mp: float, hp: float = 40, buttons: dict[str, str] | None = None, **more):
+    """The Habitica device's entities for a hero (made-up prefix `hero`)."""
+    states = {
+        "sensor.hero_class": cls,
+        "sensor.hero_level": str(level),
+        "sensor.hero_next_level": "900",
+        "sensor.hero_mana": str(mp),
+        "sensor.hero_max_mana": "50",
+        "sensor.hero_health": str(hp),
+        "switch.hero_rest_in_the_inn": "off",
+    }
+    states.update({f"button.hero_{k}": v for k, v in (buttons or {}).items()})
+    states.update(more)
+    return FakeHA(states)
+
+
+# --- Blueprint: Habitica skills -----------------------------------------------
+
+SKILLS_BP = _load(ROOT / "blueprints" / "script" / "habitica_skills.yaml")
+TABLE = SKILLS_BP["variables"]["table"]
+
+
+def _skills(ha: FakeHA) -> dict:
+    hero = ha.render(SKILLS_BP["sequence"][0]["variables"]["hero"], table=TABLE, device="d")
+    result = ha.render(SKILLS_BP["sequence"][2]["variables"]["result"], table=TABLE, hero=hero)
+    return {s["id"]: (s["ready"], s["why"], s["target"]) for s in result["skills"]} | {"class": result["class"]}
+
+
+def test_skills_table_matches_habitica_content():
+    # Habitica's spells.js: level and MP of each skill.
+    want = {
+        "fireball": (11, 10),
+        "mpheal": (12, 30),
+        "earth": (13, 35),
+        "frost": (14, 40),
+        "smash": (11, 10),
+        "defensive_stance": (12, 25),
+        "valorous_presence": (13, 20),
+        "intimidate": (14, 15),
+        "pickpocket": (11, 10),
+        "backstab": (12, 15),
+        "tools_of_trade": (13, 25),
+        "stealth": (14, 45),
+        "heal": (11, 15),
+        "brightness": (12, 15),
+        "protect_aura": (13, 30),
+        "heal_all": (14, 25),
+    }
+    assert {k["id"]: (k["level"], k["mp"]) for k in TABLE} == want
+    # Task skills cast; the others have a button.
+    assert {k["id"] for k in TABLE if "cast" in k} == {"fireball", "smash", "pickpocket", "backstab"}
+    assert all(("cast" in k) != ("button" in k) for k in TABLE)
+
+
+def test_skills_for_a_mage():
+    ha = _hero("wizard", 13, 32, buttons={"ethereal_surge": "unknown", "earthquake": "unavailable"})
+    r = _skills(ha)
+    assert r["class"] == "wizard"
+    assert r["fireball"] == (True, "", "task")
+    assert r["mpheal"] == (True, "", "party")  # Its button is there and not unavailable.
+    assert r["earth"] == (False, "Needs 35 MP", "party")
+    assert r["frost"] == (False, "Needs level 14", "self")  # No button at all.
+
+
+def test_skills_for_a_warrior():
+    ha = _hero("warrior", 14, 18, buttons={"defensive_stance": "unavailable", "intimidating_gaze": "unknown"})
+    r = _skills(ha)
+    assert r["smash"] == (True, "", "task")
+    assert r["defensive_stance"] == (False, "Needs 25 MP", "self")
+    assert r["valorous_presence"] == (False, "Needs 20 MP", "party")
+    assert r["intimidate"] == (True, "", "party")
+
+
+def test_skills_for_a_rogue():
+    # Stealth: enough level and MP, but HA's own rule keeps its button off.
+    ha = _hero("rogue", 14, 50, buttons={"tools_of_the_trade": "unknown", "stealth": "unavailable"})
+    r = _skills(ha)
+    assert r["pickpocket"] == (True, "", "task") and r["backstab"] == (True, "", "task")
+    assert r["tools_of_trade"] == (True, "", "party")
+    assert r["stealth"] == (False, "Not now", "self")
+
+
+def test_skills_for_a_healer_found_by_name():
+    # A renamed entity still counts by its name.
+    ha = _hero("healer", 11, 20, **{"button.renamed": "2026-11-20T10:00:00"})
+    ha.names["button.renamed"] = "Hero Healing Light"
+    r = _skills(ha)
+    assert r["heal"] == (True, "", "self")
+    assert r["brightness"] == (False, "Needs level 12", "self")
+    assert set(r) - {"class"} == {"heal", "brightness", "protect_aura", "heal_all"}
+
+
+def test_skills_of_no_class():
+    assert _skills(FakeHA({})) == {"class": ""}
+
+
+def test_skills_cast_reply_projects_stats():
+    then = SKILLS_BP["sequence"][1]["then"]
+    template = then[1]["then"][1]["variables"]["result"]
+    reply = {"hp": 40, "maxHealth": 50, "mp": 5, "maxMP": 45, "exp": 10, "toNextLevel": 500, "gp": 9, "lvl": 13}
+    out = FakeHA({}).render(template, reply=reply)
+    assert out == {
+        "ok": True,
+        "stats": {"hp": 40, "hp_max": 50, "mp": 5, "mp_max": 45, "xp": 10, "xp_next": 500, "gold": 9, "level": 13},
+    }
+    assert FakeHA({}).render(template, reply=None) == {"ok": True}
+    assert then[1]["then"][0]["action"] == "habitica.cast_skill"
+
+
+# --- The device's skills templates ----------------------------------------------
+
+HABITICA_PKG = _load(ROOT / "packages" / "habitica.yaml")
+
+
+def _pkg_lines(script_id: str, response) -> list[list[str]]:
+    script = next(s for s in HABITICA_PKG["script"] if s["id"] == script_id)
+    template = _substitute(script["then"][0]["homeassistant.action"]["response_template"], HABITICA_PKG["defaults"])
+    out = _env(datetime.datetime.now()).from_string(template).render(response=response)
+    return [line.split("\t") for line in out.split("\n")]
+
+
+def test_device_skills_lines():
+    reply = {
+        "class": "rogue",
+        "skills": [
+            {
+                "id": "stealth",
+                "name": "Stealth",
+                "mp": 45,
+                "level": 14,
+                "target": "self",
+                "ready": False,
+                "why": "Not now",
+            },
+            {"id": "backstab", "name": "Back\tstab", "mp": 15, "level": 12, "target": "task", "ready": True, "why": ""},
+            "junk",
+        ],
+    }
+    assert _pkg_lines("habitica_skills_fetch", reply) == [
+        ["C", "rogue"],
+        ["K", "stealth", "45", "14", "s", "0", "Stealth", "Not now"],
+        ["K", "backstab", "15", "12", "t", "1", "Back stab", ""],
+    ]
+    assert _pkg_lines("habitica_skills_fetch", None) == [["C", ""]]
+
+
+def test_device_cast_lines():
+    stats = {"hp": 40, "hp_max": 50, "mp": 5, "mp_max": 45, "xp": 10, "xp_next": 500, "gold": 9, "level": 13}
+    assert _pkg_lines("habitica_cast", {"ok": True, "stats": stats}) == [
+        ["R", "1"],
+        ["S", "40.0", "50.0", "5.0", "45.0", "10.0", "500.0", "9.0", "13.0"],
+    ]
+    assert _pkg_lines("habitica_cast", {"ok": True}) == [["R", "1"]]
+    assert _pkg_lines("habitica_cast", {}) == [["R", "0"]]
+
+
+# --- Blueprint: Habitica nudges ---------------------------------------------------
+
+NUDGES = _load(ROOT / "blueprints" / "automation" / "habitica_nudges.yaml")
+ALL_ON = dict.fromkeys(["evening_skill", "dailies_left", "heal", "potion", "revive", "full_mana", "allocate"], True)
+
+
+def _daily(due=True, done=False, streak=0):
+    return {"type": "daily", "isDue": due, "completed": done, "streak": streak}
+
+
+def _nudge(ha: FakeHA, at=(21, 30), dailies=(), seen="", enabled=None, low_hp=20):
+    v = NUDGES["variables"]
+    facts = ha.render(
+        NUDGES["actions"][1]["variables"]["facts"],
+        habitica_device="d",
+        buttons=v["buttons"],
+        dailies={"tasks": list(dailies)},
+    )
+    now = datetime.datetime.combine(TODAY, datetime.time(*at))
+    return ha.render(
+        NUDGES["actions"][2]["variables"]["nudge"],
+        now=now,
+        facts=facts,
+        seen=seen,
+        enabled=enabled or ALL_ON,
+        low_hp=low_hp,
+        evening="21:00:00",
+        day_start="08:00:00",
+        day_end="23:00:00",
+        full_mana_skills=v["full_mana_skills"],
+    )
+
+
+OPEN = [_daily(), _daily(streak=4), _daily(done=True), _daily(due=False)]
+
+
+@pytest.mark.parametrize(
+    ("cls", "button", "nudge_id", "option"),
+    [
+        ("rogue", "stealth", "evening_skill", "Stealth"),
+        ("wizard", "chilling_frost", "evening_skill", "Chilling Frost"),
+        ("warrior", "defensive_stance", "evening_skill", "Defensive Stance"),
+        ("healer", "protective_aura", "evening_skill", "Protective Aura"),
+    ],
+)
+def test_evening_nudge_per_class(cls, button, nudge_id, option):
+    n = _nudge(_hero(cls, 14, 10, buttons={button: "unknown"}), dailies=OPEN)
+    assert (n["id"], n["option"], n["press"], n["style"]) == (nudge_id, option, f"button.hero_{button}", "info")
+
+
+def test_evening_stealth_counts_open_due_dailies():
+    n = _nudge(_hero("rogue", 14, 10, buttons={"stealth": "unknown"}), dailies=OPEN)
+    assert n["body"] == "2 dailies are still open. Hide with Stealth?"
+
+
+def test_mage_frost_needs_a_streak():
+    ha = _hero("wizard", 14, 10, buttons={"chilling_frost": "unknown"})
+    n = _nudge(ha, dailies=[_daily()])
+    assert n["id"] == "dailies_left" and n["body"] == "1 daily is left today." and n["press"] is None
+
+
+def test_dailies_left_when_no_skill_is_ready():
+    n = _nudge(_hero("rogue", 14, 10, buttons={"stealth": "unavailable"}), dailies=OPEN)
+    assert n["id"] == "dailies_left" and n["body"] == "2 dailies are left today." and n["option"] == "OK"
+
+
+def test_evening_nudges_wait_for_the_evening_and_open_dailies():
+    ha = _hero("rogue", 14, 10, buttons={"stealth": "unknown"})
+    assert _nudge(ha, at=(20, 59), dailies=OPEN) is None
+    assert _nudge(ha, at=(21, 0), dailies=OPEN)["id"] == "evening_skill"
+    assert _nudge(ha, dailies=[_daily(done=True)]) is None
+
+
+def test_low_hp_nudges():
+    ha = _hero("healer", 11, 20, hp=12, buttons={"healing_light": "unknown", "buy_a_health_potion": "unknown"})
+    assert _nudge(ha, at=(10, 0))["id"] == "heal"
+    # Healing Light once today already: the potion is next.
+    n = _nudge(ha, at=(10, 0), seen=f"heal={TODAY}")
+    assert (n["id"], n["option"], n["press"]) == ("potion", "Buy", "button.hero_buy_a_health_potion")
+    # Not low: none. Outside the day window: none.
+    assert _nudge(ha, at=(10, 0), low_hp=10) is None
+    assert _nudge(ha, at=(7, 59)) is None
+    assert _nudge(ha, at=(23, 0)) is None
+
+
+def test_revive_is_urgent_and_any_time():
+    ha = _hero("warrior", 12, 0, hp=0, buttons={"revive_from_death": "unknown"})
+    n = _nudge(ha, at=(3, 0))
+    assert (n["id"], n["style"], n["option"]) == ("revive", "urgent", "Revive")
+
+
+def test_full_mana_offers_the_best_ready_skill():
+    ha = _hero("wizard", 14, 50, buttons={"earthquake": "unknown", "chilling_frost": "unknown"})
+    n = _nudge(ha, at=(12, 0))
+    assert (n["id"], n["body"], n["press"]) == ("full_mana", "Cast Earthquake?", "button.hero_earthquake")
+    assert _nudge(_hero("wizard", 14, 49, buttons={"earthquake": "unknown"}), at=(12, 0)) is None
+
+
+def test_allocate():
+    n = _nudge(_hero("rogue", 10, 0, buttons={"allocate_all_stat_points": "unknown"}), at=(12, 0))
+    assert (n["id"], n["option"]) == ("allocate", "Allocate")
+
+
+def test_once_a_day_and_switches():
+    ha = _hero("rogue", 10, 0, buttons={"allocate_all_stat_points": "unknown"})
+    assert _nudge(ha, at=(12, 0), seen=f"x=2026-01-01;allocate={TODAY}") is None
+    # Yesterday's does not count.
+    assert _nudge(ha, at=(12, 0), seen="allocate=2026-11-25")["id"] == "allocate"
+    assert _nudge(ha, at=(12, 0), enabled=ALL_ON | {"allocate": False}) is None
+
+
+def test_no_nudge_before_the_day_starts_or_in_the_inn():
+    buttons = {"allocate_all_stat_points": "unknown", "start_my_day": "unknown"}
+    assert _nudge(_hero("rogue", 10, 0, buttons=buttons), at=(12, 0)) is None
+    inn = _hero("rogue", 10, 0, buttons={"allocate_all_stat_points": "unknown"})
+    inn.states["switch.hero_rest_in_the_inn"] = "on"
+    assert _nudge(inn, at=(12, 0)) is None
+
+
+# --- Blueprint: Habitica morning ---------------------------------------------------
+
+MORNING = _load(ROOT / "blueprints" / "automation" / "habitica_morning.yaml")
+
+
+def test_morning_lists_yesterdays_open_dailies():
+    template = MORNING["actions"][1]["variables"]["yesterday"]
+    tasks = [
+        {"id": "a", "text": "Stretch", "isDue": True, "yesterDaily": True, "completed": False},
+        {"id": "b", "text": "Done", "isDue": True, "yesterDaily": True, "completed": True},
+        {"id": "c", "text": "Not due", "isDue": False, "yesterDaily": True, "completed": False},
+        {"id": "d", "text": "Not recorded", "isDue": True, "yesterDaily": False, "completed": False},
+        {"id": "e", "text": "Read", "isDue": True, "yesterDaily": True},
+    ]
+    assert FakeHA({}).render(template, reply={"tasks": tasks}) == [
+        {"uid": "a", "title": "Stretch"},
+        {"uid": "e", "title": "Read"},
+    ]
+    by_id = {"tasks": {t["id"]: t for t in tasks}}
+    assert [t["uid"] for t in FakeHA({}).render(template, reply=by_id)] == ["a", "e"]
+    many = [dict(tasks[0], id=str(i)) for i in range(25)]
+    assert len(FakeHA({}).render(template, reply={"tasks": many})) == 19
+    assert FakeHA({}).render(template, reply=None) == []
+
+
+def test_morning_shows_once_a_day_while_the_day_has_not_started():
+    template = MORNING["conditions"][0]["value_template"]
+
+    def shows(presence="on", start="unknown", last=None):
+        ha = FakeHA({"binary_sensor.desk": presence, "button.hero_start_my_day": start})
+        this = {"attributes": {"last_triggered": last}}
+        out = ha.env(datetime.datetime.combine(TODAY, datetime.time(9, 0))).from_string(template)
+        return out.render(presence="binary_sensor.desk", habitica_device="d", this=this).strip() == "True"
+
+    assert shows()
+    assert shows(presence="home")
+    assert not shows(presence="off")
+    assert not shows(start="unavailable")
+    assert not shows(last=datetime.datetime.combine(TODAY, datetime.time(7, 0)))
+    assert shows(last=datetime.datetime.combine(TODAY - datetime.timedelta(days=1), datetime.time(7, 0)))

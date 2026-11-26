@@ -1,0 +1,158 @@
+blueprint:
+  name: "Daruma: Habitica morning"
+  domain: automation
+  source_url: https://raw.githubusercontent.com/igrybkov/daruma/main/blueprints/automation/habitica_morning.yaml
+  description: >-
+    When you sit down at the desk and have not started your Habitica day,
+    a Daruma device lists yesterday's open dailies. Tap the ones you did
+    to tick them, then Start my day.
+
+
+    It shows once a day, while the "Start my day" button is available in
+    Home Assistant: that is, before your day starts. Reading the dailies
+    uses the Habitica integration's cache: no request to Habitica. Each
+    tick and Start my day is one request.
+
+
+    Needs the Habitica integration and the device's prompts package. The
+    card waits while a focus block runs or Do not disturb is on.
+  input:
+    habitica:
+      name: Habitica account
+      selector:
+        config_entry:
+          integration: habitica
+    habitica_device:
+      name: Habitica device
+      selector:
+        device:
+          integration: habitica
+    dailies:
+      name: Dailies list
+      description: The Habitica to-do list of dailies (todo.<user>_dailies).
+      selector:
+        entity:
+          domain: todo
+          integration: habitica
+    presence:
+      name: At the desk
+      description: >-
+        Turns "on" or "home" when you are at the desk: a binary sensor, an
+        input boolean or a person.
+      selector:
+        entity:
+          domain: [binary_sensor, input_boolean, person, device_tracker]
+    device:
+      name: Daruma
+      selector:
+        device:
+          integration: esphome
+    node_name:
+      name: Device node name
+      description: The ESPHome node name with "-" as "_".
+      default: daruma
+      selector:
+        text: {}
+    timeout:
+      name: Timeout
+      description: How long the card waits for each answer.
+      default: 600
+      selector:
+        number:
+          min: 30
+          max: 3600
+          unit_of_measurement: s
+
+mode: single
+max_exceeded: silent
+
+variables:
+  node: !input node_name
+  habitica_device: !input habitica_device
+  presence: !input presence
+  timeout: !input timeout
+  start_label: Start my day
+
+triggers:
+  - trigger: state
+    entity_id: !input presence
+    to: ["on", "home"]
+  - trigger: time_pattern
+    minutes: /15
+
+conditions:
+  - condition: template
+    value_template: >-
+      {%- set start = device_entities(habitica_device) | select('match', 'button[.].*_start_my_day$') | list -%}
+      {%- set last = this.attributes.last_triggered if this is defined else none -%}
+      {{ states(presence) in ['on', 'home'] and start | count > 0 and states(start[0]) != 'unavailable'
+         and (last is none or as_local(last).date() != now().date()) }}
+
+actions:
+  - action: habitica.get_tasks
+    data:
+      config_entry: !input habitica
+      type: [daily]
+    response_variable: reply
+  # Yesterday's open dailies: due, recorded for yesterday, not done.
+  - variables:
+      yesterday: >-
+        {%- set raw = (reply or {}).get('tasks') or [] -%}
+        {%- set tasks = raw.values() | list if raw is mapping else raw -%}
+        {%- set ns = namespace(out=[]) -%}
+        {%- for t in tasks if t is mapping and t.get('isDue') is sameas true and t.get('yesterDaily') is sameas true
+                              and t.get('completed') is not sameas true -%}
+          {%- set ns.out = ns.out + [{'uid': t.get('id') | string, 'title': (t.get('text') or '') | string}] -%}
+        {%- endfor -%}
+        {{ ns.out[:19] }}
+      ticked: []
+      start_button: >-
+        {{ (device_entities(habitica_device) | select('match', 'button[.].*_start_my_day$') | list)[0] }}
+  - repeat:
+      count: 20
+      sequence:
+        - variables:
+            left: "{{ yesterday | rejectattr('uid', 'in', ticked) | list }}"
+        - action: "esphome.{{ node }}_prompt_show"
+          data:
+            id: habitica_morning
+            layout: list
+            title: Good morning
+            body: "{{ 'Tick what you did yesterday.' if left else 'Ready for today?' }}"
+            options: "{{ left | map(attribute='title') | list + [start_label] }}"
+            marks: []
+            style: info
+            timeout: "{{ timeout | int }}"
+            state: ""
+            sound: ""
+            dismissable: true
+        - wait_for_trigger:
+            - trigger: event
+              event_type: esphome.daruma_prompt
+              event_data:
+                id: habitica_morning
+                device_id: !input device
+          timeout:
+            seconds: "{{ timeout | int + 5 }}"
+          continue_on_timeout: false
+        - variables:
+            answer: "{{ wait.trigger.event.data }}"
+        - if:
+            - condition: template
+              value_template: "{{ answer.choice == start_label }}"
+          then:
+            - action: button.press
+              target:
+                entity_id: "{{ start_button }}"
+            - stop: Day started
+        - condition: template
+          value_template: "{{ answer.index | int(-1) >= 0 and answer.index | int < left | count }}"
+        # Ticks it in Habitica: one request.
+        - action: todo.update_item
+          target:
+            entity_id: !input dailies
+          data:
+            item: "{{ left[answer.index | int].uid }}"
+            status: completed
+        - variables:
+            ticked: "{{ ticked + [left[answer.index | int].uid] }}"

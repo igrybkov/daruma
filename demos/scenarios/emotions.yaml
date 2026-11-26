@@ -101,3 +101,8 @@ steps:
     steps:
       - show: habit_down
       - wait: 2
+  # Habitica skills (habitica.yaml): a skill cast from the Character app.
+  - caption: "Habitica: a skill cast"
+    steps:
+      - show: cast
+      - wait: 3

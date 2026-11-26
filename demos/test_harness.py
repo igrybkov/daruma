@@ -112,6 +112,51 @@ def test_a_habit_score_counts_and_answers_with_the_hero():
     assert data.answer("script.demo_habits", {"op": "score", "id": "x", "direction": "up"})[1].endswith("\t-1")
 
 
+def test_the_skills_script_lists_the_heros_class():
+    data = DemoData()
+    ok, text = data.answer("script.demo_skills", {"op": "list"})
+    assert ok and text.split("\n") == [
+        "C\thealer",
+        "K\theal\t15\t11\ts\t1\tHealing Light\t",
+        "K\tbrightness\t15\t12\ts\t1\tSearing Brightness\t",
+        "K\tprotect_aura\t30\t13\tp\t0\tProtective Aura\tNeeds level 13",
+        "K\theal_all\t25\t14\tp\t0\tBlessing\tNeeds level 14",
+    ]
+    # Enough level but not enough mana.
+    data.entities["sensor.demo_hero_level"]["state"] = "13"
+    data.entities["sensor.demo_hero_class"]["state"] = "warrior"
+    lines = data.answer("script.demo_skills", {"op": "list"})[1].split("\n")
+    assert lines[2] == "K\tdefensive_stance\t25\t12\ts\t0\tDefensive Stance\tNeeds 25 MP"
+    assert lines[3] == "K\tvalorous_presence\t20\t13\tp\t1\tValorous Presence\t"
+    # A class it does not know: no skills. A sensor HA lacks reads 0.
+    data.entities["sensor.demo_hero_class"]["state"] = "bard"
+    assert data.answer("script.demo_skills", {"op": "list"})[1] == "C\tbard"
+    del data.entities["sensor.demo_hero_level"]
+    data.entities["sensor.demo_hero_class"]["state"] = "rogue"
+    assert "\tNeeds level 11" in data.answer("script.demo_skills", {"op": "list"})[1]
+
+
+def test_the_skills_script_edges():
+    data = DemoData()
+    # Mana exactly the cost is enough.
+    data.entities["sensor.demo_hero_mana"]["state"] = "15"
+    assert "K\theal\t15\t11\ts\t1\tHealing Light\t" in data.answer("script.demo_skills", {"op": "list"})[1]
+    # A sensor HA lacks reads 0; no class sensor, no class.
+    assert data._hero("nothing") == 0
+    del data.entities["sensor.demo_hero_class"]
+    assert data.answer("script.demo_skills", {"op": "list"})[1] == "C\t"
+
+
+def test_a_cast_is_recorded():
+    data = DemoData()
+    assert data.answer("script.demo_skills", {"op": "cast", "id": "smash", "task": "snack"}) == (True, "R\t1")
+    assert data.answer("script.demo_skills", {"op": "cast", "id": "heal"}) == (True, "R\t1")
+    data.next_cast = "R\t0"
+    assert data.answer("script.demo_skills", {"op": "cast", "id": "heal", "task": ""})[1] == "R\t0"
+    assert data.next_cast is None
+    assert data.casts == [("smash", "snack"), ("heal", ""), ("heal", "")]
+
+
 def test_a_refused_habits_script_says_why():
     data = DemoData(failing={"script.demo_habits"})
     assert data.reply("script.demo_habits", {"op": "list"}) == (False, None)

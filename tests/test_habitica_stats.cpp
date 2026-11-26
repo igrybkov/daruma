@@ -292,7 +292,66 @@ static void fainted_and_resting() {
   CHECK(r.hurt && r.activity == HabiticaActivity::FAINTED);
 }
 
+static void parse_skills() {
+  std::string cls;
+  std::vector<HabiticaSkill> skills;
+  const char *text = "C\trogue\n"
+                     "K\tstealth\t45\t14\ts\t0\tStealth\tNeeds 45 MP\n"
+                     "K\ttools_of_trade\t25\t13\tp\t1\tTools of the Trade\t\n"
+                     "K\tbackstab\t15\t12\tt\t1\tBackstab\t\n"
+                     "K\t\t1\t1\ts\t1\tNo id\t\n"
+                     "K\tshort\t1\n"
+                     "X\tnot a skill";
+  CHECK(habitica_parse_skills(text, cls, skills));
+  CHECK(cls == "rogue" && skills.size() == 3);
+  const HabiticaSkill &s = skills[0];
+  CHECK(s.id == "stealth" && s.name == "Stealth" && s.why == "Needs 45 MP");
+  CHECK(s.mp == 45 && s.level == 14 && s.target == 's' && !s.ready);
+  CHECK(skills[1].target == 'p' && skills[1].ready && skills[1].why.empty() && skills[1].mp == 25);
+  CHECK(skills[2].target == 't' && skills[2].level == 12);
+  // No class line: not a skills reply. An unknown class is "".
+  CHECK(!habitica_parse_skills("K\ta\t1\t1\ts\t1\tA\t", cls, skills));
+  CHECK(habitica_parse_skills("C\tbard", cls, skills) && cls.empty() && skills.empty());
+  CHECK(!habitica_parse_skills("C", cls, skills));
+  // Unknown numbers are 0; an unknown target is self.
+  CHECK(habitica_parse_skills("C\thealer\nK\theal\tx\t\tq\t1\tHeal\t", cls, skills));
+  CHECK(skills[0].mp == 0 && skills[0].level == 0 && skills[0].target == 's');
+  CHECK(habitica_lines("a\nb\n").size() == 2);
+  CHECK(habitica_lines("").empty());
+}
+
+static void parse_a_cast() {
+  bool ok = false;
+  HabiticaStats st;
+  CHECK(habitica_parse_cast("R\t1\nS\t40\t50\t5\t45\t400\t520\t95\t13", ok, st));
+  CHECK(ok && st.hp == 40 && st.hp_max == 50 && st.mp == 5 && st.mp_max == 45);
+  CHECK(st.xp == 400 && st.xp_next == 520 && st.gold == 95 && st.level == 13);
+  CHECK(habitica_parse_cast("R\t0", ok, st) && !ok && st.mp == -1);
+  CHECK(habitica_parse_cast("R\t1\nS\t\t\t\t\t\t\t\t", ok, st) && ok && st.hp == -1 && st.level == -1);
+  CHECK(habitica_parse_cast("R\t1\nX", ok, st) && st.hp == -1);
+  CHECK(!habitica_parse_cast("", ok, st));
+  CHECK(!habitica_parse_cast("C\trogue", ok, st));
+  CHECK(!habitica_parse_cast("R", ok, st));
+}
+
+static void stats_lines_and_guesses() {
+  HabiticaStats s;
+  CHECK(habitica_parse_stats_line(habitica_fields("S\t1\t2\t3\t4\t5\t6\t7\t8"), s) && s.level == 8);
+  CHECK(!habitica_parse_stats_line(habitica_fields("S\t1\t2"), s));
+  HabiticaSkill k;
+  CHECK(k.mp == 0 && k.level == 0 && !k.ready && k.target == 's' && k.id.empty());
+  CHECK(!habitica_parse_stats_line(habitica_fields("T\t1\t2\t3\t4\t5\t6\t7\t8"), s));
+
+  CHECK(habitica_mp_after(45, 30) == 15);
+  CHECK(habitica_mp_after(20, 30) == 0);
+  CHECK(habitica_mp_after(30, 30) == 0);
+  CHECK(habitica_mp_after(-1, 30) == -1);
+}
+
 int main() {
+  parse_skills();
+  parse_a_cast();
+  stats_lines_and_guesses();
   unknown_by_default();
   numbers_from_states();
   fields_by_name();

@@ -36,6 +36,8 @@
 #                          (include per set of calendars)
 #   app_weather.yaml       Weather app: today's report from an HA weather
 #                          entity (a tap on the temperature badge opens it)
+#   app_controls.yaml      Controls app: HA lights, scenes, players, covers
+#                          and sensors with their live state (vars: tiles)
 #   prompts.yaml           cards HA shows (doorbell, quiz) and answers back
 #   quiet.yaml             quiet hours, Do not disturb, dimming when idle
 #

@@ -84,8 +84,9 @@ use your `daruma_api_key`. See the
 
 ## 5. Allow Home Assistant actions
 
-The Calendar, Tasks and Weather apps ask Home Assistant for data. A device
-may do that only when you allow it.
+The Calendar, Tasks and Weather apps ask Home Assistant for data. The
+Controls app asks it to toggle lights and run scenes. A device may do that
+only when you allow it.
 
 1. Open Settings, Devices & services, ESPHome.
 2. Select the cogwheel on your device's entry.

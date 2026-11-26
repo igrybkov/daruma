@@ -1,5 +1,5 @@
-# Build check: two copies each of the Tasks and Calendar apps, each copy
-# with its own app_id, entities and switch. Compile-only. It includes
+# Build check: two copies each of the Tasks and Calendar apps, and two of
+# Controls, each copy with its own app_id, entities and switch. Compile-only. It includes
 # box3.yaml, so keep the two in one folder with your secrets.yaml:
 #
 #   esphome compile variant_apps.yaml
@@ -22,10 +22,25 @@ packages:
         vars: { app_id: tasks_family, app_name: Family, source: todo, entity: todo.family }
       - path: packages/app_calendar.yaml
         vars: { app_id: calendar_work, app_name: Work, calendars: calendar.work }
+      - path: packages/app_controls.yaml
+        vars:
+          tiles:
+            - { entity: light.desk, label: Desk }
+            - { entity: scene.movie, label: Movie, icon: "mdi:movie" }
+            - { entity: media_player.office, label: Music }
+            - { entity: sensor.office_co2, label: CO2, icon: "mdi:molecule-co2" }
+      - path: packages/app_controls.yaml
+        vars:
+          app_id: controls_lights
+          app_name: Lights
+          tiles:
+            - { entity: light.kitchen, label: Kitchen, icon: "mdi:ceiling-light" }
+            - { entity: switch.porch, label: Porch }
+            - { entity: cover.garage, label: Garage, icon: "mdi:garage" }
 
 daruma:
   # Added after the device's list (tasks, calendar, weather, stats).
-  apps: [tasks_family, calendar_work]
+  apps: [tasks_family, calendar_work, controls, controls_lights]
   # App copies by their app id, another menu, an HA event button, and more
   # than five items (four show, then Next).
   menus:

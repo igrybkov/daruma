@@ -9,7 +9,8 @@
 #   pytest demos                        screen tests (see docs/testing.md)
 #
 # Calendar and Tasks ask "Home Assistant" for data through the API. The
-# demo runner answers with made-up events and tasks.
+# demo runner answers with made-up events and tasks, and plays the
+# entities the Controls tiles show.
 
 substitutions:
   name: daruma-desktop
@@ -58,11 +59,35 @@ packages:
   app_weather: !include
     file: ../packages/app_weather.yaml
     vars: { entity: weather.demo }
+  app_controls: !include
+    file: ../packages/app_controls.yaml
+    vars:
+      tiles:
+        - { entity: light.desk_lamp, label: Desk lamp }
+        - { entity: media_player.office, label: Music }
+        - { entity: scene.movie_night, label: Movie, icon: "mdi:movie" }
+        - { entity: fan.desk, label: Fan }
+        - { entity: cover.blinds, label: Blinds, icon: "mdi:blinds" }
+        - { entity: sensor.office_co2, label: CO2, icon: "mdi:molecule-co2" }
+        - { entity: sensor.office_temperature, label: Office, icon: "mdi:thermometer" }
+        - { entity: switch.kettle, label: Kettle, icon: "mdi:coffee-maker" }
+  # One room, icons alone.
+  app_room: !include
+    file: ../packages/app_controls.yaml
+    vars:
+      app_id: room
+      app_name: Room
+      icons_only: true
+      tiles:
+        - { entity: light.ceiling, label: Ceiling, icon: "mdi:ceiling-light" }
+        - { entity: light.floor_lamp, label: Floor lamp, icon: "mdi:lamp" }
+        - { entity: fan.ceiling, label: Fan }
+        - { entity: sensor.office_temperature, label: Temperature }
   prompts: !include ../packages/prompts.yaml
   quiet: !include ../packages/quiet.yaml
 
 daruma:
-  apps: [tasks, calendar, weather, stats]
+  apps: [tasks, calendar, weather, stats, controls, room]
   progress:
     pomodoro: 1
   # A tap on the persona opens the default main menu (Tasks, Calendar,

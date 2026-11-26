@@ -1,0 +1,186 @@
+# Controls app for Daruma: a few Home Assistant entities with their live
+# state. Needs core.yaml and menu.yaml (apps live on the menu's app board).
+#
+# A grid of tiles: 2 by 2 on 320x240, 3 by 2 on wide screens. Each tile
+# shows an icon, a short label and the state ("On · 60%", "21°",
+# "Playing"). A tap acts at once:
+#
+#   light, switch, fan, input_boolean   toggle; shows on/off, a light's brightness
+#   scene, script                       turn on / run; a check mark for a moment
+#   media_player                        play/pause; shows the title while playing
+#   cover                               open, close, or stop while it moves; shows the position
+#   sensor                              nothing; shows the value and unit
+#
+# With `icons_only: true` a tile shows its icon alone: 4 by 3 on 320x240,
+# 6 by 3 on wide screens. The lit rim and icon still show on and off; a
+# sensor shows its value instead of an icon.
+#
+# A long press on a light or a fan opens its level: a wide bar. A tap on
+# the bar sets the brightness or the speed there (a fan snaps to its
+# speeds); a tap on the top row toggles it. Back returns to the tiles.
+#
+# A long press on a media player opens its panel: the title and artist,
+# previous, play/pause and next, and a volume bar. Previous, next and the
+# volume show only when HA says the player supports them.
+#
+# A tile greys out while its entity is unavailable, and while HA is away.
+# More tiles than fit go on more pages: swipe left or right, or NEXT and
+# PREV on a board without touch.
+#
+#   packages:
+#     daruma:
+#       url: https://github.com/igrybkov/daruma
+#       ref: main
+#       files:
+#         - path: packages/app_controls.yaml
+#           vars:
+#             tiles:
+#               - { entity: light.desk, label: Desk }
+#               - { entity: scene.movie, label: Movie, icon: "mdi:movie" }
+#               - { entity: media_player.office, label: Music }
+#               - { entity: sensor.office_co2, label: CO2 }
+#
+# A tile: `entity`, an optional `label` (default: the entity's name part)
+# and an optional `icon`. The build fails on another domain, or on an icon
+# it does not know (daruma_controls/__init__.py lists them). Each icon must
+# be in menu.yaml's icon font; the error names the line to add.
+#
+# The state comes from HA as it changes: no polling. A tap calls an HA
+# action, so the device needs "Allow the device to perform Home Assistant
+# actions" turned on (Settings > Devices > ESPHome > your device >
+# Configure), as for Tasks and Calendar.
+#
+# Copies: include it again with another app_id and app_name for a second
+# page of controls ("App: Lights"). Put every app_id in daruma: apps:.
+#
+# Words: the text_* values below are the English defaults of the theme
+# words <app_id>.on, .off, .playing, .paused, .idle, .open, .closed,
+# .opening, .closing, .unavailable and .status_on ({count}, the board
+# tile's line). Color: <app_id>.on (a lit tile's rim and icon).
+
+defaults:
+  app_id: controls
+  app_name: Controls
+  # The tiles: a list of { entity, label, icon }. Give at least one.
+  tiles: []
+  # true: the icon alone on each tile, smaller, twice as many on a page.
+  icons_only: false
+  color: "F5A524"
+  text_on: "On"
+  text_off: "Off"
+  text_playing: "Playing"
+  text_paused: "Paused"
+  text_idle: "Idle"
+  text_open: "Open"
+  text_closed: "Closed"
+  text_opening: "Opening"
+  text_closing: "Closing"
+  text_unavailable: "Unavailable"
+  text_status_on: "{count} on"
+
+external_components:
+  - source:
+      type: local
+      path: ../src/esphome/components
+    components: [daruma_controls]
+
+daruma_controls:
+  - id: ${app_id}_app
+    icon_font: font_icons
+    tiles: ${tiles}
+    icons_only: ${icons_only}
+
+color:
+  - id: ${app_id}_color
+    hex: "${color}"
+
+daruma:
+  modules:
+    - name: ${app_id}
+      apps:
+        - id: ${app_id}
+          name: ${app_name}
+      theme:
+        colors:
+          "on": "F5B82E"
+        words:
+          "on": "${text_on}"
+          "off": "${text_off}"
+          playing: "${text_playing}"
+          paused: "${text_paused}"
+          idle: "${text_idle}"
+          open: "${text_open}"
+          closed: "${text_closed}"
+          opening: "${text_opening}"
+          closing: "${text_closing}"
+          unavailable: "${text_unavailable}"
+          status_on: "${text_status_on}"
+      setup: |-
+        auto *c = id(${app_id}_app);
+        c->set_theme_prefix("${app_id}");
+        c->set_actor([](const std::string &action, const std::string &entity) {
+          id(${app_id}_act).execute(action, entity);
+        });
+        c->set_leveler([](const std::string &entity, int level) {
+          id(${app_id}_level).execute(entity, level);
+        });
+
+        Daruma::App app;
+        app.id = "${app_id}";
+        app.name = "${app_name}";
+        app.icon = "\U000F0335";  // lightbulb
+        app.color = id(${app_id}_color);
+        app.status = [c]() { return c->status(); };
+        app.draw = [c](Daruma::AppView &v) { c->draw(v); };
+        app.input = [c](Daruma::Input input, int x, int y) { return c->input(input, x, y); };
+        app.on_open = [c]() { c->on_open(); };
+        app.on_close = [c]() { c->on_close(); };
+        app.back = [c]() { return c->back(); };
+        hub.add_app(app);
+
+script:
+  # One tap: HA's `action` on `entity`. No reply is wanted, so it skips the
+  # hub's gate for HA calls (ha_calls.h).
+  - id: ${app_id}_act
+    mode: queued
+    parameters:
+      action: string
+      entity: string
+    then:
+      - homeassistant.action:
+          action: !lambda return action;
+          data:
+            entity_id: !lambda return entity;
+
+  # A light's brightness, a fan's speed or a player's volume, from a panel.
+  - id: ${app_id}_level
+    mode: queued
+    parameters:
+      entity: string
+      level: int
+    then:
+      - if:
+          condition:
+            lambda: 'return entity.rfind("fan.", 0) == 0;'
+          then:
+            - homeassistant.action:
+                action: fan.set_percentage
+                data:
+                  entity_id: !lambda return entity;
+                  percentage: !lambda return std::to_string(level);
+          else:
+            - if:
+                condition:
+                  lambda: 'return entity.rfind("media_player.", 0) == 0;'
+                then:
+                  - homeassistant.action:
+                      action: media_player.volume_set
+                      data:
+                        entity_id: !lambda return entity;
+                        volume_level: !lambda 'return esphome::str_sprintf("%.2f", level / 100.0);'
+                else:
+                  - homeassistant.action:
+                      action: light.turn_on
+                      data:
+                        entity_id: !lambda return entity;
+                        brightness_pct: !lambda return std::to_string(level);

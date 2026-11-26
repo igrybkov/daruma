@@ -293,6 +293,17 @@ def test_parse_part_rejects(text: str) -> None:
         mutmut_steps.parse_part(text)
 
 
+def test_targets_skip_files_that_are_not_python() -> None:
+    # A component folder holds C++ headers next to its Python.
+    changed = {
+        "src/esphome/components/daruma_weather/weather.h": {1, 2, 3},
+        "src/esphome/components/daruma_weather/__init__.py": set(range(1, 200)),
+    }
+    targets = mutate_py._targets(changed)
+    assert targets
+    assert {path for path, _ in targets.values()} == {"src/esphome/components/daruma_weather/__init__.py"}
+
+
 @pytest.mark.parametrize(("functions", "parts"), [(0, "[1]"), (20, "[1]"), (21, "[1, 2, 3]")])
 def test_more_than_the_threshold_of_functions_runs_in_three_parts(
     monkeypatch, tmp_path: Path, functions: int, parts: str

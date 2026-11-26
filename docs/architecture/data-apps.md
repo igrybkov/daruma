@@ -77,3 +77,27 @@ Apps that show Home Assistant data: Tasks, Weather, Calendar and the next event 
     corgi at 480x272, 240x240 and mono: idle, a focus, a break and a
     pause, with the plaque and the badge. `--before` draws the old
     layout for comparison.
+- **Controls** (`app_controls.yaml`, component `daruma_controls`). A grid
+  of HA entities with their live state; a tap acts.
+  - The domain picks the kind: what a tap does, the one attribute read
+    and the state line. Plain C++ in
+    `src/esphome/components/daruma_controls/controls.h`, tested in
+    `tests/test_controls.cpp`.
+  - State comes from HA subscriptions, not fetches. See
+    [HA states the device follows](home-assistant.md#ha-states-the-device-follows).
+  - A tap runs the package's script with `homeassistant.action`. It wants
+    no reply, so it skips the hub's gate.
+  - The grid is the board's: `grid_cols` by `grid_rows`. More tiles go on
+    pages with dots under the grid. `icons_only` doubles the columns and
+    adds a row; a short list of icons sits in the middle.
+  - The build checks each tile
+    (`src/esphome/components/daruma_controls/__init__.py`): a known
+    domain, an icon from `ICONS`, and that icon in the icon font.
+    `menu.yaml` lists every icon in `ICONS`;
+    `tests/test_controls_config.py` checks it.
+  - A long press opens a panel for a light, fan or media player
+    (`draw_panel_`): a level bar, or a player's buttons and volume. A
+    player's `supported_features` decides which buttons show.
+  - On the desktop, the runner plays HA for the tiles: `CONTROLS` in
+    `demos/demo_data.py` holds the states, and a tap changes them.
+    `device.ha_state()` changes one from a test.

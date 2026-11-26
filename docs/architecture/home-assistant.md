@@ -32,3 +32,21 @@ cases we can:
 A home's own things stay in its own config: entity IDs, automations and
 any private personas. Everything the device sends to HA carries its
 `device_id`, so one automation or blueprint can serve every device.
+
+## HA states the device follows
+
+A component can follow an HA entity without a `homeassistant` sensor. The
+Controls app does: `global_api_server->subscribe_home_assistant_state()`
+for the state, and once more for an attribute.
+
+- Subscribe in `setup()`. HA reads the list of subscriptions when it
+  connects. One added later reaches HA only after a reconnect.
+- Use the `std::string` overload. The `const char *` one keeps the
+  pointer, not the text.
+- Copy the `StringRef` in the callback. It does not outlive the call.
+- Add the define `USE_API_HOMEASSISTANT_STATES` in `to_code`, or the
+  subscription code is not built.
+- HA sends every state again when it connects. Drop the old ones when it
+  goes away, or a tile shows a stale state.
+- The runner on the desktop answers subscriptions from `demos/demo_data.py`
+  (`Device._on_ha_subscription` in `demos/harness.py`).

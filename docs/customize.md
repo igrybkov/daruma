@@ -553,13 +553,32 @@ Built in:
 | Tasks | [app_tasks.yaml](../packages/app_tasks.yaml) | today's tasks from a to-do list or a script; tap to check one off |
 | Calendar | [app_calendar.yaml](../packages/app_calendar.yaml) | the Agenda of your coming events, and a day view |
 | Weather | [app_weather.yaml](../packages/app_weather.yaml) | now, today's high and low, rain, wind, the next hours |
+| Controls | [app_controls.yaml](../packages/app_controls.yaml) | a few HA entities with their live state; a tap toggles or runs one |
 
 - **Order.** `daruma: apps: [tasks, calendar, weather, stats]` sets the
   order on the app board.
 - **On and off.** Each app gets an "App: Name" switch in Home Assistant.
   An app that is off leaves the board and stops fetching.
-- **Copies.** Include `app_tasks.yaml` or `app_calendar.yaml` again with
-  another `app_id` for a second list or calendar set:
+- **Controls.** List the tiles in the package's `tiles` var. A tile is an
+  entity, a label and an optional icon:
+
+  ```yaml
+      - path: packages/app_controls.yaml
+        vars:
+          tiles:
+            - { entity: light.desk, label: Desk }
+            - { entity: scene.movie, label: Movie, icon: "mdi:movie" }
+            - { entity: media_player.office, label: Music }
+            - { entity: sensor.office_co2, label: CO2 }
+  ```
+
+  The header of [app_controls.yaml](../packages/app_controls.yaml) lists
+  what a tap does for each kind of entity. With `icons_only: true` the
+  tiles show their icons alone, smaller, and more fit on a page. That
+  suits one room with a few lights and a fan.
+- **Copies.** Include `app_tasks.yaml`, `app_calendar.yaml` or
+  `app_controls.yaml` again with another `app_id` for a second list,
+  calendar set or page of controls:
 
   ```yaml
       - path: packages/app_calendar.yaml

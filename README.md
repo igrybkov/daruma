@@ -47,6 +47,8 @@ Each part is a package. Include it to turn it on. Leave it out to drop it.
 - **Calendar**: the Agenda of your coming events, and the next event on
   the persona's screen.
 - **Weather**: now, today's high and low, rain, wind and the next hours.
+- **Controls**: a few Home Assistant lights, scenes, players, covers
+  and sensors with their live state. One tap toggles or runs one.
 - **Prompts**: Home Assistant puts a card on the screen and gets the
   answer back: a doorbell with Unlock and Talk, a quiz with a countdown,
   a yes/no question.
@@ -64,10 +66,12 @@ Each part is a package. Include it to turn it on. Leave it out to drop it.
 | **Start a focus block** | **Focus, on the persona's screen** | **The Pomodoro page** |
 | ![The app board: Tasks, Calendar, Weather and Pomodoro](docs/demos/screens/daruma-apps.png) | ![Tasks: one task checked off](docs/demos/screens/daruma-tasks.png) | ![Weather: now, the high and low, and the next hours](docs/demos/screens/daruma-weather.png) |
 | **Apps** | **Tasks** | **Weather** |
-| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-calendar.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-calendar-day.png) | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |
-| **Calendar: the Agenda** | **Calendar: one day** | **Voice assistant** |
+| ![Calendar: the Agenda of today's events](docs/demos/screens/daruma-calendar.png) | ![Calendar: today's day view with start and end times](docs/demos/screens/daruma-calendar-day.png) | ![Controls: a lamp on, music playing, a scene and an unavailable fan](docs/demos/screens/daruma-controls.png) |
+| **Calendar: the Agenda** | **Calendar: one day** | **Controls** |
 | ![A yes/no question: turn the lights off?](docs/demos/screens/daruma-question.png) | ![A doorbell card: Unlock, Talk, Ignore](docs/demos/screens/daruma-doorbell.png) | ![A quiz question with four answers and a countdown](docs/demos/screens/daruma-quiz.png) |
 | **A question from Home Assistant** | **The doorbell** | **A quiz** |
+|  | ![The voice assistant: "Will it rain tomorrow?"](docs/demos/screens/daruma-voice.png) |  |
+|  | **Voice assistant** |  |
 
 ![Daruma at work: a focus block reaches the day's goal, a task is checked off, the Calendar's Agenda, the weather, and a question from Home Assistant](docs/demos/daruma-work.gif)
 
